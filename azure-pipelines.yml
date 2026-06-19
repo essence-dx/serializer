@@ -1,0 +1,112 @@
+trigger: none
+
+pr: none
+
+parameters:
+  - name: releaseArtifacts
+    displayName: Build release artifacts
+    type: boolean
+    default: false
+
+variables:
+  RUST_TOOLCHAIN: "1.94.0"
+  CARGO_TERM_COLOR: always
+
+stages:
+  - stage: Validate
+    displayName: Validate
+    jobs:
+      - job: linux_check
+        displayName: Linux check
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: self
+            clean: true
+
+          - bash: |
+              set -euo pipefail
+              rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal
+              rustup default "${RUST_TOOLCHAIN}"
+              cargo metadata --locked --no-deps --format-version 1
+              cargo check --locked --lib --bins --tests --examples
+            displayName: Cargo check
+
+  - ${{ if eq(parameters.releaseArtifacts, true) }}:
+      - stage: Release
+        displayName: Release artifacts
+        dependsOn: Validate
+        jobs:
+          - job: linux_release
+            displayName: Linux release
+            pool:
+              vmImage: ubuntu-latest
+            steps:
+              - checkout: self
+                clean: true
+
+              - bash: |
+                  set -euo pipefail
+                  rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal
+                  rustup default "${RUST_TOOLCHAIN}"
+                  cargo build --locked --release --bin dx-serialize
+                  mkdir -p dist
+                  cp target/release/dx-serialize dist/dx-serialize
+                  short_sha="$(printf "%.12s" "${BUILD_SOURCEVERSION}")"
+                  archive="dx-serializer-linux-x86_64-${short_sha}.tar.gz"
+                  tar -czf "dist/${archive}" -C dist dx-serialize
+                  (cd dist && shasum -a 256 "${archive}" > SHA256SUMS.txt)
+                displayName: Build Linux binary
+
+              - publish: dist
+                artifact: dx-serializer-linux-x86_64
+
+          - job: windows_release
+            displayName: Windows release
+            pool:
+              vmImage: windows-latest
+            steps:
+              - checkout: self
+                clean: true
+
+              - pwsh: |
+                  $ErrorActionPreference = "Stop"
+                  rustup toolchain install $env:RUST_TOOLCHAIN --profile minimal
+                  rustup default $env:RUST_TOOLCHAIN
+                  cargo build --locked --release --bin dx-serialize
+                  New-Item -ItemType Directory -Path dist -Force | Out-Null
+                  Copy-Item -LiteralPath "target\release\dx-serialize.exe" -Destination "dist\dx-serialize.exe"
+                  $shortSha = $env:BUILD_SOURCEVERSION.Substring(0, 12)
+                  $archive = "dx-serializer-windows-x86_64-$shortSha.zip"
+                  Compress-Archive -Path "dist\*.exe" -DestinationPath "dist\$archive" -Force
+                  $hash = Get-FileHash -Algorithm SHA256 -LiteralPath "dist\$archive"
+                  "$($hash.Hash.ToLowerInvariant())  $archive" | Set-Content -LiteralPath "dist\SHA256SUMS.txt" -Encoding ASCII
+                displayName: Build Windows binary
+
+              - publish: dist
+                artifact: dx-serializer-windows-x86_64
+
+          - job: macos_release
+            displayName: macOS release
+            pool:
+              vmImage: macOS-latest
+            steps:
+              - checkout: self
+                clean: true
+
+              - bash: |
+                  set -euo pipefail
+                  rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal
+                  rustup default "${RUST_TOOLCHAIN}"
+                  cargo build --locked --release --bin dx-serialize
+                  mkdir -p dist
+                  cp target/release/dx-serialize dist/dx-serialize
+                  short_sha="$(printf "%.12s" "${BUILD_SOURCEVERSION}")"
+                  architecture="$(uname -m)"
+                  archive="dx-serializer-macos-${architecture}-${short_sha}.tar.gz"
+                  tar -czf "dist/${archive}" -C dist dx-serialize
+                  (cd dist && shasum -a 256 "${archive}" > SHA256SUMS.txt)
+                displayName: Build macOS binary
+
+              - publish: dist
+                artifact: dx-serializer-macos
