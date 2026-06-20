@@ -525,3 +525,16 @@ active:+";
         let _ = result;
     }
 }
+
+// Temporary shims for flow crate compatibility
+#[cfg(feature = "serde_json")]
+#[allow(missing_docs)]
+pub fn encode_default(value: &serde_json::Value) -> std::result::Result<String, String> {
+    serde_json::to_string(value).map_err(|e| e.to_string())
+}
+
+#[cfg(feature = "serde_json")]
+#[allow(missing_docs)]
+pub fn decode_default(toon_str: &str) -> std::result::Result<serde_json::Value, String> {
+    serde_json::from_str(toon_str).map_err(|e| e.to_string())
+}
