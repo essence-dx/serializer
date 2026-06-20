@@ -1,4 +1,6 @@
 //! SIMD optimizations for DX-Machine
+#![allow(unsafe_code)]
+#![allow(unsafe_op_in_unsafe_fn)]
 //!
 //! This module provides vectorized operations for:
 //! - String comparison (SSE4.2 / AVX2)
