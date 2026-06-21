@@ -35,8 +35,8 @@ jobs:
             New-Item -ItemType Directory -Path dist -Force | Out-Null
             
             # Try specific naming to dx-serializer.exe
-            if (Test-Path "target\release\serializer.exe") {
-                Copy-Item -Path "target\release\serializer.exe" -Destination "dist\dx-serializer.exe" -Force
+            if (Test-Path "target\release\serialize.exe") {
+                Copy-Item -Path "target\release\serialize.exe" -Destination "dist\dx-serializer.exe" -Force
             }
             if (Test-Path "target\release\dx-serializer.exe") {
                 Copy-Item -Path "target\release\dx-serializer.exe" -Destination "dist\dx-serializer.exe" -Force
@@ -77,6 +77,7 @@ workflows:
     when: << pipeline.parameters.release_artifacts >>
     jobs:
       - windows-release
+
 
 
 
