@@ -34,12 +34,8 @@ jobs:
             cargo build --release
             New-Item -ItemType Directory -Path dist -Force | Out-Null
             
-            # Try specific naming to dx-serializer.exe
-            if (Test-Path "target\release\dx_serialize.exe") {
-                Copy-Item -Path "target\release\dx_serialize.exe" -Destination "dist\dx-serializer.exe" -Force
-            }
-            if (Test-Path "target\release\dx_serialize.exe") {
-                Copy-Item -Path "target\release\dx_serialize.exe" -Destination "dist\dx-serializer.exe" -Force
+            if (Test-Path "target\release\dx-serialize.exe") {
+                Copy-Item -Path "target\release\dx-serialize.exe" -Destination "dist\dx-serializer.exe" -Force
             }
             if (Test-Path "target\release\search_cli.exe") {
                 # for metasearch or similar
