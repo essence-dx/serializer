@@ -207,7 +207,7 @@ name = "arena_benchmark"
 harness = false
 
 [[bin]]
-name = "dx-serialize"
+name = "dx-serializer"
 path = "src/bin/serialize.rs"
 
 [[bench]]
