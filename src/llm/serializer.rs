@@ -44,14 +44,10 @@ use crate::llm::types::{DxDocument, DxLlmValue, DxSection};
 use indexmap::IndexMap;
 
 /// Configuration options for the serializer
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct SerializerConfig {
-    /// Use legacy comma-separated format for arrays and schemas
-    pub legacy_mode: bool,
-    /// Enable prefix elimination optimization for tables
-    pub prefix_elimination: bool,
-    /// Enable compact syntax for objects (@= format)
-    pub compact_syntax: bool,
+    /// Compact mode: single-line sections (rows space-separated on one line)
+    pub compact: bool,
 }
 
 /// Serialize `DxDocument` to Dx Serializer format
@@ -60,7 +56,6 @@ pub struct LlmSerializer {
 }
 
 impl LlmSerializer {
-    #[allow(dead_code)] // Methods reserved for future serialization features
     /// Create a new serializer with default configuration
     #[must_use]
     pub fn new() -> Self {
@@ -153,18 +148,17 @@ impl LlmSerializer {
     }
 
     const fn inline_value_separator(&self) -> &'static str {
-        if self.config.legacy_mode { "," } else { " " }
+        " "
     }
 
     const fn schema_separator(&self) -> &'static str {
-        if self.config.legacy_mode { "," } else { " " }
+        " "
     }
 
     /// Serialize a context entry in Dx Serializer format
     fn serialize_context_entry(&self, key: &str, value: &DxLlmValue) -> String {
         match value {
             DxLlmValue::Arr(items) => {
-                // Array: name=[item1 item2 item3] (square brackets)
                 let items_str: Vec<String> =
                     items.iter().map(|v| self.serialize_value(v)).collect();
                 format!(
@@ -173,12 +167,8 @@ impl LlmSerializer {
                     items_str.join(self.inline_value_separator())
                 )
             }
-            DxLlmValue::Obj(fields) => {
-                // Object: name(key1=value1 key2=value2) (parentheses)
-                self.serialize_inline_object(key, fields)
-            }
+            DxLlmValue::Obj(fields) => self.serialize_inline_object(key, fields),
             _ => {
-                // Simple key=value
                 format!("{}={}", key, self.serialize_value(value))
             }
         }
@@ -189,7 +179,6 @@ impl LlmSerializer {
         let fields_str: Vec<String> = fields
             .iter()
             .map(|(k, v)| {
-                // Handle nested arrays: key=[item1 item2]
                 if let DxLlmValue::Arr(items) = v {
                     let items_str: Vec<String> = items
                         .iter()
@@ -208,211 +197,41 @@ impl LlmSerializer {
         )
     }
 
-    /// Choose the appropriate row separator based on data characteristics
-    ///
-    /// Heuristics:
-    /// 1. If >= 8 rows, use newline for readability
-    /// 2. If schema contains "timestamp" or "log", use colon
-    /// 3. If rows contain complex data (nested objects/arrays), use semicolon
-    /// 4. If string values contain commas, use newline
-    /// 5. Default to comma for simple inline tables
-    #[allow(dead_code)]
-    fn choose_row_separator(&self, section: &DxSection) -> char {
-        // Heuristic 1: Large tables use newlines for readability
-        if section.rows.len() >= 8 {
-            return '\n';
-        }
-
-        // Heuristic 2: Log-style data uses colons
-        if section.schema.iter().any(|col| {
-            let col_lower = col.to_lowercase();
-            col_lower.contains("timestamp") || col_lower.contains("log")
-        }) {
-            return ':';
-        }
-
-        // Heuristic 3: Complex data (nested objects/arrays) uses semicolons
-        let has_complex = section.rows.iter().any(|row| {
-            row.iter()
-                .any(|val| matches!(val, DxLlmValue::Obj(_) | DxLlmValue::Arr(_)))
-        });
-        if has_complex {
-            return ';';
-        }
-
-        // Heuristic 4: If string values contain commas, use newline to avoid conflicts
-        let has_commas_in_values = section.rows.iter().any(|row| {
-            row.iter().any(|val| {
-                if let DxLlmValue::Str(s) = val {
-                    s.contains(',')
-                } else {
-                    false
-                }
-            })
-        });
-        if has_commas_in_values {
-            return '\n';
-        }
-
-        // Heuristic 5: Default to comma for simple inline tables
-        ','
-    }
-
     /// Serialize a table section with string name using wrapped dataframe format
     /// Format: name[col1 col2 col3](rows)
+    /// When compact mode is enabled, rows are inlined on a single line.
     fn serialize_section_with_name(&self, section_name: &str, section: &DxSection) -> String {
-        // Check if prefix elimination is enabled
-        if self.config.prefix_elimination {
-            if let Some(output) =
-                self.try_serialize_with_prefix_elimination_named(section_name, section)
-            {
-                return output;
-            }
-        }
-
-        // Fall back to regular serialization
-        self.serialize_section_without_prefix_elimination_named(section_name, section)
-    }
-
-    /// Serialize a section with a specific row separator
-    #[allow(dead_code)] // Reserved for future serialization features
-    fn serialize_section_with_separator(
-        &self,
-        section_id: char,
-        section: &DxSection,
-        _separator: char,
-    ) -> String {
-        // Convert char to string and use named version
-        let name = section_id.to_string();
-        self.serialize_section_with_name(&name, section)
-    }
-
-    /// Try to serialize a section with prefix elimination using wrapped dataframe format
-    /// Format: name[col1 col2 col3]@prefix(rows)
-    fn try_serialize_with_prefix_elimination_named(
-        &self,
-        section_name: &str,
-        section: &DxSection,
-    ) -> Option<String> {
-        // Detect prefixes for each column
-        let prefixes: Vec<Option<String>> = (0..section.schema.len())
-            .map(|i| self.detect_common_prefix(section, i))
-            .collect();
-
-        // Only use prefix elimination if at least one prefix was found
-        if prefixes.iter().all(std::option::Option::is_none) {
-            return None;
-        }
-
         let mut output = String::new();
 
-        // Headers: name[col1 col2 col3]
-        let schema_str = section.schema.join(self.schema_separator());
-        output.push_str(&format!("{section_name}[{schema_str}]"));
-
-        // Output prefix markers
-        for prefix in prefixes.iter().flatten() {
-            output.push_str(&format!("@{prefix}"));
-        }
-
-        output.push('(');
-
-        if !section.rows.is_empty() {
-            // Wrapped dataframe: rows inside parentheses, one per line
-            output.push('\n');
-            for row in &section.rows {
-                let values: Vec<String> = row
-                    .iter()
-                    .enumerate()
-                    .map(|(i, v)| self.serialize_table_value_with_prefix_removed(v, &prefixes[i]))
-                    .collect();
-                output.push_str(&values.join(" "));
-                output.push('\n');
-            }
-        }
-
-        output.push(')');
-        Some(output)
-    }
-
-    /// Serialize a section without prefix elimination using wrapped dataframe format
-    /// Format: name[col1 col2 col3](rows)
-    fn serialize_section_without_prefix_elimination_named(
-        &self,
-        section_name: &str,
-        section: &DxSection,
-    ) -> String {
-        let mut output = String::new();
-
-        // Headers: name[col1 col2 col3]
         let schema_str = section.schema.join(self.schema_separator());
         output.push_str(&format!("{section_name}[{schema_str}]("));
 
         if !section.rows.is_empty() {
-            // Wrapped dataframe: rows inside parentheses, one per line
-            output.push('\n');
-            for row in &section.rows {
-                let values: Vec<String> =
-                    row.iter().map(|v| self.serialize_table_value(v)).collect();
-                output.push_str(&values.join(" "));
+            if self.config.compact {
+                let row_parts: Vec<String> = section
+                    .rows
+                    .iter()
+                    .map(|row| {
+                        row.iter()
+                            .map(|v| self.serialize_table_value(v))
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                    })
+                    .collect();
+                output.push_str(&row_parts.join(" "));
+            } else {
                 output.push('\n');
+                for row in &section.rows {
+                    let values: Vec<String> =
+                        row.iter().map(|v| self.serialize_table_value(v)).collect();
+                    output.push_str(&values.join(" "));
+                    output.push('\n');
+                }
             }
         }
 
         output.push(')');
         output
-    }
-
-    /// Detect common prefix in a column
-    /// Returns Some(prefix) if a common prefix >= 3 characters is found
-    fn detect_common_prefix(&self, section: &DxSection, col_idx: usize) -> Option<String> {
-        if section.rows.len() < 2 {
-            return None;
-        }
-
-        // Extract string values from this column
-        let strings: Vec<&str> = section
-            .rows
-            .iter()
-            .filter_map(|row| row.get(col_idx).and_then(|v| v.as_str()))
-            .collect();
-
-        if strings.len() < 2 {
-            return None;
-        }
-
-        // Find longest common prefix
-        let mut prefix = strings[0].to_string();
-        for s in &strings[1..] {
-            while !s.starts_with(&prefix) && !prefix.is_empty() {
-                prefix.pop();
-            }
-        }
-
-        // Only use prefix if it's at least 3 characters
-        if prefix.len() >= 3 {
-            Some(prefix)
-        } else {
-            None
-        }
-    }
-
-    /// Serialize a table value with prefix removed
-    fn serialize_table_value_with_prefix_removed(
-        &self,
-        value: &DxLlmValue,
-        prefix: &Option<String>,
-    ) -> String {
-        if let (DxLlmValue::Str(s), Some(p)) = (value, prefix) {
-            if s.starts_with(p) {
-                let without_prefix = &s[p.len()..];
-                without_prefix.to_string()
-            } else {
-                self.serialize_table_value(value)
-            }
-        } else {
-            self.serialize_table_value(value)
-        }
     }
 
     /// Serialize a table value for table rows with quotes for multi-word strings

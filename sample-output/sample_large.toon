@@ -1,0 +1,48 @@
+project: DX Serializer
+version: 1.0.0
+license: MIT
+language: Rust
+status: production
+repository: "https://github.com/dx-www/dx-www"
+docs: "https://docs.rs/dx-serializer"
+keywords[8]: serialization,parser,performance,zero-copy,token-efficient,llm,rkyv,wasm
+features[7]: converters,compression,serde-compat,wasm,tiktoken,parallel,watch
+dependencies[21]{name,version,optional}:
+  serde,1.0.228,true
+  serde_json,1.0.150,true
+  serde_yaml,0.9.34,true
+  toml,0.8.23,true
+  rkyv,0.8.16,false
+  bincode,1.3.3,true
+  lz4_flex,"0.11",true
+  zstd,"0.13",true
+  rayon,1.12.0,true
+  memmap2,"0.9",true
+  tiktoken-rs,"0.6",true
+  tokenizers,"0.21",true
+  notify,"6.1",true
+  blake3,"1.5",false
+  thiserror,"2.0",false
+  indexmap,"2.7",false
+  hashbrown,"0.15",false
+  rustc-hash,"1.1",false
+  bytes,"1.5",false
+  memchr,"2.7",false
+  bytemuck,"1.18",false
+"dev-dependencies"[5]{name,version,optional}:
+  criterion,"0.5",false
+  proptest,"1.11",false
+  tempfile,"3.27",false
+  postcard,"1.0",false
+  hex,"0.4",false
+team[10]{name,role,location,years}:
+  Alice Chen,Architect,SF,12
+  Bob Smith,Engineer,NYC,8
+  Carol Davis,Engineer,London,6
+  Diana Lee,Designer,SF,5
+  Evan Wu,Engineer,Tokyo,4
+  Fiona Brown,QA,London,3
+  George Kim,Architect,SF,10
+  Hannah Liu,Engineer,NYC,7
+  Ian Patel,Designer,London,4
+  Julia Torres,Engineer,SF,6

@@ -1,0 +1,29 @@
+{
+  "name": "serializer",
+  "version": "1.0.0",
+  "description": "Token-optimized serialization format for AI context windows with 52-73% token savings vs JSON and pure RKYV binary format.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "example": "examples",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/essence-dx/serializer.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/essence-dx/serializer/issues"
+  },
+  "homepage": "https://github.com/essence-dx/serializer#readme",
+  "dependencies": {
+    "@toon-format/toon": "^2.3.0"
+  }
+}

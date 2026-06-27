@@ -99,15 +99,10 @@ mod llm_format {
 
         let llm = document_to_llm(&doc);
 
-        // Dx Serializer format: arrays serialize as name:count=item1 item2 item3 (space-separated)
+        // DX LLM format: arrays serialize as name=[item1 item2] (space-separated, square brackets)
         assert!(
-            llm.contains("tags[3]") || llm.contains("tags:3"),
-            "Should contain tags[3] or tags:3: {llm}"
-        );
-        // New format uses space separators
-        assert!(
-            llm.contains("a b c") || llm.contains("a,b,c"),
-            "Should contain space-separated or comma-separated items: {llm}"
+            llm.contains("tags=[a b c]"),
+            "Should contain tags=[a b c]: {llm}"
         );
 
         let parsed = llm_to_document(&llm).unwrap();

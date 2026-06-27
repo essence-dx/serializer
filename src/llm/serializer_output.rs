@@ -20,9 +20,11 @@
 #[cfg(feature = "converters")]
 use crate::converters::{json_to_document, toml_to_document};
 use crate::llm::convert::{
-    CompressionAlgorithm, ConvertError, document_to_llm, llm_to_document,
+    CompressionAlgorithm, ConvertError, document_to_formatted_llm, document_to_human,
+    document_to_llm, document_to_llm_with_config, llm_to_document,
     try_document_to_machine_with_compression,
 };
+use crate::llm::serializer::SerializerConfig;
 use crate::llm::types::DxDocument;
 use std::fs;
 use std::io::{self, Write};
@@ -71,6 +73,12 @@ pub struct SerializerOutputConfig {
     pub compression: CompressionAlgorithm,
     /// Generate source/machine validation metadata for cache readers
     pub generate_metadata: bool,
+    /// LLM serializer configuration (compact syntax, prefix elimination, etc.)
+    pub serializer_config: SerializerConfig,
+    /// Generate human-readable (beautified) output instead of LLM format
+    pub beautify: bool,
+    /// Generate formatted LLM output (spaces around `=`, indented sections)
+    pub format_llm: bool,
 }
 
 impl Default for SerializerOutputConfig {
@@ -81,6 +89,9 @@ impl Default for SerializerOutputConfig {
             generate_machine: true,
             compression: CompressionAlgorithm::default(),
             generate_metadata: false,
+            serializer_config: SerializerConfig::default(),
+            beautify: false,
+            format_llm: false,
         }
     }
 }
@@ -123,6 +134,27 @@ impl SerializerOutputConfig {
     #[must_use] 
     pub const fn with_metadata(mut self, generate: bool) -> Self {
         self.generate_metadata = generate;
+        self
+    }
+
+    /// Set the LLM serializer configuration.
+    #[must_use] 
+    pub const fn with_serializer_config(mut self, config: SerializerConfig) -> Self {
+        self.serializer_config = config;
+        self
+    }
+
+    /// Set beautify mode (human-readable output).
+    #[must_use] 
+    pub const fn with_beautify(mut self, beautify: bool) -> Self {
+        self.beautify = beautify;
+        self
+    }
+
+    /// Set formatted LLM mode.
+    #[must_use] 
+    pub const fn with_format_llm(mut self, format_llm: bool) -> Self {
+        self.format_llm = format_llm;
         self
     }
 }
@@ -236,9 +268,19 @@ impl SerializerOutput {
             machine_size: 0,
         };
 
-        // Generate LLM format (compact, token-efficient)
+        // Generate LLM format (or beautified human format or formatted LLM)
         if self.config.generate_llm {
-            let llm_content = document_to_llm(doc);
+            let llm_content = if self.config.beautify {
+                document_to_human(doc)
+            } else if self.config.format_llm {
+                document_to_formatted_llm(doc)
+            } else if self.config.serializer_config
+                != SerializerConfig::default()
+            {
+                document_to_llm_with_config(doc, self.config.serializer_config.clone())
+            } else {
+                document_to_llm(doc)
+            };
             fs::write(&paths.llm, &llm_content)?;
             result.llm_generated = true;
             result.llm_size = llm_content.len();

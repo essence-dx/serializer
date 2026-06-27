@@ -2,7 +2,7 @@
 ///
 /// Converts JSON config files to ultra-optimized DX SINGULARITY format.
 /// Automatically applies all optimization rules.
-use crate::llm::types::{DxDocument, DxLlmValue, EntryRef};
+use crate::llm::types::{DxDocument, DxLlmValue, DxSection, EntryRef};
 use indexmap::IndexMap;
 use serde_json::Value;
 
@@ -23,6 +23,8 @@ pub fn json_to_dx(json_str: &str) -> Result<String, String> {
 
 /// Convert a JSON object into the shared DX document model.
 ///
+/// Arrays of uniform objects are converted to wrapped dataframes (`DxSection`),
+/// while all other values remain as context entries.
 /// This is the machine-cache path used by `SerializerOutput`: JSON is parsed
 /// once into `DxDocument`, then the normal RKYV `.machine` writer is reused.
 pub fn json_to_document(json_str: &str) -> Result<DxDocument, String> {
@@ -33,12 +35,65 @@ pub fn json_to_document(json_str: &str) -> Result<DxDocument, String> {
     };
 
     let mut doc = DxDocument::new();
+    let mut next_section_id = 'a';
+
     for (key, value) in obj {
-        doc.context.insert(key.clone(), json_value_to_dx(value));
-        doc.entry_order.push(EntryRef::Context(key));
+        if let Some(section) = array_to_section(&value) {
+            let section_id = next_section_id;
+            doc.sections.insert(section_id, section);
+            doc.section_names.insert(section_id, key.clone());
+            doc.entry_order.push(EntryRef::Section(section_id));
+            next_section_id = char::from_u32(next_section_id as u32 + 1)
+                .unwrap_or('z');
+        } else {
+            doc.context.insert(key.clone(), json_value_to_dx(value));
+            doc.entry_order.push(EntryRef::Context(key));
+        }
     }
 
     Ok(doc)
+}
+
+/// Try to convert a JSON `Value` into a `DxSection`.
+///
+/// Returns `Some(DxSection)` if the value is a non-empty array of
+/// objects that all share the exact same set of keys (uniform schema).
+/// Returns `None` for any other value type.
+/// Convert a JSON array of uniform objects into a `DxSection`.
+///
+/// Returns `Some` if the value is a non-empty array of objects that all
+/// share the exact same set of keys (uniform schema). Returns `None`
+/// for any other value type.
+fn array_to_section(value: &Value) -> Option<DxSection> {
+    let Value::Array(items) = value else { return None };
+    if items.is_empty() { return None; }
+
+    let objects: Vec<&serde_json::Map<String, Value>> = items
+        .iter()
+        .map(|item| item.as_object())
+        .collect::<Option<Vec<_>>>()?;
+
+    let first_keys: Vec<&String> = objects[0].keys().collect();
+    for obj in &objects[1..] {
+        let keys: Vec<&String> = obj.keys().collect();
+        if keys != first_keys {
+            return None;
+        }
+    }
+
+    let schema: Vec<String> = first_keys.into_iter().cloned().collect();
+    let mut section = DxSection::new(schema);
+
+    for obj in objects {
+        let mut row = Vec::new();
+        for key in &section.schema {
+            let val = obj.get(key).cloned().unwrap_or(Value::Null);
+            row.push(json_value_to_dx(val));
+        }
+        section.add_row(row).unwrap();
+    }
+
+    Some(section)
 }
 
 fn parse_json_or_jsonc(json_str: &str) -> Result<Value, String> {

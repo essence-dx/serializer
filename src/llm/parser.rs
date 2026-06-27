@@ -236,13 +236,6 @@ impl LlmParser {
     }
 }
 
-/// Prefix and suffix information for prefix elimination
-#[derive(Debug, Clone, Default)]
-struct PrefixInfo {
-    prefixes: Vec<String>,
-    suffixes: Vec<String>,
-}
-
 /// Internal parser state
 struct DsrParser<'a> {
     input: &'a str,
@@ -416,6 +409,7 @@ impl<'a> DsrParser<'a> {
             Some('=') => {
                 // NEW FORMAT: Simple key=value or array: name=[item1 item2]
                 self.advance(); // consume '='
+                self.skip_whitespace();
 
                 // Check if it's an array: =[...]
                 if self.peek_char() == Some('[') {
@@ -480,21 +474,6 @@ impl<'a> DsrParser<'a> {
                         doc.sections.insert(section_id, section);
                         doc.section_names.insert(section_id, name.clone());
                         parsed_section_id = Some(section_id);
-                    } else if self.peek_char() == Some('@') {
-                        // Check for compact syntax: name:count@=[key value key value]
-                        let next_pos = self.pos + 1;
-                        if next_pos < self.input.len() && self.input[next_pos..].starts_with('=') {
-                            // It's compact syntax
-                            let count = count_str.parse::<usize>().unwrap_or(0);
-                            let obj = self.parse_compact_object(&name, count)?;
-                            doc.context.insert(name.clone(), obj);
-                        } else {
-                            // Not compact syntax, restore position and parse as regular value
-                            self.pos = start_pos;
-                            let value_str = self.parse_until_delimiter(&['\n', '\r'])?;
-                            doc.context
-                                .insert(name.clone(), LlmParser::parse_value(&value_str));
-                        }
                     } else if self.peek_char() == Some('[') {
                         // It's an inline object with count: name:count[key=value key2=value2]
                         let obj = self.parse_inline_object(&name)?;
@@ -980,63 +959,6 @@ impl<'a> DsrParser<'a> {
         Ok(items)
     }
 
-    /// Parse compact syntax object: name:count@=[key value key value]
-    /// Format uses @= marker followed by space-separated key-value pairs without = signs
-    /// Tokens are paired up: first token is key, second is value, third is key, fourth is value, etc.
-    fn parse_compact_object(
-        &mut self,
-        _name: &str,
-        _count: usize,
-    ) -> Result<DxLlmValue, ParseError> {
-        let start_pos = self.pos;
-
-        // Expect @=[
-        self.expect_char('@')?;
-        self.expect_char('=')?;
-        self.expect_char('[')?;
-
-        let mut fields = IndexMap::new();
-        let mut tokens = Vec::new();
-
-        // Parse all tokens until ]
-        loop {
-            self.skip_whitespace();
-
-            if self.peek_char() == Some(']') {
-                self.advance();
-                break;
-            }
-
-            if self.pos >= self.input.len() {
-                return Err(ParseError::UnclosedBracket { pos: start_pos });
-            }
-
-            let token = self.parse_identifier()?;
-            if token.is_empty() {
-                break;
-            }
-            tokens.push(token);
-        }
-
-        // Pair up tokens as key-value pairs
-        if tokens.len() % 2 != 0 {
-            return Err(ParseError::InvalidTable {
-                msg: format!(
-                    "Compact syntax requires even number of tokens, got {}",
-                    tokens.len()
-                ),
-            });
-        }
-
-        for chunk in tokens.chunks(2) {
-            let key = chunk[0].clone();
-            let value = LlmParser::parse_value(&chunk[1]);
-            fields.insert(key, value);
-        }
-
-        Ok(DxLlmValue::Obj(fields))
-    }
-
     fn parse_table(&mut self, count_str: &str) -> Result<DxSection, ParseError> {
         let start_pos = self.pos;
 
@@ -1068,9 +990,6 @@ impl<'a> DsrParser<'a> {
                 msg: "Empty schema".to_string(),
             });
         }
-
-        // Parse prefix/suffix markers (if present)
-        let prefix_info = self.parse_prefix_markers()?;
 
         // Parse data: [row1\nrow2\n...]
         self.skip_whitespace();
@@ -1115,7 +1034,7 @@ impl<'a> DsrParser<'a> {
                     }
 
                     // Parse row
-                    let mut row = self.parse_table_row(schema.len())?;
+                    let row = self.parse_table_row(schema.len())?;
                     if !row.is_empty() {
                         if row.len() != schema.len() {
                             return Err(ParseError::SchemaMismatch {
@@ -1123,20 +1042,13 @@ impl<'a> DsrParser<'a> {
                                 got: row.len(),
                             });
                         }
-                        // Apply prefixes/suffixes to the row
-                        self.apply_prefixes_to_row(&mut row, &prefix_info, &schema);
                         section.rows.push(row);
                     }
                 }
             }
             ',' | ';' | ':' => {
                 // Inline separated rows
-                self.parse_inline_separated_rows(
-                    &mut section,
-                    &schema,
-                    row_separator,
-                    &prefix_info,
-                )?;
+                self.parse_inline_separated_rows(&mut section, &schema, row_separator)?;
                 self.expect_char(']')?;
             }
             _ => {
@@ -1157,7 +1069,6 @@ impl<'a> DsrParser<'a> {
         section: &mut DxSection,
         schema: &[String],
         separator: char,
-        prefix_info: &PrefixInfo,
     ) -> Result<(), ParseError> {
         let mut iteration_count = 0;
         const MAX_ITERATIONS: usize = 10_000_000; // Safety limit
@@ -1181,7 +1092,7 @@ impl<'a> DsrParser<'a> {
             }
 
             // Parse a single inline row
-            let mut row = self.parse_inline_row(schema.len(), separator)?;
+            let row = self.parse_inline_row(schema.len(), separator)?;
             if !row.is_empty() {
                 if row.len() != schema.len() {
                     return Err(ParseError::SchemaMismatch {
@@ -1189,8 +1100,6 @@ impl<'a> DsrParser<'a> {
                         got: row.len(),
                     });
                 }
-                // Apply prefixes/suffixes to the row
-                self.apply_prefixes_to_row(&mut row, prefix_info, schema);
                 section.rows.push(row);
             }
 
@@ -1371,111 +1280,6 @@ impl<'a> DsrParser<'a> {
         }
 
         DxLlmValue::Str(s.to_string())
-    }
-
-    /// Parse prefix and suffix markers before table data
-    /// Recognizes `@prefix` patterns and `@@suffix` patterns (double @)
-    /// Format: @prefix1 @prefix2 @@suffix1 [table data]
-    /// Returns `PrefixInfo` with collected prefixes and suffixes
-    fn parse_prefix_markers(&mut self) -> Result<PrefixInfo, ParseError> {
-        let mut prefixes = Vec::new();
-        let mut suffixes = Vec::new();
-
-        loop {
-            self.skip_whitespace_no_newline();
-
-            // Check if we're at a prefix/suffix marker
-            if self.peek_char() != Some('@') {
-                break;
-            }
-
-            self.advance(); // consume first @
-
-            // Check for suffix marker (@@)
-            let is_suffix = if self.peek_char() == Some('@') {
-                self.advance(); // consume second @
-                true
-            } else {
-                false
-            };
-
-            // Parse the prefix/suffix value until we hit a delimiter
-            // Stop at: '[' (table start), ' ' (next marker), '\n', '\r'
-            let mut value = String::new();
-            while self.pos < self.input.len() {
-                let ch = self.current_char();
-                if ch == '[' || ch == ' ' || ch == '\n' || ch == '\r' {
-                    break;
-                }
-                value.push(ch);
-                self.advance();
-            }
-
-            if !value.is_empty() {
-                if is_suffix {
-                    suffixes.push(value);
-                } else {
-                    prefixes.push(value);
-                }
-            }
-        }
-
-        Ok(PrefixInfo { prefixes, suffixes })
-    }
-
-    /// Apply prefixes and suffixes to a row based on column name heuristics
-    /// Modifies string values in-place by prepending prefixes or appending suffixes
-    /// Uses column names to determine which columns should receive prefixes/suffixes
-    fn apply_prefixes_to_row(
-        &self,
-        row: &mut [DxLlmValue],
-        prefix_info: &PrefixInfo,
-        schema: &[String],
-    ) {
-        // Apply prefixes to appropriate columns
-        if !prefix_info.prefixes.is_empty() {
-            for (i, value) in row.iter_mut().enumerate() {
-                if let DxLlmValue::Str(s) = value {
-                    let col_name = schema.get(i).map_or("", std::string::String::as_str);
-                    let col_lower = col_name.to_lowercase();
-
-                    // Heuristic: Apply prefix to columns that look like they need it
-                    // Common patterns: endpoint, path, url, route, uri, file, directory
-                    if col_lower.contains("endpoint")
-                        || col_lower.contains("path")
-                        || col_lower.contains("url")
-                        || col_lower.contains("route")
-                        || col_lower.contains("uri")
-                        || col_lower.contains("file")
-                        || col_lower.contains("directory")
-                        || col_lower.contains("dir")
-                    {
-                        // Apply first prefix (most common case)
-                        *s = format!("{}{}", prefix_info.prefixes[0], s);
-                    }
-                }
-            }
-        }
-
-        // Apply suffixes to appropriate columns
-        if !prefix_info.suffixes.is_empty() {
-            for (i, value) in row.iter_mut().enumerate() {
-                if let DxLlmValue::Str(s) = value {
-                    let col_name = schema.get(i).map_or("", std::string::String::as_str);
-                    let col_lower = col_name.to_lowercase();
-
-                    // Heuristic: Apply suffix to columns that look like they need it
-                    // Common patterns: email, domain, host, hostname
-                    if col_lower.contains("email")
-                        || col_lower.contains("domain")
-                        || col_lower.contains("host")
-                    {
-                        // Apply first suffix (most common case)
-                        *s = format!("{}{}", s, prefix_info.suffixes[0]);
-                    }
-                }
-            }
-        }
     }
 
     /// Parse wrapped dataframe rows: rows inside parentheses, one per line
@@ -2159,55 +1963,6 @@ empty=[]"#;
             assert_eq!(fields.get("host").unwrap().as_str(), Some("localhost"));
             assert_eq!(fields.get("port").unwrap().as_num(), Some(8080.0));
             assert_eq!(fields.get("debug").unwrap().as_bool(), Some(true));
-        } else {
-            panic!("Expected Obj variant, got {config:?}");
-        }
-    }
-
-    #[test]
-    fn test_parse_compact_syntax() {
-        // Test compact syntax: section:count@=[key value key value]
-        let input = "config:3@=[host localhost port 8080 debug true]";
-        let doc = LlmParser::parse(input).unwrap();
-
-        assert!(doc.context.contains_key("config"));
-        let config = doc.context.get("config").unwrap();
-
-        if let DxLlmValue::Obj(fields) = config {
-            assert_eq!(fields.len(), 3);
-            assert_eq!(fields.get("host").unwrap().as_str(), Some("localhost"));
-            assert_eq!(fields.get("port").unwrap().as_num(), Some(8080.0));
-            assert_eq!(fields.get("debug").unwrap().as_bool(), Some(true));
-        } else {
-            panic!("Expected Obj variant, got {config:?}");
-        }
-    }
-
-    #[test]
-    fn test_parse_compact_syntax_odd_tokens() {
-        // Test that compact syntax with odd number of tokens returns error
-        let input = "config:2@=[host localhost port]";
-        let result = LlmParser::parse(input);
-
-        assert!(result.is_err());
-        if let Err(ParseError::InvalidTable { msg }) = result {
-            assert!(msg.contains("even number of tokens"));
-        } else {
-            panic!("Expected InvalidTable error for odd token count");
-        }
-    }
-
-    #[test]
-    fn test_parse_compact_syntax_empty() {
-        // Test compact syntax with no tokens
-        let input = "config:0@=[]";
-        let doc = LlmParser::parse(input).unwrap();
-
-        assert!(doc.context.contains_key("config"));
-        let config = doc.context.get("config").unwrap();
-
-        if let DxLlmValue::Obj(fields) = config {
-            assert_eq!(fields.len(), 0);
         } else {
             panic!("Expected Obj variant, got {config:?}");
         }

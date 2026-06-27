@@ -350,6 +350,9 @@ impl SerializerBuilder {
             generate_machine: self.generate_machine,
             compression: crate::llm::convert::CompressionAlgorithm::default(),
             generate_metadata: false,
+            serializer_config: crate::llm::serializer::SerializerConfig::default(),
+            beautify: false,
+            format_llm: false,
         };
 
         Serializer {

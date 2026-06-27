@@ -6,6 +6,7 @@
 mod js_cache_artifacts;
 
 use serializer::llm::convert::CompressionAlgorithm;
+use serializer::llm::serializer::SerializerConfig;
 use serializer::{SerializerOutput, SerializerOutputConfig};
 use std::env;
 use std::fs;
@@ -44,6 +45,9 @@ fn main() {
         eprintln!("  --speed                  Alias for --lz4");
         eprintln!("  --size                   Alias for --zstd");
         eprintln!("  --no-compression         Disable compression");
+        eprintln!("  --compact                Compact mode: single-line sections (rows space-separated)");
+        eprintln!("  --beautify               Human-readable output (aligned =, [section] headers)");
+        eprintln!("  --format                 Formatted LLM output (spaces around `=`, indented sections)");
         eprintln!();
         eprintln!("Examples:");
         eprintln!("  dx-serialize crates/check/rules/javascript-lint.sr");
@@ -71,6 +75,9 @@ fn main() {
     let mut generate_llm = true;
     let mut generate_machine = true;
     let mut generate_metadata = false;
+    let mut compact = false;
+    let mut beautify = false;
+    let mut format_llm = false;
 
     let mut i = 1;
     while i < args.len() {
@@ -132,6 +139,15 @@ fn main() {
             "--no-compression" => {
                 compression = CompressionAlgorithm::None;
             }
+            "--compact" => {
+                compact = true;
+            }
+            "--beautify" => {
+                beautify = true;
+            }
+            "--format" => {
+                format_llm = true;
+            }
             arg if !arg.starts_with("--") && input_path.is_none() => {
                 input_path = Some(arg.to_string());
             }
@@ -158,12 +174,29 @@ fn main() {
         }
     });
 
+    // Mutual exclusivity: beautify > format > compact
+    if beautify && format_llm {
+        format_llm = false;
+    }
+    if format_llm && compact {
+        compact = false;
+    }
+
+    let serializer_config = if compact {
+        SerializerConfig { compact: true }
+    } else {
+        SerializerConfig::default()
+    };
+
     let config = SerializerOutputConfig::new()
         .with_output_dir(&output_dir)
         .with_llm(generate_llm)
         .with_machine(generate_machine)
         .with_metadata(generate_metadata)
-        .with_compression(compression);
+        .with_compression(compression)
+        .with_serializer_config(serializer_config)
+        .with_beautify(beautify)
+        .with_format_llm(format_llm);
     let serializer = SerializerOutput::with_config(config);
 
     let compression_name = match compression {

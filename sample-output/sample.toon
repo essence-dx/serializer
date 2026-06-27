@@ -1,0 +1,16 @@
+name: Zenless Zone Zero
+version: 1.4.0
+developer: HoYoverse
+genre: Action RPG
+tags[4]: urban fantasy,rogue-lite,stylish action,hollows
+active: true
+rating: 9.2
+agents[4]{id,name,role,element}:
+  1,Ellen Joe,DPS,Ice
+  2,Zhu Yuan,DPS,Ether
+  3,Caesar,Stun,Physical
+  4,Jane Doe,Anomaly,Physical
+locations[3]{district,type,danger}:
+  Sixth Street,Commercial,Low
+  Hollow Zero,Combat Zone,Extreme
+  Outer Ring,Wasteland,High

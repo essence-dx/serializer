@@ -3,10 +3,11 @@
 //! Provides conversion between DX Serializer (LLM), Human, and Machine formats.
 //! All conversions go through the common `DxDocument` representation.
 
+use crate::llm::formatter::LlmFormatter;
 use crate::llm::human_formatter::{HumanFormatConfig, HumanFormatter};
 use crate::llm::human_parser::{HumanParseError, HumanParser};
 use crate::llm::parser::{LlmParser, ParseError};
-use crate::llm::serializer::LlmSerializer;
+use crate::llm::serializer::{LlmSerializer, SerializerConfig};
 use crate::llm::types::DxDocument;
 use std::borrow::Cow;
 use thiserror::Error;
@@ -173,6 +174,26 @@ pub fn human_to_document(human_input: &str) -> Result<DxDocument, ConvertError> 
 pub fn document_to_llm(doc: &DxDocument) -> String {
     let serializer = LlmSerializer::new();
     serializer.serialize(doc)
+}
+
+/// Convert `DxDocument` to DX Serializer format string with custom config
+#[must_use]
+pub fn document_to_llm_with_config(doc: &DxDocument, config: SerializerConfig) -> String {
+    let serializer = LlmSerializer::with_config(config);
+    serializer.serialize(doc)
+}
+
+/// Convert `DxDocument` to formatted LLM format string (`--format` mode)
+///
+/// Produces LLM-format output with consistent spacing and indentation:
+/// - Spaces around `=` for top-level key-value pairs
+/// - Blank lines between entries
+/// - Indented section rows (4 spaces)
+/// - Space-separated structural tokens in table headers
+#[must_use]
+pub fn document_to_formatted_llm(doc: &DxDocument) -> String {
+    let formatter = LlmFormatter;
+    formatter.format(doc)
 }
 
 /// Convert `DxDocument` to Human format string

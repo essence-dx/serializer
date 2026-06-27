@@ -1,0 +1,20 @@
+{
+  "name": "Zenless Zone Zero",
+  "version": "1.4.0",
+  "developer": "HoYoverse",
+  "genre": "Action RPG",
+  "tags": ["urban fantasy", "rogue-lite", "stylish action", "hollows"],
+  "active": true,
+  "rating": 9.2,
+  "agents": [
+    {"id": 1, "name": "Ellen Joe", "role": "DPS", "element": "Ice"},
+    {"id": 2, "name": "Zhu Yuan", "role": "DPS", "element": "Ether"},
+    {"id": 3, "name": "Caesar", "role": "Stun", "element": "Physical"},
+    {"id": 4, "name": "Jane Doe", "role": "Anomaly", "element": "Physical"}
+  ],
+  "locations": [
+    {"district": "Sixth Street", "type": "Commercial", "danger": "Low"},
+    {"district": "Hollow Zero", "type": "Combat Zone", "danger": "Extreme"},
+    {"district": "Outer Ring", "type": "Wasteland", "danger": "High"}
+  ]
+}
