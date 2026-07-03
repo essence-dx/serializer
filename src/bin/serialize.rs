@@ -205,6 +205,15 @@ fn main() {
         CompressionAlgorithm::None => "None",
     };
 
+    // Write startup.sr to global cache dir
+    let cache_dir = dirs::cache_dir()
+        .map(|b| b.join("dx").join("serializer"))
+        .unwrap_or_else(|| PathBuf::from("~/.cache/dx/serializer"));
+    if let Ok(()) = fs::create_dir_all(&cache_dir) {
+        let startup_path = cache_dir.join("startup.sr");
+        let _ = fs::write(&startup_path, "tool=serializer\nstatus=ok\n");
+    }
+
     if write_js_cache_artifacts {
         let catalog_json = catalog_json.unwrap_or_else(|| {
             Path::new(&output_dir)

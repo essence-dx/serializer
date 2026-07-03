@@ -83,6 +83,11 @@ impl DxConfig {
         config
     }
 
+    /// Return the global cache directory (from config or OS default).
+    pub fn global_cache_dir(&self) -> &Path {
+        &self.paths.global_cache
+    }
+
     fn absolutize(&mut self, base: &Path) {
         let root = absolutize(base, &self.workspace.root);
         self.workspace.root = root.clone();
@@ -130,6 +135,7 @@ pub struct PathsConfig {
     pub dx_agents: PathBuf,
     pub inspirations: PathBuf,
     pub cache: PathBuf,
+    pub global_cache: PathBuf,
     pub cargo_home: PathBuf,
 }
 
@@ -153,6 +159,7 @@ impl PathsConfig {
             dx_agents: root.join("agent"),
             inspirations: root.join("inspirations"),
             cache: root.join(".dx").join("cache"),
+            global_cache: resolve_global_cache_dir(),
             cargo_home: root.join("cli").join(".cargo-home"),
         }
     }
@@ -175,6 +182,7 @@ impl PathsConfig {
         self.dx_agents = absolutize(root, &self.dx_agents);
         self.inspirations = absolutize(root, &self.inspirations);
         self.cache = absolutize(root, &self.cache);
+        self.global_cache = absolutize_optional(root, &self.global_cache);
         self.cargo_home = absolutize(root, &self.cargo_home);
     }
 }
@@ -222,6 +230,29 @@ fn absolutize(root: &Path, path: &Path) -> PathBuf {
         path.to_path_buf()
     } else {
         root.join(path)
+    }
+}
+
+/// Absolutize a path, but only if it's non-empty (empty = use OS default).
+fn absolutize_optional(root: &Path, path: &Path) -> PathBuf {
+    if path.as_os_str().is_empty() {
+        resolve_global_cache_dir()
+    } else if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        root.join(path)
+    }
+}
+
+/// Resolve the OS default global cache directory for DX.
+/// Windows: %LOCALAPPDATA%/dx
+/// macOS: ~/Library/Caches/dx
+/// Linux: $XDG_CACHE_HOME/dx or ~/.cache/dx
+fn resolve_global_cache_dir() -> PathBuf {
+    if let Some(base) = dirs::cache_dir() {
+        base.join("dx")
+    } else {
+        PathBuf::from("~/.cache/dx")
     }
 }
 
