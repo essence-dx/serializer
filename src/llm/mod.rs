@@ -62,7 +62,7 @@ pub use convert::{
     document_to_llm_with_config, document_to_machine, human_to_document, human_to_llm,
     human_to_machine, human_to_machine_uncompressed, is_llm_format, llm_to_document, llm_to_human,
     llm_to_machine, machine_bytes_to_document, machine_to_document, machine_to_human,
-    machine_to_llm, try_document_to_machine_with_compression,
+    machine_to_llm, try_document_to_machine_with_compression, try_read_machine_or_sr,
 };
 pub use formatter::LlmFormatter;
 pub use human_formatter::{HumanFormatConfig, HumanFormatter};

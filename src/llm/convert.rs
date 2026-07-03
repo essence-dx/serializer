@@ -10,6 +10,7 @@ use crate::llm::parser::{LlmParser, ParseError};
 use crate::llm::serializer::{LlmSerializer, SerializerConfig};
 use crate::llm::types::DxDocument;
 use std::borrow::Cow;
+use std::path::Path;
 use thiserror::Error;
 
 /// Conversion errors
@@ -684,6 +685,43 @@ pub fn machine_to_llm(machine: &MachineFormat) -> Result<String, ConvertError> {
 pub fn machine_to_human(machine: &MachineFormat) -> Result<String, ConvertError> {
     let doc = machine_to_document(machine)?;
     Ok(document_to_human(&doc))
+}
+
+/// Read a cached document, preferring `.machine` format over `.sr`.
+///
+/// Checks if a `.machine` file exists alongside the `.sr` source.
+/// If the machine file is fresher (by mtime), reads and parses it.
+/// Otherwise falls back to parsing the `.sr` file as LLM text.
+/// Returns `None` if neither file exists or both fail to parse.
+pub fn try_read_machine_or_sr(sr_path: &Path) -> Option<(DxDocument, bool)> {
+    let machine_path = sr_path.with_extension("machine");
+    let (from_machine, bytes) = if machine_path.exists() && machine_is_fresher(&machine_path, sr_path) {
+        (true, std::fs::read(&machine_path).ok()?)
+    } else {
+        let text = std::fs::read_to_string(sr_path).ok()?;
+        (false, text.into_bytes())
+    };
+
+    if from_machine {
+        machine_bytes_to_document(&bytes).ok().map(|doc| (doc, true))
+    } else {
+        let text = String::from_utf8(bytes).ok()?;
+        llm_to_document(&text).ok().map(|doc| (doc, false))
+    }
+}
+
+/// Check if a `.machine` file is fresher than its `.sr` source by mtime.
+fn machine_is_fresher(machine_path: &Path, sr_path: &Path) -> bool {
+    let machine_mtime = std::fs::metadata(machine_path)
+        .and_then(|m| m.modified())
+        .ok();
+    let sr_mtime = std::fs::metadata(sr_path)
+        .and_then(|m| m.modified())
+        .ok();
+    match (machine_mtime, sr_mtime) {
+        (Some(mm), Some(sm)) => mm >= sm,
+        _ => false,
+    }
 }
 
 #[cfg(test)]

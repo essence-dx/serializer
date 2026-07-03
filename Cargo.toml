@@ -210,6 +210,11 @@ harness = false
 name = "dx-serializer"
 path = "src/bin/serialize.rs"
 
+[[bin]]
+name = "dx-sr-watch"
+path = "src/bin/watch_daemon.rs"
+required-features = ["watch"]
+
 [[bench]]
 name = "theme_compression_test"
 harness = false

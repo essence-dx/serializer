@@ -1,0 +1,14 @@
+G:\Dx\serializer\crates\dx-config\target\debug\deps\serde-b5d238d9e207a6d0.d: G:\Dev\Caches\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs G:\Dev\Caches\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs G:\Dev\Caches\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs G:\Dev\Caches\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs G:\Dev\Caches\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs G:\Dx\serializer\crates\dx-config\target\debug\build\serde-e509b2a8907d6139\out/private.rs
+
+G:\Dx\serializer\crates\dx-config\target\debug\deps\libserde-b5d238d9e207a6d0.rlib: G:\Dev\Caches\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs G:\Dev\Caches\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs G:\Dev\Caches\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs G:\Dev\Caches\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs G:\Dev\Caches\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs G:\Dx\serializer\crates\dx-config\target\debug\build\serde-e509b2a8907d6139\out/private.rs
+
+G:\Dx\serializer\crates\dx-config\target\debug\deps\libserde-b5d238d9e207a6d0.rmeta: G:\Dev\Caches\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs G:\Dev\Caches\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs G:\Dev\Caches\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs G:\Dev\Caches\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs G:\Dev\Caches\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs G:\Dx\serializer\crates\dx-config\target\debug\build\serde-e509b2a8907d6139\out/private.rs
+
+G:\Dev\Caches\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs:
+G:\Dev\Caches\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs:
+G:\Dev\Caches\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs:
+G:\Dev\Caches\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs:
+G:\Dev\Caches\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs:
+G:\Dx\serializer\crates\dx-config\target\debug\build\serde-e509b2a8907d6139\out/private.rs:
+
+# env-dep:OUT_DIR=G:\\Dx\\serializer\\crates\\dx-config\\target\\debug\\build\\serde-e509b2a8907d6139\\out
