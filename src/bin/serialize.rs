@@ -15,6 +15,11 @@ use std::path::{Path, PathBuf};
 fn main() {
     let args: Vec<String> = env::args().collect();
 
+    if args.len() > 1 && args[1] == "--version" {
+        println!("dx-serialize 1.0.0");
+        return;
+    }
+
     if args.len() < 2 {
         eprintln!("Usage: dx-serialize <file.sr|file.dx|file.json> [options]");
         eprintln!("       dx-serialize --dir <directory> [options]");
