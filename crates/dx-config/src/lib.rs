@@ -182,7 +182,6 @@ pub struct PathsConfig {
 
 impl PathsConfig {
     fn default_with_root(root: &Path) -> Self {
-        let dx_home = resolve_dx_home_dir();
         Self {
             cli: root.join("cli"),
             www: root.join("www"),
@@ -202,7 +201,7 @@ impl PathsConfig {
             inspirations: root.join("inspirations"),
             cache: root.join(".dx").join("cache"),
             dx_home: PathBuf::new(),
-            global_cache: dx_home.join("cache"),
+            global_cache: PathBuf::new(),
             cargo_home: root.join("cli").join(".cargo-home"),
         }
     }
@@ -299,7 +298,7 @@ fn absolutize_optional(root: &Path, path: &Path, fallback: fn() -> PathBuf) -> P
 /// macOS:   `~/Library/Application Support/dx`
 /// Linux:   `$XDG_DATA_HOME/dx` or `~/.local/share/dx`
 fn resolve_dx_home_dir() -> PathBuf {
-    if let Some(base) = dirs::data_dir() {
+    if let Some(base) = dirs::data_local_dir() {
         base.join("dx")
     } else {
         PathBuf::from("~/.local/share/dx")
@@ -678,11 +677,6 @@ paths.serializer="serializer"
         assert!(read_back.contains(&custom_str), "written file should contain the custom path");
 
         let config = DxConfig::from_path(&config_path).expect("load dx config");
-        // Check raw field before method calls
-        eprintln!("paths.dx_home raw: {:?}", config.paths.dx_home);
-        eprintln!("paths.global_cache raw: {:?}", config.paths.global_cache);
-        eprintln!("dx_home_dir(): {:?}", config.dx_home_dir());
-        eprintln!("global_cache_dir(): {:?}", config.global_cache_dir());
         assert_eq!(config.dx_home_dir(), custom_home);
         assert_eq!(config.bin_dir(), custom_home.join("bin"));
         assert_eq!(config.global_cache_dir(), custom_home.join("cache"));
