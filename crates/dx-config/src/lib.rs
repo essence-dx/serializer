@@ -669,13 +669,20 @@ paths.serializer="serializer"
         let custom_home = tempfile_dir("dx-custom-home");
         let config_path = temp.join("dx");
         let custom_str = custom_home.to_str().unwrap().replace('\\', "/");
-        fs::write(&config_path, format!(r#"
-workspace.name="DX"
-workspace.root="."
-paths.dx_home="{custom_str}"
-"#)).expect("write dx config");
+        let content = format!(
+            "workspace.name=\"DX\"\nworkspace.root=\".\"\npaths.dx_home=\"{custom_str}\"\n"
+        );
+        fs::write(&config_path, &content).expect("write dx config");
+        // Verify the written content
+        let read_back = fs::read_to_string(&config_path).expect("read back");
+        assert!(read_back.contains(&custom_str), "written file should contain the custom path");
 
         let config = DxConfig::from_path(&config_path).expect("load dx config");
+        // Check raw field before method calls
+        eprintln!("paths.dx_home raw: {:?}", config.paths.dx_home);
+        eprintln!("paths.global_cache raw: {:?}", config.paths.global_cache);
+        eprintln!("dx_home_dir(): {:?}", config.dx_home_dir());
+        eprintln!("global_cache_dir(): {:?}", config.global_cache_dir());
         assert_eq!(config.dx_home_dir(), custom_home);
         assert_eq!(config.bin_dir(), custom_home.join("bin"));
         assert_eq!(config.global_cache_dir(), custom_home.join("cache"));

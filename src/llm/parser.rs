@@ -1406,6 +1406,7 @@ impl<'a> DsrParser<'a> {
                 });
             }
             self.advance();
+            self.skip_whitespace();
 
             // Parse value (until space or closing paren)
             // Check if value is an array: =[...]
