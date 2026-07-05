@@ -83,9 +83,49 @@ impl DxConfig {
         config
     }
 
+    /// Return the DX home directory root.
+    ///
+    /// Uses `paths.dx_home` from config if set, otherwise:
+    /// Windows: `%LOCALAPPDATA%/dx`
+    /// macOS:   `~/Library/Application Support/dx`
+    /// Linux:   `$XDG_DATA_HOME/dx` or `~/.local/share/dx`
+    ///
+    /// Always returns a non-empty path — if config has no value, the OS default is returned.
+    pub fn dx_home_dir(&self) -> PathBuf {
+        if !self.paths.dx_home.as_os_str().is_empty() {
+            self.paths.dx_home.clone()
+        } else {
+            resolve_dx_home_dir()
+        }
+    }
+
+    /// Return the binaries directory (under DX home).
+    pub fn bin_dir(&self) -> PathBuf {
+        self.dx_home_dir().join("bin")
+    }
+
     /// Return the global cache directory (from config or OS default).
-    pub fn global_cache_dir(&self) -> &Path {
-        &self.paths.global_cache
+    pub fn global_cache_dir(&self) -> PathBuf {
+        if !self.paths.global_cache.as_os_str().is_empty() {
+            self.paths.global_cache.clone()
+        } else {
+            self.dx_home_dir().join("cache")
+        }
+    }
+
+    /// Alias for `global_cache_dir`.
+    pub fn cache_dir(&self) -> PathBuf {
+        self.global_cache_dir()
+    }
+
+    /// Return the user config directory (under DX home).
+    pub fn config_dir(&self) -> PathBuf {
+        self.dx_home_dir().join("config")
+    }
+
+    /// Return the application data directory (under DX home).
+    pub fn data_dir(&self) -> PathBuf {
+        self.dx_home_dir().join("data")
     }
 
     fn absolutize(&mut self, base: &Path) {
@@ -135,12 +175,14 @@ pub struct PathsConfig {
     pub dx_agents: PathBuf,
     pub inspirations: PathBuf,
     pub cache: PathBuf,
+    pub dx_home: PathBuf,
     pub global_cache: PathBuf,
     pub cargo_home: PathBuf,
 }
 
 impl PathsConfig {
     fn default_with_root(root: &Path) -> Self {
+        let dx_home = resolve_dx_home_dir();
         Self {
             cli: root.join("cli"),
             www: root.join("www"),
@@ -159,7 +201,8 @@ impl PathsConfig {
             dx_agents: root.join("agent"),
             inspirations: root.join("inspirations"),
             cache: root.join(".dx").join("cache"),
-            global_cache: resolve_global_cache_dir(),
+            dx_home: PathBuf::new(),
+            global_cache: dx_home.join("cache"),
             cargo_home: root.join("cli").join(".cargo-home"),
         }
     }
@@ -182,7 +225,12 @@ impl PathsConfig {
         self.dx_agents = absolutize(root, &self.dx_agents);
         self.inspirations = absolutize(root, &self.inspirations);
         self.cache = absolutize(root, &self.cache);
-        self.global_cache = absolutize_optional(root, &self.global_cache);
+        self.dx_home = absolutize_optional(root, &self.dx_home, resolve_dx_home_dir);
+        if self.global_cache.as_os_str().is_empty() {
+            self.global_cache = self.dx_home.join("cache");
+        } else if !self.global_cache.is_absolute() {
+            self.global_cache = root.join(&self.global_cache);
+        }
         self.cargo_home = absolutize(root, &self.cargo_home);
     }
 }
@@ -233,10 +281,10 @@ fn absolutize(root: &Path, path: &Path) -> PathBuf {
     }
 }
 
-/// Absolutize a path, but only if it's non-empty (empty = use OS default).
-fn absolutize_optional(root: &Path, path: &Path) -> PathBuf {
+/// Absolutize a path, but only if it's non-empty (empty = use fallback).
+fn absolutize_optional(root: &Path, path: &Path, fallback: fn() -> PathBuf) -> PathBuf {
     if path.as_os_str().is_empty() {
-        resolve_global_cache_dir()
+        fallback()
     } else if path.is_absolute() {
         path.to_path_buf()
     } else {
@@ -244,15 +292,17 @@ fn absolutize_optional(root: &Path, path: &Path) -> PathBuf {
     }
 }
 
-/// Resolve the OS default global cache directory for DX.
-/// Windows: %LOCALAPPDATA%/dx
-/// macOS: ~/Library/Caches/dx
-/// Linux: $XDG_CACHE_HOME/dx or ~/.cache/dx
-fn resolve_global_cache_dir() -> PathBuf {
-    if let Some(base) = dirs::cache_dir() {
+/// Resolve the OS default DX home directory.
+///
+/// This is the root for all DX global state (binaries, cache, config, data).
+/// Windows: `%LOCALAPPDATA%/dx`
+/// macOS:   `~/Library/Application Support/dx`
+/// Linux:   `$XDG_DATA_HOME/dx` or `~/.local/share/dx`
+fn resolve_dx_home_dir() -> PathBuf {
+    if let Some(base) = dirs::data_dir() {
         base.join("dx")
     } else {
-        PathBuf::from("~/.cache/dx")
+        PathBuf::from("~/.local/share/dx")
     }
 }
 
@@ -572,6 +622,79 @@ paths.serializer="serializer"
         assert_eq!(config.paths.cli, PathBuf::from("G:/Dx").join("cli"));
         assert_eq!(config.paths.www, PathBuf::from("G:/Dx").join("www"));
         assert_eq!(config.paths.forge, PathBuf::from("G:/Dx").join("forge"));
+    }
+
+    #[test]
+    fn dx_home_returns_os_data_dir_by_default() {
+        let config = DxConfig::default();
+        let home = config.dx_home_dir();
+        // On any OS, this should be non-empty and resolve to a path
+        assert!(!home.as_os_str().is_empty());
+        // Should end with "dx"
+        assert_eq!(home.file_name().unwrap().to_str().unwrap(), "dx");
+    }
+
+    #[test]
+    fn bin_dir_is_under_dx_home() {
+        let config = DxConfig::default();
+        let home = config.dx_home_dir();
+        assert_eq!(config.bin_dir(), home.join("bin"));
+    }
+
+    #[test]
+    fn config_dir_is_under_dx_home() {
+        let config = DxConfig::default();
+        let home = config.dx_home_dir();
+        assert_eq!(config.config_dir(), home.join("config"));
+    }
+
+    #[test]
+    fn data_dir_is_under_dx_home() {
+        let config = DxConfig::default();
+        let home = config.dx_home_dir();
+        assert_eq!(config.data_dir(), home.join("data"));
+    }
+
+    #[test]
+    fn cache_dir_defaults_to_dx_home_cache() {
+        let config = DxConfig::default();
+        let home = config.dx_home_dir();
+        assert_eq!(config.global_cache_dir(), home.join("cache"));
+        assert_eq!(config.cache_dir(), home.join("cache"));
+    }
+
+    #[test]
+    fn dx_home_from_config_overrides_default() {
+        let temp = tempfile_dir("dx-config-home-override");
+        let custom_home = tempfile_dir("dx-custom-home");
+        let config_path = temp.join("dx");
+        let custom_str = custom_home.to_str().unwrap().replace('\\', "/");
+        fs::write(&config_path, format!(r#"
+workspace.name="DX"
+workspace.root="."
+paths.dx_home="{custom_str}"
+"#)).expect("write dx config");
+
+        let config = DxConfig::from_path(&config_path).expect("load dx config");
+        assert_eq!(config.dx_home_dir(), custom_home);
+        assert_eq!(config.bin_dir(), custom_home.join("bin"));
+        assert_eq!(config.global_cache_dir(), custom_home.join("cache"));
+    }
+
+    #[test]
+    fn global_cache_from_config_overrides_default() {
+        let temp = tempfile_dir("dx-config-global-cache");
+        let custom_cache = tempfile_dir("dx-custom-cache");
+        let config_path = temp.join("dx");
+        let cache_str = custom_cache.to_str().unwrap().replace('\\', "/");
+        fs::write(&config_path, format!(r#"
+workspace.name="DX"
+workspace.root="."
+paths.global_cache="{cache_str}"
+"#)).expect("write dx config");
+
+        let config = DxConfig::from_path(&config_path).expect("load dx config");
+        assert_eq!(config.global_cache_dir(), custom_cache);
     }
 
     #[test]
