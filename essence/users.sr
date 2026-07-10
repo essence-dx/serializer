@@ -1,0 +1,12 @@
+users[id name email role active score](
+1 "Alice Johnson" alice@example.com admin true 95
+2 "Bob Smith" bob@example.com user true 82
+3 "Carol Davis" carol@example.com user false 78
+4 "Dave Wilson" dave@example.com editor true 91
+5 "Eve Brown" eve@example.com user true 88
+6 "Frank Miller" frank@example.com viewer false 45
+7 "Grace Lee" grace@example.com admin true 97
+8 "Hank Green" hank@example.com user true 73
+9 "Ivy Chen" ivy@example.com editor false 69
+10 "Jack Torres" jack@example.com user true 84
+)

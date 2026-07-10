@@ -1,0 +1,1 @@
+{"name":"MyService","version":"1.4.2","environment":"production","debug":false,"log_level":"info","max_connections":100,"timeout_seconds":30,"feature_flags":["dark_mode","beta_api","analytics","webhooks"]}
