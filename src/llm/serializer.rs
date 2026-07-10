@@ -282,7 +282,8 @@ impl LlmSerializer {
             for (k, v) in fields {
                 match v {
                     DxLlmValue::Obj(nested) => {
-                        let nested_str = self.serialize_inline_object(k, nested, true, depth + 1);
+                        // Nested object at relative depth 0 — parent adds indentation
+                        let nested_str = self.serialize_inline_object(k, nested, true, 0);
                         for line in nested_str.lines() {
                             out.push_str(&format!("{}{}\n", indent, line));
                         }
@@ -307,7 +308,8 @@ impl LlmSerializer {
             for (k, v) in fields {
                 match v {
                     DxLlmValue::Obj(nested) => {
-                        let nested_str = self.serialize_inline_object(k, nested, false, depth + 1);
+                        // Nested object at relative depth 0 — parent adds indentation
+                        let nested_str = self.serialize_inline_object(k, nested, false, 0);
                         for line in nested_str.lines() {
                             out.push_str(&format!("{}{}\n", indent, line));
                         }
