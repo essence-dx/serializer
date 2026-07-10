@@ -338,9 +338,62 @@ impl<'a> DsrParser<'a> {
                 self.skip_whitespace();
                 let next_ch = self.peek_char();
 
-                if next_ch == Some('(') {
+                if next_ch == Some(':') {
+                    // Check if content is purely numeric — array count syntax: name[3]: items
+                    let is_numeric_count = bracket_content.chars().all(|c| c.is_ascii_digit());
+                    if is_numeric_count {
+                        // Restore position and let try_parse_array_count handle it
+                        self.pos = start_pos;
+                        if let Some(_count) = self.try_parse_array_count() {
+                            self.skip_whitespace();
+                            let delimiter = self.peek_char();
+                            if delimiter == Some(':') {
+                                self.advance();
+                                if self.peek_char() == Some(':') {
+                                    self.advance();
+                                }
+                                self.skip_whitespace();
+                                let items_str = self.parse_until_delimiter(&['\n', '\r'])?;
+                                let items: Vec<DxLlmValue> = items_str
+                                    .split(',')
+                                    .map(|s| LlmParser::parse_value(s.trim()))
+                                    .collect();
+                                doc.context.insert(name.clone(), DxLlmValue::Arr(items));
+                            }
+                        }
+                    } else {
+                        // YAML-style table: name[headers]:\n  row1\n  row2
+                        self.advance(); // consume ':'
+                        self.skip_line_if_empty();
+
+                        let schema: Vec<String> = if bracket_content.contains(',') {
+                            bracket_content
+                                .split(',')
+                                .map(|s| s.trim().to_string())
+                                .filter(|s| !s.is_empty())
+                                .collect()
+                        } else {
+                            bracket_content
+                                .split_whitespace()
+                                .map(std::string::ToString::to_string)
+                                .collect()
+                        };
+
+                        if schema.is_empty() {
+                            return Err(ParseError::InvalidTable {
+                                msg: "Empty schema in YAML-style table".to_string(),
+                            });
+                        }
+
+                        // Read indented rows until indentation decreases
+                        let section = self.parse_yaml_table_rows(&schema)?;
+                        let section_id = self.section_id_for_name(doc, &name);
+                        doc.sections.insert(section_id, section);
+                        doc.section_names.insert(section_id, name.clone());
+                        parsed_section_id = Some(section_id);
+                    }
+                } else if next_ch == Some('(') {
                     // Wrapped dataframe table: name[headers](rows)
-                    // Handle both comma-separated and space-separated schemas
                     let schema: Vec<String> = if bracket_content.contains(',') {
                         bracket_content
                             .split(',')
@@ -465,6 +518,26 @@ impl<'a> DsrParser<'a> {
                 let is_leaf = self.peek_char() == Some(':');
                 if is_leaf {
                     self.advance(); // consume second ':'
+                }
+
+                // Check for YAML-style object: `key:` followed by newline + indented content
+                if !is_leaf && (self.peek_char() == Some('\n') || self.peek_char() == Some('\r')) {
+                    // Consume the newline (handle both \n and \r\n)
+                    let first = self.current_char();
+                    self.advance();
+                    if first == '\r' && self.peek_char() == Some('\n') { self.advance(); }
+
+                    // Check if next line is indented
+                    if let Some(indent) = self.peek_indentation() {
+                        if indent > 0 {
+                            let obj = self.parse_yaml_object(indent)?;
+                            doc.context.insert(name.clone(), obj);
+                            return Ok(());
+                        }
+                    }
+                    // No indentation — empty value
+                    doc.context.insert(name.clone(), DxLlmValue::Str(String::new()));
+                    return Ok(());
                 }
 
                 self.skip_whitespace();
@@ -1452,6 +1525,15 @@ impl<'a> DsrParser<'a> {
 
             self.skip_whitespace();
 
+            // Check for nested object: key(value ...)
+            if self.peek_char() == Some('(') {
+                self.advance(); // consume '('
+                let nested = self.parse_parenthesized_object()?;
+                self.expect_char(')')?;
+                fields.insert(key, nested);
+                continue;
+            }
+
             // Expect '='
             if self.peek_char() != Some('=') {
                 return Err(ParseError::UnexpectedChar {
@@ -1567,6 +1649,326 @@ impl<'a> DsrParser<'a> {
     ) -> Result<DxLlmValue, ParseError> {
         let value_str = self.parse_until_delimiter(delimiters)?;
         Ok(LlmParser::parse_value(&value_str))
+    }
+
+    /// Peek at the next non-empty line to check indentation level.
+    /// Returns `None` if no more content, `Some(0)` if no indentation, `Some(n)` for n spaces.
+    fn peek_indentation(&self) -> Option<usize> {
+        let mut temp = self.pos;
+        // Skip current whitespace/newlines
+        while temp < self.input.len() {
+            let ch = self.input[temp..].chars().next()?;
+            if ch == '\n' || ch == '\r' {
+                temp += ch.len_utf8();
+            } else if ch == ' ' || ch == '\t' {
+                // Count indentation
+                let mut indent = 0;
+                while temp < self.input.len() {
+                    let c = self.input[temp..].chars().next()?;
+                    if c == ' ' { indent += 1; temp += 1; }
+                    else if c == '\t' { indent += 4; temp += 1; }
+                    else { break; }
+                }
+                // If we hit a newline before content, skip and continue
+                if temp < self.input.len() {
+                    let next_ch = self.input[temp..].chars().next()?;
+                    if next_ch == '\n' || next_ch == '\r' {
+                        temp += next_ch.len_utf8();
+                        continue;
+                    }
+                }
+                return Some(indent);
+            } else {
+                // Non-whitespace content at this level
+                return Some(0);
+            }
+        }
+        None
+    }
+
+    /// Parse a YAML-style indented object: `name:\n  key: val\n  key2: val2\n`
+    /// `base_indent` is the number of spaces indenting this object's fields
+    fn parse_yaml_object(&mut self, base_indent: usize) -> Result<DxLlmValue, ParseError> {
+        let mut fields = indexmap::IndexMap::new();
+
+        loop {
+            // Skip whitespace (but track indentation)
+            let indent = self.skip_yaml_whitespace();
+            if indent.is_none() {
+                break;
+            }
+            let indent = indent.unwrap();
+
+            // If indentation decreased back to parent level, stop
+            if indent < base_indent {
+                break;
+            }
+
+            // If we hit end of input or a closing context, stop
+            if self.pos >= self.input.len() {
+                break;
+            }
+
+            // Check for end of content
+            let ch = self.peek_char();
+            if ch == Some('\n') || ch == Some('\r') || ch.is_none() {
+                self.advance_line();
+                continue;
+            }
+
+            // Allow empty lines
+            if ch == Some('\n') || ch == Some('\r') {
+                self.advance();
+                continue;
+            }
+
+            // Parse key
+            let key = match self.parse_identifier() {
+                Ok(k) => k,
+                Err(_) => break,
+            };
+            if key.is_empty() {
+                break;
+            }
+
+            self.skip_yaml_inline_whitespace();
+
+            // Expect '=' or ':' as delimiter
+            let delim = self.peek_char();
+            if delim != Some('=') && delim != Some(':') {
+                // Key with no value — null
+                fields.insert(key, DxLlmValue::Null);
+                self.advance_line();
+                continue;
+            }
+            self.advance(); // consume '=' or ':'
+
+            self.skip_yaml_inline_whitespace();
+
+            // Check if value is empty (next is newline or indent drop)
+            if self.peek_char() == Some('\n') || self.peek_char() == Some('\r') {
+                // Check if next line has more indentation (nested object)
+                if let Some(next_indent) = self.peek_indentation() {
+                    if next_indent > indent {
+                        let nested = self.parse_yaml_object(next_indent)?;
+                        fields.insert(key, nested);
+                        continue;
+                    }
+                }
+                fields.insert(key, DxLlmValue::Null);
+                self.advance_line();
+                continue;
+            }
+
+            // Check for nested object on the same line as value
+            if self.peek_char() == Some('\n') || self.peek_char() == Some('\r') {
+                // Check for nested indented content
+                let saved = self.pos;
+                self.advance();
+                if let Some(next_indent) = self.peek_indentation() {
+                    if next_indent > indent {
+                        self.pos = saved; // rewind to parse nested
+                        let nested = self.parse_yaml_object(next_indent)?;
+                        fields.insert(key, nested);
+                        continue;
+                    }
+                }
+                // Empty value
+                fields.insert(key, DxLlmValue::Str(String::new()));
+                continue;
+            }
+
+            // Check if value is an inline array: =[items] or :[items]
+            if self.peek_char() == Some('[') {
+                self.advance(); // consume '['
+                let items_str = match self.parse_until_char(']') {
+                    Ok(s) => s,
+                    Err(_) => break,
+                };
+                let _ = self.expect_char(']');
+                let items = self.parse_quoted_items(&items_str);
+                fields.insert(key, DxLlmValue::Arr(items));
+                self.advance_line();
+                continue;
+            }
+
+            // Regular value: read until end of line
+            let value_str = self.parse_until_delimiter(&['\n', '\r'])?;
+            let trimmed = value_str.trim();
+
+            if trimmed.is_empty() {
+                fields.insert(key, DxLlmValue::Null);
+            } else if trimmed.contains(',') && !trimmed.starts_with('"') {
+                // Comma-separated array
+                let items: Vec<DxLlmValue> = trimmed
+                    .split(',')
+                    .map(|s| LlmParser::parse_value(s.trim()))
+                    .collect();
+                fields.insert(key, DxLlmValue::Arr(items));
+            } else {
+                fields.insert(key, LlmParser::parse_value(trimmed));
+            }
+        }
+
+        Ok(DxLlmValue::Obj(fields))
+    }
+
+    /// Skip whitespace and return the indentation level at the start of content
+    fn skip_yaml_whitespace(&mut self) -> Option<usize> {
+        let mut indent = 0;
+        loop {
+            if self.pos >= self.input.len() {
+                return None;
+            }
+            let ch = self.current_char();
+            match ch {
+                ' ' => { indent += 1; self.advance(); }
+                '\t' => { indent += 4; self.advance(); }
+                '\n' | '\r' => {
+                    indent = 0;
+                    self.advance();
+                    // Reset indent on newline
+                }
+                '#' | '/' if self.input[self.pos..].starts_with('#') || self.input[self.pos..].starts_with("//") => {
+                    self.skip_line_comment();
+                    indent = 0;
+                }
+                _ => break,
+            }
+        }
+        Some(indent)
+    }
+
+    /// Skip spaces and tabs on the same line (no newlines)
+    fn skip_yaml_inline_whitespace(&mut self) {
+        while self.pos < self.input.len() {
+            let ch = self.current_char();
+            if ch == ' ' || ch == '\t' {
+                self.advance();
+            } else {
+                break;
+            }
+        }
+    }
+
+    /// Advance to the next line (past the newline)
+    fn advance_line(&mut self) {
+        while self.pos < self.input.len() {
+            let ch = self.current_char();
+            if ch == '\n' || ch == '\r' {
+                self.advance();
+                break;
+            }
+            self.advance();
+        }
+    }
+
+    /// Skip current line if it's empty (just a newline), then check for indented content
+    fn skip_line_if_empty(&mut self) {
+        self.skip_yaml_inline_whitespace();
+        if self.peek_char() == Some('\n') || self.peek_char() == Some('\r') {
+            self.advance();
+            if self.current_char() == '\n' { self.advance(); }
+        }
+    }
+
+    /// Parse YAML-style table rows: indented lines after `name[headers]:`
+    fn parse_yaml_table_rows(&mut self, schema: &[String]) -> Result<DxSection, ParseError> {
+        let mut section = DxSection::new(schema.to_vec());
+
+        // Detect separator (comma or space) by scanning the first row
+        let separator = self.detect_yaml_table_separator();
+
+        loop {
+            // Skip whitespace (newlines)
+            let indent = self.skip_yaml_whitespace();
+            if indent.is_none() { break; }
+            let _indent = indent.unwrap();
+
+            if self.pos >= self.input.len() { break; }
+
+            // Check for end (empty line or less indentation)
+            if self.peek_char() == Some('\n') || self.peek_char() == Some('\r') {
+                self.advance();
+                continue;
+            }
+            if self.peek_char() == Some(' ') { continue; }
+
+            // Parse a row
+            let row = self.parse_yaml_table_row(schema.len(), separator)?;
+            if !row.is_empty() {
+                if row.len() != schema.len() {
+                    return Err(ParseError::SchemaMismatch {
+                        expected: schema.len(),
+                        got: row.len(),
+                    });
+                }
+                section.rows.push(row);
+            }
+        }
+
+        Ok(section)
+    }
+
+    /// Detect whether table rows use comma or space separator
+    fn detect_yaml_table_separator(&self) -> char {
+        let mut temp = self.pos;
+        while temp < self.input.len() {
+            let ch = self.input[temp..].chars().next().unwrap_or('\0');
+            if ch == ',' { return ','; }
+            if ch == '\n' || ch == '\r' { return ' '; }
+            temp += ch.len_utf8();
+        }
+        ' '
+    }
+
+    /// Parse a single YAML table row with space or comma-separated values
+    fn parse_yaml_table_row(&mut self, expected_cols: usize, separator: char) -> Result<Vec<DxLlmValue>, ParseError> {
+        let mut values = Vec::with_capacity(expected_cols);
+        let mut current = String::new();
+        let mut in_quotes = false;
+
+        while self.pos < self.input.len() {
+            let ch = self.current_char();
+
+            if ch == '"' {
+                in_quotes = !in_quotes;
+                current.push(ch);
+                self.advance();
+            } else if in_quotes {
+                current.push(ch);
+                self.advance();
+            } else if ch == '\n' || ch == '\r' {
+                let trimmed = current.trim().to_string();
+                if !trimmed.is_empty() {
+                    values.push(LlmParser::parse_value(&trimmed));
+                    current.clear();
+                }
+                self.advance();
+                break;
+            } else if ch == separator {
+                let trimmed = current.trim().to_string();
+                if !trimmed.is_empty() {
+                    values.push(LlmParser::parse_value(&trimmed));
+                    current.clear();
+                }
+                self.advance();
+                if separator == ' ' {
+                    while self.pos < self.input.len() && self.current_char() == ' ' {
+                        self.advance();
+                    }
+                }
+            } else {
+                current.push(ch);
+                self.advance();
+            }
+        }
+
+        if !current.trim().is_empty() {
+            values.push(LlmParser::parse_value(current.trim()));
+        }
+
+        Ok(values)
     }
 
     /// Parse a quoted string value (starting and ending with `"`)

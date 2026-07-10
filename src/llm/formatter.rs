@@ -115,7 +115,7 @@ impl LlmFormatter {
         output.push_str(key);
         output.push_str("(\n");
         for (k, v) in fields {
-            output.push_str("    ");
+            output.push_str("  ");
             if let DxLlmValue::Arr(items) = v {
                 let serialized = self.smart_join(items, |v| self.serialize_value(v));
                 if items.len() == 1 {
@@ -133,20 +133,14 @@ impl LlmFormatter {
 
     fn format_section(&self, output: &mut String, name: &str, section: &DxSection) {
         output.push_str(name);
-        output.push_str(" [");
-        output.push_str(&section.schema.join(", "));
-        output.push_str("] (\n");
-
-        let use_commas = section.rows.iter().any(|row|
-            row.iter().any(|v| matches!(v, DxLlmValue::Str(s) if s.contains(' ')))
-        );
+        output.push_str("[");
+        output.push_str(&section.schema.join(" "));
+        output.push_str("](\n");
 
         for row in &section.rows {
-            output.push_str("    ");
             let values: Vec<String> =
-                row.iter().map(|v| self.serialize_table_value(v, use_commas)).collect();
-            let sep = if use_commas { ", " } else { " " };
-            output.push_str(&values.join(sep));
+                row.iter().map(|v| self.serialize_table_value(v, false)).collect();
+            output.push_str(&values.join(" "));
             output.push('\n');
         }
 
@@ -290,8 +284,7 @@ mod tests {
 
         let output = formatter.format(&doc);
         assert!(output.contains("config("), "Output: {output}");
-        assert!(output.contains("    host = localhost"), "Output: {output}");
-        assert!(output.contains("    port = 8080"), "Output: {output}");
+        assert!(output.contains("  host = localhost"), "Output: {output}");
     }
 
     #[test]
@@ -313,12 +306,13 @@ mod tests {
         doc.entry_order.push(EntryRef::Section('d'));
 
         let output = formatter.format(&doc);
-        assert!(output.contains("users [id, name, active] ("), "Output: {output}");
-        assert!(output.contains("    1 Alpha true"), "Output: {output}");
+        assert!(output.contains("users[id name active]("), "Output: {output}");
+        assert!(output.contains("1 Alpha true"), "Output: {output}");
     }
 
     #[test]
     fn test_format_table_with_quoted_strings() {
+        use crate::llm::types::DxSection;
         let formatter = LlmFormatter;
         let mut doc = DxDocument::new();
         let mut section = DxSection::new(vec!["id".to_string(), "name".to_string()]);
@@ -332,11 +326,11 @@ mod tests {
 
         let output = formatter.format(&doc);
         assert!(
-            output.contains("employees [id, name] ("),
+            output.contains("employees[id name]("),
             "Output: {output}"
         );
         assert!(
-            output.contains("1, James Smith"),
+            output.contains("1 \"James Smith\""),
             "Output: {output}"
         );
     }

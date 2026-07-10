@@ -49,6 +49,30 @@
 use indexmap::IndexMap;
 use std::fmt;
 
+/// Optimization level for LLM format output.
+///
+/// Controls the trade-off between token efficiency and human readability:
+///
+/// - **Low**: Maximum token efficiency. Everything on one line, no unnecessary
+///   whitespace. Best for LLM context windows.
+///
+/// - **Medium**: Balanced. Auto-selects between YAML-style (for small objects
+///   with <5 children) and parenthesized format (for larger objects). Tables
+///   use unindented rows with space-separated values.
+///
+/// - **High**: Most human-readable. YAML-style structure with spaces around `=`,
+///   aligned formatting. Best for hand-edited `.dx` config files.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum OptimizationLevel {
+    /// Most token-efficient, compact single-line format
+    Low,
+    /// Balanced: auto-selects YAML vs parens based on structure size
+    #[default]
+    Medium,
+    /// Most human-readable: YAML-style with spaces around `=`
+    High,
+}
+
 /// Top-level document container for the DX LLM format.
 ///
 /// A `DxDocument` represents a complete DX document in the LLM format,

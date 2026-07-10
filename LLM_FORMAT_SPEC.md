@@ -36,14 +36,14 @@ description=Orchestrate_dont_just_own_your_code
 - `"_dont"` → 2 tokens (underscore, then word)
 - Replacing spaces with underscores **doubles token cost**
 
-### 2. Comma-Separated Wrapped Dataframes
+### 2. Space-Separated Wrapped Dataframes
 
-**Tables use `[headers](rows)` syntax** with comma-separated values for deterministic parsing:
+**Tables use `[headers](rows)` syntax** with space-separated values for token efficiency:
 
 ```
-users[id, name, email](
-1, Alice, alice@example.com
-2, Bob, bob@example.com
+users[id name email](
+1 "Alice Johnson" alice@example.com
+2 "Bob Smith" bob@example.com
 )
 ```
 
@@ -52,6 +52,7 @@ users[id, name, email](
 - No guessing based on column counts or blank lines
 - Newlines inside `()` are free (1 token = 1 token vs semicolons)
 - Vertical readability is massively improved
+- Space separation avoids extra BPE tokens that commas add
 
 ## Format Syntax
 
@@ -77,19 +78,20 @@ description = "Orchestrate dont just own your code"
 
 ### 2. Arrays
 
-Square brackets `[]` for lists of values:
+Smart separator selection for lists of values. Use commas for text (fuses with BPE tokens), spaces for simple tokens:
 
 ```
-tags = [rust, performance, serialization]
-editors = [neovim, zed, vscode, cursor, antigravity, replit, "firebase studio"]
+tags = rust performance serialization
+editors = neovim, zed, vscode, cursor, antigravity, replit, "firebase studio"
 ```
 
-**Format:** `key = [item1, item2, item3]`
+**Format:** `key = item1 item2 item3` (space-sep for simple tokens) or `key = item1, item2, item3` (comma-sep for text)
 
 **Rules:**
-- Items separated by commas
-- Use quotes `"..."` for items containing commas
-- Space after each comma
+- Brackets omitted for multi-element arrays (token-efficient)
+- Brackets `[...]` used for single-element arrays to disambiguate from scalars: `key = [item]`
+- Smart separator: spaces for simple tokens, commas for text/sentences
+- Use quotes `"..."` for items containing spaces (with comma separator) or commas (with space separator)
 
 ### 3. Inline Objects
 
@@ -118,35 +120,34 @@ driven(
 - Use quotes `"..."` for values containing commas
 - Nested arrays: `items = [a, b, c]`
 
-### 4. Tables (Comma-Separated Wrapped Dataframes)
+### 4. Tables (Space-Separated Wrapped Dataframes)
 
 **The Holy Grail:** Deterministic, readable, token-efficient.
 
 ```
-users[id, name, email](
-1, Alice, alice@example.com
-2, Bob, bob@example.com
-3, Carol, carol@example.com
+users[id name email](
+1 "Alice Johnson" alice@example.com
+2 "Bob Smith" bob@example.com
+3 "Carol Davis" carol@example.com
 )
 ```
 
-**Format:** `name[col1, col2, col3](\nrow1\nrow2\n)`
+**Format:** `name[col1 col2 col3](\nrow1\nrow2\n)`
 
 **Rules:**
-- Headers in `[]` (comma-separated)
+- Headers in `[]` (space-separated)
 - Rows wrapped in `()` for deterministic parsing
 - Each row on its own line
-- Fields within rows separated by commas
-- Use quotes `"..."` for values containing commas
+- Fields within rows separated by spaces (no commas = fewer BPE tokens)
+- Use quotes `"..."` for values containing spaces
 
 **Example with quoted strings:**
 
 ```
-employees[id, name, dept](
-1, James Smith, Engineering
-2, Mary Johnson, Research and Development
+employees[id name dept](
+1 "James Smith" Engineering
+2 "Mary Johnson" "Research and Development"
 )
-```
 
 ### 5. Mental Model Alignment
 
@@ -273,9 +274,9 @@ users:
 name = MyApp
 version = 1.0.0
 tags = [rust, performance]
-users[id, name, email](
-1, Alice, alice@ex.com
-2, Bob, bob@ex.com
+users[id name email](
+1 "Alice Johnson" alice@ex.com
+2 "Bob Smith" bob@ex.com
 )
 ```
 **Tokens:** ~22 (51% savings vs JSON, 37% savings vs TOON)
@@ -345,9 +346,9 @@ users[id, name, email](
 Wrapped dataframes eliminate ambiguity:
 
 ```
-users[id, name, email](
-1, Alice, alice@example.com
-2, Bob, bob@example.com
+users[id name email](
+1 "Alice Johnson" alice@example.com
+2 "Bob Smith" bob@example.com
 )
 ```
 
@@ -403,9 +404,9 @@ forge(
   pipeline = none
   tools = [cli, docs, examples, packages, scripts, style, tests]
 )
-dependencies[name, version](
-dx-package-1, 0.0.1
-dx-package-2, 0.0.1
+dependencies[name version](
+"dx-package-1" 0.0.1
+"dx-package-2" 0.0.1
 )
 js.dependencies(next = 16.0.1 react = 19.0.1)
 ```
@@ -455,9 +456,9 @@ id,name,email
 
 **To DX:**
 ```
-users[id, name, email](
-1, Alice, alice@ex.com
-2, Bob, bob@ex.com
+users[id name email](
+1 "Alice Johnson" alice@ex.com
+2 "Bob Smith" bob@ex.com
 )
 ```
 

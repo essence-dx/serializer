@@ -80,4 +80,4 @@ pub use serializer_output::{
 };
 pub use table_wrapper::{TableWrapper, TableWrapperConfig};
 pub use tokens::{ModelType, TokenCounter, TokenInfo};
-pub use types::{DxDocument, DxLlmValue, DxSection};
+pub use types::{DxDocument, DxLlmValue, DxSection, OptimizationLevel};

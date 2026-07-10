@@ -12,9 +12,9 @@ use std::path::PathBuf;
 fn collect_essence_files() -> Vec<PathBuf> {
     let mut files = Vec::new();
 
-    // Tests run from workspace root, so paths are relative to workspace root
-    let essence_root = "../../essence";
-    let essence_datasets = "../../essence/datasets";
+    // Tests run from project root (G:\Dx\serializer)
+    let essence_root = "essence";
+    let essence_datasets = "essence/datasets";
 
     // Check essence root directory
     if let Ok(entries) = fs::read_dir(essence_root) {
