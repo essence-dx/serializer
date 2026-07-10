@@ -52,8 +52,8 @@ fn main() {
             let file = match file {
                 Some(f) => f.clone(),
                 None => {
-                    eprintln!("Error: No input file specified for '{level}' mode");
-                    eprintln!("Usage: {app_name} {level} <file> [options]");
+                    eprintln!("Error: No input file specified for '{level:?}' mode");
+                    eprintln!("Usage: {app_name} {level:?} <file> [options]");
                     std::process::exit(1);
                 }
             };
@@ -86,7 +86,7 @@ fn main() {
 }
 
 fn print_help(bin: &str) {
-    let name = Path::new(bin).file_stem().unwrap_or(std::ffi::OsStr::new("dx-serialize"));
+    let name = Path::new(bin).file_stem().unwrap_or(std::ffi::OsStr::new("dx-serializer")).to_string_lossy();
     eprintln!("DX Serializer — token-efficient LLM serialization");
     eprintln!();
     eprintln!("Usage:");
@@ -180,14 +180,13 @@ fn run_serialize_with_level(file: &str, level: OptimizationLevel, flags: &ExtraF
         .with_machine(flags.generate_machine)
         .with_metadata(flags.generate_metadata)
         .with_compression(flags.compression)
-        .with_serializer_config(serializer_config)
+        .with_serializer_config(serializer_config.clone())
         .with_beautify(flags.beautify)
         .with_format_llm(flags.format_llm);
     let serializer = SerializerOutput::with_config(config);
     let source = Path::new(file);
 
     if flags.stdout {
-        // Read and serialize to stdout
         match fs::read_to_string(source) {
             Ok(content) => {
                 let doc = match serializer::llm::parser::LlmParser::parse(&content) {

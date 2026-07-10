@@ -43,13 +43,13 @@ Beautiful, readable format that developers edit directly:
 - Easy to read, write, and version control
 - This is the **source of truth** - you edit these files
 
-### LLM Format (.llm in .dx/serializer/)
+### LLM Format (.sr in .dx/serializer/)
 
 Token-optimized format for AI context windows:
 - ~49% token savings vs compact JSON (~70% vs pretty-printed)
 - Beats TOON by 11%, Tauq by 14%, TONL by 13%
 - Compact notation with schema headers
-- **Auto-generated** in `.dx/serializer/*.llm` folder
+- **Auto-generated** in `.dx/serializer/*.sr` folder
 - Never edit manually - regenerated from human format
 
 ### Machine Format (.machine in .dx/serializer/)
@@ -60,7 +60,7 @@ Pure RKYV binary format for maximum performance:
 - **Auto-generated** in `.dx/serializer/*.machine` folder
 - Identical to RKYV wire format
 
-**Architecture**: Human format files live on disk. When you save a `dx` file (or any file with DX serializer syntax), the extension automatically generates the `.llm` and `.machine` versions in the `.dx/serializer/` folder. The `.dx/` folder is gitignored as it contains generated files.
+**Architecture**: Human format files live on disk. When you save a `dx` file (or any file with DX serializer syntax), the extension automatically generates the `.sr` and `.machine` versions in the `.dx/serializer/` folder. The `.dx/` folder is gitignored as it contains generated files.
 
 **Note**: DX-Machine IS RKYV. We use RKYV's wire format directly with no modifications.
 
@@ -71,7 +71,7 @@ Pure RKYV binary format for maximum performance:
 # Example: dx, package.sr
 
 # When you save a file, the extension auto-generates:
-# .dx/serializer/dx.llm       (LLM-optimized, 52-73% token savings)
+# .dx/serializer/dx.sr       (LLM-optimized, 52-73% token savings)
 # .dx/serializer/dx.machine   (binary, zero-copy)
 
 # CLI usage (if needed manually):
@@ -83,7 +83,7 @@ dx serializer src/               # Process specific directory
 **Workflow**:
 1. Edit human format files on disk (e.g., `dx`, `package.sr`)
 2. Save the file
-3. Extension automatically generates `.llm` and `.machine` in `.dx/serializer/`
+3. Extension automatically generates `.sr` and `.machine` in `.dx/serializer/`
 4. `.dx/` folder is gitignored (contains generated files)
 5. Only commit the human format files
 
@@ -260,7 +260,7 @@ next = 16.0.1
   - Source of truth, version controlled in git
   - TOML/INI-like syntax with aligned `=` at column 28
 
-- **LLM format** (.llm) - **Auto-generated** in `.dx/serializer/` folder
+- **LLM format** (.sr) - **Auto-generated** in `.dx/serializer/` folder
   - Never edit manually
   - Regenerated automatically when human format changes
   - ~49% token savings vs compact JSON
