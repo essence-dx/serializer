@@ -37,11 +37,11 @@ The DX LLM format is a **token-efficient, deterministically-parseable serializat
 Simple values at the document root:
 
 ```
-name=MyApp
-version=1.0.0
-port=8080
-active=true
-description="Orchestrate dont just own your code"
+name = MyApp
+version = 1.0.0
+port = 8080
+active = true
+description = "Orchestrate dont just own your code"
 ```
 
 **Rules:**
@@ -58,8 +58,8 @@ description="Orchestrate dont just own your code"
 Space-separated lists of values:
 
 ```
-tags=[rust performance serialization]
-editors=[neovim zed vscode cursor antigravity replit "firebase studio"]
+tags = [rust, performance, serialization]
+editors = [neovim, zed, vscode, cursor, antigravity, replit, "firebase studio"]
 ```
 
 **Format:** `key=[item1 item2 item3]`
@@ -75,9 +75,18 @@ editors=[neovim zed vscode cursor antigravity replit "firebase studio"]
 Key-value pairs enclosed in parentheses:
 
 ```
-config(host=localhost port=5432 debug=true)
-server(url="https://api.example.com" timeout=30)
-driven(path=@/driven)
+config(
+  host = localhost
+  port = 5432
+  debug = true
+)
+server(
+  url = "https://api.example.com"
+  timeout = 30
+)
+driven(
+  path = @/driven
+)
 ```
 
 **Format:** `key(key1=value1 key2=value2)`
@@ -94,10 +103,10 @@ driven(path=@/driven)
 The signature feature — deterministic, readable, token-efficient tabular data:
 
 ```
-users[id name email](
-1 Alice alice@example.com
-2 Bob bob@example.com
-3 Carol carol@example.com
+users[id, name, email](
+1, Alice, alice@example.com
+2, Bob, bob@example.com
+3, Carol, carol@example.com
 )
 ```
 
@@ -112,9 +121,9 @@ users[id name email](
 
 **Example with quoted strings:**
 ```
-employees[id name dept](
-1 "James Smith" Engineering
-2 "Mary Johnson" "Research and Development"
+employees[id, name, dept](
+1, James Smith, Engineering
+2, Mary Johnson, Research and Development
 )
 ```
 
@@ -123,17 +132,17 @@ employees[id name dept](
 Removes repeated prefixes from table columns for massive token savings:
 
 ```
-logs[timestamp endpoint status]@/api/(
-10:23:45Z users 200
-10:24:12Z orders 500
-10:25:01Z products 200
+logs[timestamp, endpoint, status]@/api/(
+10:23:45Z, users, 200
+10:24:12Z, orders, 500
+10:25:01Z, products, 200
 )
 ```
 
 **Expands to:**
-- `10:23:45Z /api/users 200`
-- `10:24:12Z /api/orders 500`
-- `10:25:01Z /api/products 200`
+- `10:23:45Z, /api/users, 200`
+- `10:24:12Z, /api/orders, 500`
+- `10:25:01Z, /api/products, 200`
 
 **Format:** `name[headers]@prefix(...)` — the `@prefix` appears between headers `]` and opening paren `(`
 
@@ -192,8 +201,14 @@ The LLM format internally organizes data into a structured `DxDocument`:
 ### 9. Section Dots — Preserved as-is
 
 ```
-js.dependencies(next=16.0.1 react=19.0.1)
-i18n.locales(path=@/locales default=en-US)
+js.dependencies(
+  next = 16.0.1
+  react = 19.0.1
+)
+i18n.locales(
+  path = @/locales
+  default = en-US
+)
 ```
 
 Dots in section/object names are kept literally for clarity.
@@ -462,61 +477,71 @@ identifier       = [a-zA-Z_][a-zA-Z0-9_.-]* ;
 ### Application Configuration
 
 ```
-author=essensefromexistence
-version=0.0.1
-name=dx
-description="Orchestrate dont just own your code"
-title="Enhanced Developing Experience"
-driven(path=@/driven)
-editors(default=neovim items=[neovim zed vscode cursor antigravity replit "firebase studio"])
-forge(repository="https://dx.vercel.app/essensefromexistence/dx" container=none pipeline=none tools=[cli docs examples packages scripts style tests])
-dependencies[name version](
-dx-package-1 0.0.1
-dx-package-2 0.0.1
+author = essensefromexistence
+version = 0.0.1
+name = dx
+description = "Orchestrate dont just own your code"
+title = "Enhanced Developing Experience"
+driven(
+  path = @/driven
 )
-js.dependencies(next=16.0.1 react=19.0.1)
+editors(
+  default = neovim
+  items = [neovim, zed, vscode, cursor, antigravity, replit, "firebase studio"]
+)
+forge(
+  repository = "https://dx.vercel.app/essensefromexistence/dx"
+  container = none
+  pipeline = none
+  tools = [cli, docs, examples, packages, scripts, style, tests]
+)
+dependencies[name, version](
+dx-package-1, 0.0.1
+dx-package-2, 0.0.1
+)
+js.dependencies(next = 16.0.1 react = 19.0.1)
 ```
 
 ### Package Dependencies
 
 ```
-name=my-project
-version=2.0.0
-deps[name version](
-react 18.2.0
-react-dom 18.2.0
-next 14.0.1
-typescript 5.3.2
-tailwindcss 3.4.0
+name = my-project
+version = 2.0.0
+deps[name, version](
+react, 18.2.0
+react-dom, 18.2.0
+next, 14.0.1
+typescript, 5.3.2
+tailwindcss, 3.4.0
 )
-devDeps[name version](
-vitest 1.2.0
-eslint 8.56.0
-prettier 3.2.0
+devDeps[name, version](
+vitest, 1.2.0
+eslint, 8.56.0
+prettier, 3.2.0
 )
 ```
 
 ### User Database
 
 ```
-users[id name email role status](
-1 "Alice Johnson" alice@example.com admin active
-2 "Bob Smith" bob@example.com user active
-3 "Carol Williams" carol@example.com user inactive
-4 "Dave Brown" dave@example.com moderator active
+users[id, name, email, role, status](
+1, Alice Johnson, alice@example.com, admin, active
+2, Bob Smith, bob@example.com, user, active
+3, Carol Williams, carol@example.com, user, inactive
+4, Dave Brown, dave@example.com, moderator, active
 )
 ```
 
 ### API Endpoints
 
 ```
-api[name method path auth]@/api/v1(
-users GET /users required
-"create user" POST /users admin
-"get user" GET /users/:id required
-"update user" PUT /users/:id admin
-"delete user" DELETE /users/:id admin
-orders GET /orders required
+api[name, method, path, auth]@/api/v1(
+users, GET, /users, required
+create user, POST, /users, admin
+get user, GET, /users/:id, required
+update user, PUT, /users/:id, admin
+delete user, DELETE, /users/:id, admin
+orders, GET, /orders, required
 )
 
 ---
@@ -566,13 +591,13 @@ users:
 ```
 
 ```
-# DX LLM: ~20 tokens (56% savings vs JSON, 43% vs TOON)
-name=MyApp
-version=1.0.0
-tags=[rust performance]
-users[id name email](
-1 Alice alice@ex.com
-2 Bob bob@ex.com
+# DX LLM: ~22 tokens (51% savings vs JSON, 37% vs TOON)
+name = MyApp
+version = 1.0.0
+tags = [rust, performance]
+users[id, name, email](
+1, Alice, alice@ex.com
+2, Bob, bob@ex.com
 )
 ```
 

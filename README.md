@@ -101,7 +101,10 @@ dependencies[name version](
 dx-package-1 0.0.1
 dx-package-2 0.0.1
 )
-js.dependencies(next=16.0.1 react=19.0.1)
+js.dependencies(
+  next = 16.0.1
+  react = 19.0.1
+)
 ```
 
 ### Syntax Features

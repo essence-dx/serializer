@@ -29,6 +29,7 @@
 
 pub mod abbrev;
 pub mod cache_generator;
+pub mod config_formatter;
 pub mod formatter;
 pub mod convert;
 pub mod human_formatter;
@@ -64,6 +65,7 @@ pub use convert::{
     llm_to_machine, machine_bytes_to_document, machine_to_document, machine_to_human,
     machine_to_llm, try_document_to_machine_with_compression, try_read_machine_or_sr,
 };
+pub use config_formatter::{ConfigFormatter, ConfigStyle};
 pub use formatter::LlmFormatter;
 pub use human_formatter::{HumanFormatConfig, HumanFormatter};
 pub use human_parser::{HumanParseError, HumanParser};

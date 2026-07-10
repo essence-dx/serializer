@@ -36,14 +36,14 @@ description=Orchestrate_dont_just_own_your_code
 - `"_dont"` → 2 tokens (underscore, then word)
 - Replacing spaces with underscores **doubles token cost**
 
-### 2. Wrapped Dataframes
+### 2. Comma-Separated Wrapped Dataframes
 
-**Tables use `[headers](rows)` syntax** for deterministic parsing:
+**Tables use `[headers](rows)` syntax** with comma-separated values for deterministic parsing:
 
 ```
-users[id name email](
-1 Alice alice@example.com
-2 Bob bob@example.com
+users[id, name, email](
+1, Alice, alice@example.com
+2, Bob, bob@example.com
 )
 ```
 
@@ -60,11 +60,11 @@ users[id name email](
 Simple scalars at document root:
 
 ```
-name=MyApp
-version=1.0.0
-port=8080
-active=true
-description="Orchestrate dont just own your code"
+name = MyApp
+version = 1.0.0
+port = 8080
+active = true
+description = "Orchestrate dont just own your code"
 ```
 
 **Rules:**
@@ -80,61 +80,71 @@ description="Orchestrate dont just own your code"
 Square brackets `[]` for lists of values:
 
 ```
-tags=[rust performance serialization]
-editors=[neovim zed vscode cursor antigravity replit "firebase studio"]
+tags = [rust, performance, serialization]
+editors = [neovim, zed, vscode, cursor, antigravity, replit, "firebase studio"]
 ```
 
-**Format:** `key=[item1 item2 item3]`
+**Format:** `key = [item1, item2, item3]`
 
 **Rules:**
-- Items separated by spaces
-- Use quotes `"..."` for multi-word items
-- No commas needed
+- Items separated by commas
+- Use quotes `"..."` for items containing commas
+- Space after each comma
 
 ### 3. Inline Objects
 
 Parentheses `()` for key-value pairs:
 
 ```
-config(host=localhost port=5432 debug=true)
-server(url="https://api.example.com" timeout=30)
-driven(path=@/driven)
+config(
+  host = localhost
+  port = 5432
+  debug = true
+)
+server(
+  url = "https://api.example.com"
+  timeout = 30
+)
+driven(
+  path = @/driven
+)
 ```
 
-**Format:** `key(key1=value1 key2=value2)`
+**Format:** `key(\n  key1 = value1\n  key2 = value2\n)`
 
 **Rules:**
-- Fields separated by spaces
-- Use quotes `"..."` for values with spaces
-- Nested arrays: `items=[a b c]`
+- Each field on its own line (multi-line)
+- Spaces around `=`
+- Use quotes `"..."` for values containing commas
+- Nested arrays: `items = [a, b, c]`
 
-### 4. Tables (Wrapped Dataframes)
+### 4. Tables (Comma-Separated Wrapped Dataframes)
 
 **The Holy Grail:** Deterministic, readable, token-efficient.
 
 ```
-users[id name email](
-1 Alice alice@example.com
-2 Bob bob@example.com
-3 Carol carol@example.com
+users[id, name, email](
+1, Alice, alice@example.com
+2, Bob, bob@example.com
+3, Carol, carol@example.com
 )
 ```
 
-**Format:** `name[col1 col2 col3](rows)`
+**Format:** `name[col1, col2, col3](\nrow1\nrow2\n)`
 
 **Rules:**
-- Headers in `[]` (space-separated)
+- Headers in `[]` (comma-separated)
 - Rows wrapped in `()` for deterministic parsing
 - Each row on its own line
-- Fields within rows separated by spaces
-- Use quotes `"..."` for multi-word values
+- Fields within rows separated by commas
+- Use quotes `"..."` for values containing commas
 
 **Example with quoted strings:**
 
 ```
-employees[id name dept](
-1 "James Smith" Engineering
-2 "Mary Johnson" "Research and Development"
+employees[id, name, dept](
+1, James Smith, Engineering
+2, Mary Johnson, Research and Development
 )
 ```
 
@@ -153,10 +163,10 @@ This aligns with JSON mental models, helping LLMs hallucinate less.
 Remove repeated prefixes from table columns:
 
 ```
-logs[timestamp endpoint status]@/api/(
-10:23:45Z users 200
-10:24:12Z orders 500
-10:25:01Z products 200
+logs[timestamp, endpoint, status]@/api/(
+10:23:45Z, users, 200
+10:24:12Z, orders, 500
+10:25:01Z, products, 200
 )
 ```
 
@@ -179,7 +189,9 @@ Dots in section names are preserved as-is:
 react = 19.0.0
 
 # Output (LLM format)
-js.dependencies(react=19.0.0)
+js.dependencies(
+  react = 19.0.0
+)
 ```
 
 **Note:** Dots are kept in section names for clarity and consistency.
@@ -258,15 +270,15 @@ users:
 
 ### DX Serializer v4
 ```
-name=MyApp
-version=1.0.0
-tags=[rust performance]
-users[id name email](
-1 Alice alice@ex.com
-2 Bob bob@ex.com
+name = MyApp
+version = 1.0.0
+tags = [rust, performance]
+users[id, name, email](
+1, Alice, alice@ex.com
+2, Bob, bob@ex.com
 )
 ```
-**Tokens:** ~20 (56% savings vs JSON, 43% savings vs TOON)
+**Tokens:** ~22 (51% savings vs JSON, 37% savings vs TOON)
 
 ## When DX Beats TOON
 
@@ -333,9 +345,9 @@ users[id name email](
 Wrapped dataframes eliminate ambiguity:
 
 ```
-users[id name email](
-1 Alice alice@example.com
-2 Bob bob@example.com
+users[id, name, email](
+1, Alice, alice@example.com
+2, Bob, bob@example.com
 )
 ```
 
@@ -373,19 +385,29 @@ Tested on production config files:
 ## Complete Example
 
 ```
-author=essensefromexistence
-version=0.0.1
-name=dx
-description="Orchestrate dont just own your code"
-title="Enhanced Developing Experience"
-driven(path=@/driven)
-editors(default=neovim items=[neovim zed vscode cursor antigravity replit "firebase studio"])
-forge(repository="https://dx.vercel.app/essensefromexistence/dx" container=none pipeline=none tools=[cli docs examples packages scripts style tests])
-dependencies[name version](
-dx-package-1 0.0.1
-dx-package-2 0.0.1
+author = essensefromexistence
+version = 0.0.1
+name = dx
+description = "Orchestrate dont just own your code"
+title = "Enhanced Developing Experience"
+driven(
+  path = @/driven
 )
-js.dependencies(next=16.0.1 react=19.0.1)
+editors(
+  default = neovim
+  items = [neovim, zed, vscode, cursor, antigravity, replit, "firebase studio"]
+)
+forge(
+  repository = "https://dx.vercel.app/essensefromexistence/dx"
+  container = none
+  pipeline = none
+  tools = [cli, docs, examples, packages, scripts, style, tests]
+)
+dependencies[name, version](
+dx-package-1, 0.0.1
+dx-package-2, 0.0.1
+)
+js.dependencies(next = 16.0.1 react = 19.0.1)
 ```
 
 **Token Count:** ~150-160 tokens (15-20% better than TOON, infinitely safer)
@@ -400,10 +422,10 @@ js.dependencies(next=16.0.1 react=19.0.1)
 
 **To DX:**
 ```
-name=Alice
-age=30
-active=true
-bio="Software engineer"
+name = Alice
+age = 30
+active = true
+bio = "Software engineer"
 ```
 
 ### From YAML/TOON
@@ -420,7 +442,7 @@ tags:
 ```
 name=Alice
 age=30
-tags=[rust fast]
+tags = [rust, fast]
 ```
 
 ### From CSV
@@ -433,9 +455,9 @@ id,name,email
 
 **To DX:**
 ```
-users[id name email](
-1 Alice alice@ex.com
-2 Bob bob@ex.com
+users[id, name, email](
+1, Alice, alice@ex.com
+2, Bob, bob@ex.com
 )
 ```
 

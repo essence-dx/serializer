@@ -1,16 +1,12 @@
 //! LLM Format Formatter
 //!
-//! Produces consistently spaced/indented LLM-format output (`--format` mode).
-//! Still LLM format (not human format), just with improved readability:
-//! - Spaces around `=` for top-level key-value pairs
-//! - Blank lines between entries
-//! - Indented section rows (4 spaces)
-//! - Space-separated structural tokens in table headers
+//! Produces consistently spaced LLM-format output (`--format` mode).
+//! Adaptive separators, no brackets for arrays, indented sections.
 
 use crate::llm::types::{EntryRef, DxDocument, DxLlmValue, DxSection};
 use indexmap::IndexMap;
 
-/// Produces consistently spaced/indented LLM-format output.
+/// Produces consistently spaced LLM-format output.
 pub struct LlmFormatter;
 
 impl LlmFormatter {
@@ -61,6 +57,30 @@ impl LlmFormatter {
         output.trim_end().to_string()
     }
 
+    fn has_any_with_spaces(values: &[DxLlmValue]) -> bool {
+        values.iter().any(|v| match v {
+            DxLlmValue::Str(s) => s.contains(' '),
+            _ => false,
+        })
+    }
+
+    fn smart_join(&self, values: &[DxLlmValue], quote_fn: impl Fn(&DxLlmValue) -> String) -> String {
+        let use_commas = Self::has_any_with_spaces(values);
+        let sep = if use_commas { ", " } else { " " };
+        let items: Vec<String> = values.iter().map(|v| {
+            let s = quote_fn(v);
+            let is_str = matches!(v, DxLlmValue::Str(_));
+            if use_commas && is_str && s.contains(',') {
+                format!("\"{}\"", s.replace('"', "\\\""))
+            } else if !use_commas && is_str && s.contains(' ') {
+                format!("\"{}\"", s.replace('"', "\\\""))
+            } else {
+                s
+            }
+        }).collect();
+        items.join(sep)
+    }
+
     fn format_context_entry(&self, output: &mut String, key: &str, value: &DxLlmValue) {
         match value {
             DxLlmValue::Obj(fields) => {
@@ -68,11 +88,15 @@ impl LlmFormatter {
             }
             DxLlmValue::Arr(items) => {
                 output.push_str(key);
-                output.push_str(" = [");
-                let items_str: Vec<String> =
-                    items.iter().map(|v| self.serialize_value(v)).collect();
-                output.push_str(&items_str.join(" "));
-                output.push(']');
+                output.push_str(" = ");
+                let serialized = self.smart_join(items, |v| self.serialize_value(v));
+                if items.len() == 1 {
+                    output.push('[');
+                    output.push_str(&serialized);
+                    output.push(']');
+                } else {
+                    output.push_str(&serialized);
+                }
             }
             _ => {
                 output.push_str(key);
@@ -89,34 +113,40 @@ impl LlmFormatter {
         fields: &IndexMap<String, DxLlmValue>,
     ) {
         output.push_str(key);
-        output.push('(');
-        let parts: Vec<String> = fields
-            .iter()
-            .map(|(k, v)| {
-                if let DxLlmValue::Arr(items) = v {
-                    let items_str: Vec<String> =
-                        items.iter().map(|i| self.serialize_value(i)).collect();
-                    format!("{} = [{}]", k, items_str.join(" "))
+        output.push_str("(\n");
+        for (k, v) in fields {
+            output.push_str("    ");
+            if let DxLlmValue::Arr(items) = v {
+                let serialized = self.smart_join(items, |v| self.serialize_value(v));
+                if items.len() == 1 {
+                    output.push_str(&format!("{} = [{}]", k, serialized));
                 } else {
-                    format!("{}={}", k, self.serialize_value(v))
+                    output.push_str(&format!("{} = {}", k, serialized));
                 }
-            })
-            .collect();
-        output.push_str(&parts.join(" "));
+            } else {
+                output.push_str(&format!("{} = {}", k, self.serialize_value(v)));
+            }
+            output.push('\n');
+        }
         output.push(')');
     }
 
     fn format_section(&self, output: &mut String, name: &str, section: &DxSection) {
         output.push_str(name);
         output.push_str(" [");
-        output.push_str(&section.schema.join(" "));
+        output.push_str(&section.schema.join(", "));
         output.push_str("] (\n");
+
+        let use_commas = section.rows.iter().any(|row|
+            row.iter().any(|v| matches!(v, DxLlmValue::Str(s) if s.contains(' ')))
+        );
 
         for row in &section.rows {
             output.push_str("    ");
             let values: Vec<String> =
-                row.iter().map(|v| self.serialize_table_value(v)).collect();
-            output.push_str(&values.join(" "));
+                row.iter().map(|v| self.serialize_table_value(v, use_commas)).collect();
+            let sep = if use_commas { ", " } else { " " };
+            output.push_str(&values.join(sep));
             output.push('\n');
         }
 
@@ -135,30 +165,24 @@ impl LlmFormatter {
                     format!("{n}")
                 }
             }
-            DxLlmValue::Str(s) => {
-                if s.contains(' ') {
-                    format!("\"{}\"", s.replace('"', "\\\""))
-                } else {
-                    s.clone()
-                }
-            }
+            DxLlmValue::Str(s) => s.clone(),
             DxLlmValue::Arr(items) => {
                 let serialized: Vec<String> =
                     items.iter().map(|item| self.serialize_value(item)).collect();
-                serialized.join(",")
+                serialized.join(", ")
             }
             DxLlmValue::Obj(fields) => {
                 let fields_str: Vec<String> = fields
                     .iter()
                     .map(|(k, v)| format!("{}={}", k, self.serialize_value(v)))
                     .collect();
-                format!("[{}]", fields_str.join(","))
+                fields_str.join(", ")
             }
             DxLlmValue::Ref(key) => format!("^{key}"),
         }
     }
 
-    fn serialize_table_value(&self, value: &DxLlmValue) -> String {
+    fn serialize_table_value(&self, value: &DxLlmValue, use_commas: bool) -> String {
         match value {
             DxLlmValue::Bool(true) => "true".to_string(),
             DxLlmValue::Bool(false) => "false".to_string(),
@@ -171,7 +195,12 @@ impl LlmFormatter {
                 }
             }
             DxLlmValue::Str(s) => {
-                if s.contains(' ') {
+                let needs_quoting = if use_commas {
+                    s.contains(',')
+                } else {
+                    s.contains(' ')
+                };
+                if needs_quoting {
                     format!("\"{}\"", s.replace('"', "\\\""))
                 } else {
                     s.clone()
@@ -180,16 +209,18 @@ impl LlmFormatter {
             DxLlmValue::Arr(items) => {
                 let serialized: Vec<String> = items
                     .iter()
-                    .map(|item| self.serialize_table_value(item))
+                    .map(|item| self.serialize_table_value(item, use_commas))
                     .collect();
-                serialized.join(",")
+                let sep = if use_commas { ", " } else { " " };
+                serialized.join(sep)
             }
             DxLlmValue::Obj(fields) => {
                 let fields_str: Vec<String> = fields
                     .iter()
-                    .map(|(k, v)| format!("{}={}", k, self.serialize_table_value(v)))
+                    .map(|(k, v)| format!("{}={}", k, self.serialize_table_value(v, use_commas)))
                     .collect();
-                format!("({})", fields_str.join(","))
+                let sep = if use_commas { ", " } else { " " };
+                format!("({})", fields_str.join(sep))
             }
             DxLlmValue::Ref(key) => format!("^{key}"),
         }
@@ -241,7 +272,7 @@ mod tests {
 
         let output = formatter.format(&doc);
         assert!(
-            output.contains("tags = [rust fast]"),
+            output.contains("tags = rust fast"),
             "Output: {output}"
         );
     }
@@ -258,10 +289,9 @@ mod tests {
         doc.entry_order.push(EntryRef::Context("config".to_string()));
 
         let output = formatter.format(&doc);
-        // Top-level object uses key(...) with no spaces around = inside
         assert!(output.contains("config("), "Output: {output}");
-        assert!(output.contains("host=localhost"), "Output: {output}");
-        assert!(output.contains("port=8080"), "Output: {output}");
+        assert!(output.contains("    host = localhost"), "Output: {output}");
+        assert!(output.contains("    port = 8080"), "Output: {output}");
     }
 
     #[test]
@@ -283,7 +313,7 @@ mod tests {
         doc.entry_order.push(EntryRef::Section('d'));
 
         let output = formatter.format(&doc);
-        assert!(output.contains("users [id name active] ("), "Output: {output}");
+        assert!(output.contains("users [id, name, active] ("), "Output: {output}");
         assert!(output.contains("    1 Alpha true"), "Output: {output}");
     }
 
@@ -302,11 +332,11 @@ mod tests {
 
         let output = formatter.format(&doc);
         assert!(
-            output.contains("employees [id name] ("),
+            output.contains("employees [id, name] ("),
             "Output: {output}"
         );
         assert!(
-            output.contains("1 \"James Smith\""),
+            output.contains("1, James Smith"),
             "Output: {output}"
         );
     }
@@ -323,7 +353,6 @@ mod tests {
         doc.entry_order.push(EntryRef::Context("version".to_string()));
 
         let output = formatter.format(&doc);
-        // There should be a blank line between entries
         assert!(output.contains("name = MyApp\n\nversion = 1.0"), "Output: {output}");
     }
 }

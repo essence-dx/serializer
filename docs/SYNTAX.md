@@ -10,58 +10,70 @@ The LLM format is a compact, token-efficient format stored on disk.
 ### Objects
 
 ```dsr
-config(host=localhost port=5432 debug=true)
-server(url="https://api.example.com" timeout=30)
+config(
+  host = localhost
+  port = 5432
+  debug = true
+)
 ```
-- Name followed by parentheses containing space-separated key=value pairs
-- No spaces around `=`
-- Use quotes for multi-word strings
+- Name followed by parentheses containing key=value pairs, one per line
+- Spaces around `=`
+- No quotes needed for values with spaces (commas and newlines delimit)
 
 ### Arrays
 
 ```dsr
-tags=[rust performance serialization]
-editors=[neovim zed "firebase studio"]
+tags = [rust, performance, serialization]
+editors = [neovim, zed, "firebase studio"]
 ```
-- Square brackets with space-separated items
-- Use quotes for multi-word items
+- Square brackets with comma-separated items
+- Use quotes for items containing commas
 
 ### Tables
 
 ```dsr
-users[id name email](
-1 Alice alice@ex.com
-2 Bob bob@ex.com
+users[id, name, email](
+1, Alice, alice@ex.com
+2, Bob, bob@ex.com
 )
 ```
-- Headers in square brackets, rows in parentheses
-- Each row on its own line
+- Headers in square brackets (comma-separated), rows in parentheses
+- Each row on its own line, values comma-separated
+- No quotes needed for values with spaces
 
-### Strings with Spaces
+### Strings with Commas
 
-Use double quotes:
+Use double quotes for values containing commas:
 ```dsr
-config[title="Enhanced Developing Experience",desc="My description"]
+config[title="Enhanced, Developing, Experience",desc="My, description"]
 ```
 
 ### Nested Sections
 
 Use dot notation in the section name:
 ```dsr
-js.dependencies[react=19.0.1,next=16.0.1]
-i18n.locales[path=@/locales,default=en-US]
+js.dependencies(react = 19.0.1, next = 16.0.1)
+i18n.locales(path = @/locales, default = en-US)
 ```
 
 ### Complete Example
 
 ```dsr
-name=dx
-version=0.0.1
-title="Enhanced Developing Experience"
-workspace(paths=[@/www @/backend])
-editors(items=[neovim zed vscode] default=neovim)
-forge(repository="https://github.com/user/repo" tools=[cli docs tests])
-js.dependencies(react=19.0.1 next=16.0.1)
+name = dx
+version = 0.0.1
+title = "Enhanced Developing Experience"
+workspace(
+  paths = [@/www, @/backend]
+)
+editors(
+  items = [neovim, zed, vscode]
+  default = neovim
+)
+forge(
+  repository = "https://github.com/user/repo"
+  tools = [cli, docs, tests]
+)
+js.dependencies(react = 19.0.1, next = 16.0.1)
 ```
 
 ## Human Format
@@ -104,7 +116,9 @@ key = value ```
 ### Complete Example
 
 ```dx
-name = dx version = 0.0.1 title = "Enhanced Developing Experience"
+name = dx
+version = 0.0.1
+title = "Enhanced Developing Experience"
 [workspace]
 paths:
 - @/www
@@ -116,12 +130,15 @@ items:
 - vscode
 default = neovim
 [forge]
-repository = https://github.com/user/repo tools:
+repository = https://github.com/user/repo
+tools:
 - cli
 - docs
 - tests
 [js.dependencies]
-react = 19.0.1 next = 16.0.1 ```
+react = 19.0.1
+next = 16.0.1
+```
 
 
 ## Conversion Rules
@@ -129,13 +146,13 @@ react = 19.0.1 next = 16.0.1 ```
 ### LLM → Human
 
 - Objects `name(key=val)` become `[name]` sections with key-value pairs
-- Arrays `key=[item1 item2]` become `key:` followed by `- item` lines
+- Arrays `key = [item1, item2]` become `key:` followed by `- item` lines
 - Keys are padded for alignment
 
 ### Human → LLM
 
-- `[section]` headers with key-value pairs become `section(key=val)`
-- `key:` followed by `- item` lines become `key=[item1 item2]`
+- `[section]` headers with key-value pairs become `section(\n  key = val\n)`
+- `key:` followed by `- item` lines become `key = [item1, item2]`
 - All whitespace padding is removed
 
 ## Grammar (EBNF)
@@ -148,12 +165,12 @@ scalar = key "=" value ;
 object = identifier "(" pairs ")" ;
 array = key "=" "[" items "]" ;
 table = identifier "[" headers "]" "(" rows ")" ;
-pairs = pair (" " pair)* ;
+pairs = pair ("\n" pair)* ;                     (* newline-separated *)
 pair = key "=" value ;
-headers = identifier (" " identifier)* ;
+headers = identifier ("," identifier)* ;          (* comma-separated *)
 rows = row* ;
-row = value (" " value)* ;
-items = value (" " value)* ;
+row = value ("," value)* ;                       (* comma-separated *)
+items = value ("," value)* ;                     (* comma-separated *)
 key = identifier ;
 value = string | identifier | number ;
 string = '"' [^"]* '"' ;

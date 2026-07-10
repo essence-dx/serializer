@@ -340,10 +340,19 @@ impl<'a> DsrParser<'a> {
 
                 if next_ch == Some('(') {
                     // Wrapped dataframe table: name[headers](rows)
-                    let schema: Vec<String> = bracket_content
-                        .split_whitespace()
-                        .map(std::string::ToString::to_string)
-                        .collect();
+                    // Handle both comma-separated and space-separated schemas
+                    let schema: Vec<String> = if bracket_content.contains(',') {
+                        bracket_content
+                            .split(',')
+                            .map(|s| s.trim().to_string())
+                            .filter(|s| !s.is_empty())
+                            .collect()
+                    } else {
+                        bracket_content
+                            .split_whitespace()
+                            .map(std::string::ToString::to_string)
+                            .collect()
+                    };
 
                     if schema.is_empty() {
                         return Err(ParseError::InvalidTable {
@@ -407,23 +416,46 @@ impl<'a> DsrParser<'a> {
                 doc.context.insert(name.clone(), obj);
             }
             Some('=') => {
-                // NEW FORMAT: Simple key=value or array: name=[item1 item2]
+                // key = value — supports arrays without brackets
                 self.advance(); // consume '='
                 self.skip_whitespace();
 
-                // Check if it's an array: =[...]
+                // Bracketed array: =[item1 item2] or =[item1, item2]
                 if self.peek_char() == Some('[') {
                     self.advance(); // consume '['
                     let items_str = self.parse_until_char(']')?;
                     self.expect_char(']')?;
-
-                    // Parse space-separated items (with quote support)
                     let items = self.parse_quoted_items(&items_str);
                     doc.context.insert(name.clone(), DxLlmValue::Arr(items));
-                } else {
-                    // Simple value
-                    let value = self.parse_value_until_delimiter(&[',', '\n', '\r', ']'])?;
+                } else if self.peek_char() == Some('"') {
+                    // Quoted string (single value, may contain commas)
+                    let value = self.parse_quoted_value()?;
                     doc.context.insert(name.clone(), value);
+                } else {
+                    // Read the full value until end of line
+                    let value_str = self.parse_until_delimiter(&['\n', '\r', ']'])?;
+                    let trimmed = value_str.trim();
+                    if trimmed.is_empty() {
+                        doc.context.insert(name.clone(), DxLlmValue::Str(String::new()));
+                    } else if trimmed.contains(',') {
+                        // Comma-separated array
+                        let items: Vec<DxLlmValue> = trimmed
+                            .split(',')
+                            .map(|s| LlmParser::parse_value(s.trim()))
+                            .filter(|v| !matches!(v, DxLlmValue::Str(s) if s.is_empty()))
+                            .collect();
+                        doc.context.insert(name.clone(), DxLlmValue::Arr(items));
+                    } else if trimmed.contains(' ') {
+                        // Space-separated array
+                        let items: Vec<DxLlmValue> = trimmed
+                            .split_whitespace()
+                            .map(LlmParser::parse_value)
+                            .collect();
+                        doc.context.insert(name.clone(), DxLlmValue::Arr(items));
+                    } else {
+                        // Single value
+                        doc.context.insert(name.clone(), LlmParser::parse_value(trimmed));
+                    }
                 }
             }
             Some(':') => {
@@ -1315,8 +1347,25 @@ impl<'a> DsrParser<'a> {
         Ok(section)
     }
 
-    /// Parse a single wrapped dataframe row (space-separated with quote support)
+    /// Parse a single wrapped dataframe row (space or comma-separated with quote support)
     fn parse_wrapped_row(&mut self, expected_cols: usize) -> Result<Vec<DxLlmValue>, ParseError> {
+        // Detect separator: scan ahead for comma
+        let mut has_comma = false;
+        let mut temp_pos = self.pos;
+        while temp_pos < self.input.len() {
+            let ch = self.input[temp_pos..].chars().next().unwrap_or('\0');
+            if ch == '\n' || ch == '\r' || ch == ')' {
+                break;
+            }
+            if ch == ',' {
+                has_comma = true;
+                break;
+            }
+            temp_pos += ch.len_utf8();
+        }
+
+        let separator = if has_comma { ',' } else { ' ' };
+
         let mut values = Vec::with_capacity(expected_cols);
         let mut current_value = String::new();
         let mut in_quotes = false;
@@ -1342,16 +1391,19 @@ impl<'a> DsrParser<'a> {
                     current_value.push(ch);
                     self.advance();
                 }
-                ' ' if !in_quotes => {
-                    // Space separates values
+                c if c == separator && !in_quotes => {
                     if !current_value.trim().is_empty() {
                         values.push(LlmParser::parse_value(current_value.trim()));
                         current_value.clear();
                     }
                     self.advance();
+                    if separator == ' ' {
+                        while self.pos < self.input.len() && self.current_char() == ' ' {
+                            self.advance();
+                        }
+                    }
                 }
                 '\n' | '\r' if !in_quotes => {
-                    // End of row
                     if !current_value.trim().is_empty() {
                         values.push(LlmParser::parse_value(current_value.trim()));
                     }
@@ -1359,7 +1411,6 @@ impl<'a> DsrParser<'a> {
                     break;
                 }
                 ')' if !in_quotes => {
-                    // End of wrapped dataframe - don't consume
                     if !current_value.trim().is_empty() {
                         values.push(LlmParser::parse_value(current_value.trim()));
                     }
@@ -1378,6 +1429,9 @@ impl<'a> DsrParser<'a> {
     /// Parse parenthesized object: (key=val key2=val2)
     fn parse_parenthesized_object(&mut self) -> Result<DxLlmValue, ParseError> {
         let mut fields = IndexMap::new();
+
+        // Detect if this is a multi-line object (has \n before closing paren)
+        let is_multiline = self.has_newline_before_close();
 
         loop {
             self.skip_whitespace();
@@ -1408,7 +1462,7 @@ impl<'a> DsrParser<'a> {
             self.advance();
             self.skip_whitespace();
 
-            // Parse value (until space or closing paren)
+            // Parse value
             // Check if value is an array: =[...]
             if self.peek_char() == Some('[') {
                 self.advance(); // consume '['
@@ -1416,15 +1470,38 @@ impl<'a> DsrParser<'a> {
                 self.expect_char(']')?;
                 let items = self.parse_quoted_items(&items_str);
                 fields.insert(key, DxLlmValue::Arr(items));
+            } else if self.peek_char() == Some(')') {
+                fields.insert(key, DxLlmValue::Null);
             } else {
-                let value_str = self.parse_until_delimiter(&[' ', ')', '\n'])?;
+                // For multi-line objects, use \n and ) as delimiters (allow spaces in values)
+                // For single-line objects, use space, ), and \n as delimiters
+                let delimiters: &[char] = if is_multiline {
+                    &['\n', ')']
+                } else {
+                    &[' ', ')', '\n']
+                };
+                let value_str = self.parse_until_delimiter(delimiters)?;
                 fields.insert(key, LlmParser::parse_value(&value_str));
             }
-
-            self.skip_whitespace();
         }
 
         Ok(DxLlmValue::Obj(fields))
+    }
+
+    /// Scan ahead to detect if the parenthesized content has a newline before the closing paren
+    fn has_newline_before_close(&self) -> bool {
+        let mut depth = 0;
+        let mut chars = self.input[self.pos..].chars();
+        while let Some(ch) = chars.next() {
+            match ch {
+                '(' => depth += 1,
+                ')' if depth == 0 => return false,
+                ')' => depth -= 1,
+                '\n' if depth == 0 => return true,
+                _ => {}
+            }
+        }
+        false
     }
 
     /// Parse space- or comma-separated items with quote support.
@@ -1490,6 +1567,34 @@ impl<'a> DsrParser<'a> {
     ) -> Result<DxLlmValue, ParseError> {
         let value_str = self.parse_until_delimiter(delimiters)?;
         Ok(LlmParser::parse_value(&value_str))
+    }
+
+    /// Parse a quoted string value (starting and ending with `"`)
+    fn parse_quoted_value(&mut self) -> Result<DxLlmValue, ParseError> {
+        self.expect_char('"')?;
+        let mut value = String::new();
+        let mut escape_next = false;
+        loop {
+            if self.pos >= self.input.len() {
+                return Err(ParseError::UnexpectedEof);
+            }
+            let ch = self.current_char();
+            if escape_next {
+                value.push(ch);
+                escape_next = false;
+                self.advance();
+            } else if ch == '\\' {
+                escape_next = true;
+                self.advance();
+            } else if ch == '"' {
+                self.advance();
+                break;
+            } else {
+                value.push(ch);
+                self.advance();
+            }
+        }
+        Ok(DxLlmValue::Str(value))
     }
 
     fn parse_until_delimiter(&mut self, delimiters: &[char]) -> Result<String, ParseError> {

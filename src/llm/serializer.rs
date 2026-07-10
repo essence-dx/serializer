@@ -1,44 +1,46 @@
 //! DX Serializer LLM Format
 //!
-//! Serializes `DxDocument` to the token-optimized LLM format.
-//! 52-73% more token-efficient than JSON.
+//! Serializes `DxDocument` to the adaptive LLM format with spaces around `=`.
+//! Uses smart separator selection: commas for sentence-heavy data, spaces for simple tokens.
 //!
-//! ## LLM Format Syntax (Wrapped Dataframe)
+//! ## LLM Format Syntax (Adaptive Separators)
 //!
 //! ```text
 //! # Key-Value Pairs
-//! name=MyApp
-//! port=8080
-//! description="Multi word string"
+//! name = MyApp
+//! port = 8080
+//! description = "Multi word string"
 //!
-//! # Arrays (square brackets)
-//! tags=[rust performance serialization]
-//! editors=[neovim zed "firebase studio"]
+//! # Arrays (adaptive separators, no brackets)
+//! tags = rust performance serialization    # space-sep for simple tokens
+//! editors = neovim, zed, "firebase studio" # comma-sep when values have spaces
 //!
-//! # Objects (parentheses)
-//! config(host=localhost port=5432 debug=true)
-//! server(url="https://api.example.com" timeout=30)
-//!
-//! # Tables (wrapped dataframes - deterministic parsing)
-//! users[id name email](
-//! 1 Alice alice@ex.com
-//! 2 Bob bob@ex.com
-//! 3 Carol carol@ex.com
+//! # Objects (parentheses, multi-line)
+//! config(
+//!   host = localhost
+//!   port = 5432
+//!   debug = true
 //! )
 //!
-//! # Multi-word values use quotes
-//! employees[id name dept](
-//! 1 "James Smith" Engineering
-//! 2 "Mary Johnson" "Research and Development"
+//! # Tables (wrapped dataframes - deterministic parsing, adaptive separators)
+//! users[id, name, email](
+//!   1, Alice, alice@ex.com
+//!   2, Bob, bob@ex.com
+//! )
+//!
+//! # Multi-word values don't need quotes with commas
+//! employees[id, name, dept](
+//!   1, James Smith, Engineering
+//!   2, Mary Johnson, Research and Development
 //! )
 //! ```
 //!
 //! ## Why DX Beats TOON
 //!
 //! 1. Deterministic parsing - Wrapped dataframes `[headers](rows)` eliminate ambiguity
-//! 2. No indentation - TOON requires 2 spaces per row
-//! 3. Quoted strings - Standard, predictable, robust (not underscores)
-//! 4. Mental model alignment - `[]` arrays, `()` objects, `[headers](rows)` tables
+//! 2. Adaptive separators - commas for sentences, spaces for simple tokens
+//! 3. Quoted strings for ambiguous values
+//! 4. Mental model alignment - `()` objects, `[headers](rows)` tables
 
 use crate::llm::types::{DxDocument, DxLlmValue, DxSection};
 use indexmap::IndexMap;
@@ -81,13 +83,12 @@ impl LlmSerializer {
             for (key, value) in &doc.context {
                 match value {
                     DxLlmValue::Obj(_) | DxLlmValue::Arr(_) => {
-                        // Keep dots in key names (don't convert to underscores)
                         let entry = self.serialize_context_entry(key, value);
                         output.push_str(&entry);
                         output.push('\n');
                     }
                     _ => {
-                        output.push_str(&format!("{}={}", key, self.serialize_value(value)));
+                        output.push_str(&format!("{} = {}", key, self.serialize_single_value(value)));
                         output.push('\n');
                     }
                 }
@@ -117,9 +118,9 @@ impl LlmSerializer {
                                 }
                                 _ => {
                                     output.push_str(&format!(
-                                        "{}={}",
+                                        "{} = {}",
                                         key,
-                                        self.serialize_value(value)
+                                        self.serialize_single_value(value)
                                     ));
                                     output.push('\n');
                                 }
@@ -147,59 +148,78 @@ impl LlmSerializer {
         output.trim_end().to_string()
     }
 
-    const fn inline_value_separator(&self) -> &'static str {
-        " "
+    const fn schema_separator(&self) -> &'static str {
+        ", "
     }
 
-    const fn schema_separator(&self) -> &'static str {
-        " "
+    /// Check if any value in a slice has spaces (sentence-heavy detection)
+    fn has_any_with_spaces(values: &[DxLlmValue]) -> bool {
+        values.iter().any(|v| match v {
+            DxLlmValue::Str(s) => s.contains(' '),
+            _ => false,
+        })
+    }
+
+    /// Join values with smart separator: comma if any has space, space otherwise
+    fn smart_join(&self, values: &[DxLlmValue], quote_fn: impl Fn(&DxLlmValue) -> String) -> String {
+        let use_commas = Self::has_any_with_spaces(values);
+        let sep = if use_commas { ", " } else { " " };
+        let items: Vec<String> = values.iter().map(|v| {
+            let s = quote_fn(v);
+            let is_str = matches!(v, DxLlmValue::Str(_));
+            if use_commas && is_str && s.contains(',') {
+                format!("\"{}\"", s.replace('"', "\\\""))
+            } else if !use_commas && is_str && s.contains(' ') {
+                format!("\"{}\"", s.replace('"', "\\\""))
+            } else {
+                s
+            }
+        }).collect();
+        items.join(sep)
     }
 
     /// Serialize a context entry in Dx Serializer format
     fn serialize_context_entry(&self, key: &str, value: &DxLlmValue) -> String {
         match value {
             DxLlmValue::Arr(items) => {
-                let items_str: Vec<String> =
-                    items.iter().map(|v| self.serialize_value(v)).collect();
-                format!(
-                    "{}=[{}]",
-                    key,
-                    items_str.join(self.inline_value_separator())
-                )
+                let serialized = self.smart_join(items, |v| self.serialize_value(v));
+                // Single-element arrays need brackets to disambiguate from scalars
+                if items.len() == 1 {
+                    format!("{} = [{}]", key, serialized)
+                } else {
+                    format!("{} = {}", key, serialized)
+                }
             }
             DxLlmValue::Obj(fields) => self.serialize_inline_object(key, fields),
             _ => {
-                format!("{}={}", key, self.serialize_value(value))
+                format!("{} = {}", key, self.serialize_value(value))
             }
         }
     }
 
-    /// Serialize an object in inline format: name(key=value key2=value2)
+    /// Serialize an object in multi-line format: name(\n  key = value\n  key2 = value2\n)
     fn serialize_inline_object(&self, key: &str, fields: &IndexMap<String, DxLlmValue>) -> String {
         let fields_str: Vec<String> = fields
             .iter()
             .map(|(k, v)| {
                 if let DxLlmValue::Arr(items) = v {
-                    let items_str: Vec<String> = items
-                        .iter()
-                        .map(|item| self.serialize_value(item))
-                        .collect();
-                    format!("{}=[{}]", k, items_str.join(self.inline_value_separator()))
+                    let serialized = self.smart_join(items, |v| self.serialize_value(v));
+                    if items.len() == 1 {
+                        format!("  {} = [{}]", k, serialized)
+                    } else {
+                        format!("  {} = {}", k, serialized)
+                    }
                 } else {
-                    format!("{}={}", k, self.serialize_value(v))
+                    format!("  {} = {}", k, self.serialize_value(v))
                 }
             })
             .collect();
-        format!(
-            "{}({})",
-            key,
-            fields_str.join(self.inline_value_separator())
-        )
+        format!("{}(\n{}\n)", key, fields_str.join("\n"))
     }
 
-    /// Serialize a table section with string name using wrapped dataframe format
-    /// Format: name[col1 col2 col3](rows)
-    /// When compact mode is enabled, rows are inlined on a single line.
+    /// Serialize a table section using wrapped dataframe format with indented rows
+    /// Format: name[col1, col2, col3](\n  row1\n  row2\n)
+    /// Uses smart separator (comma if any cell has space, space otherwise).
     fn serialize_section_with_name(&self, section_name: &str, section: &DxSection) -> String {
         let mut output = String::new();
 
@@ -207,26 +227,18 @@ impl LlmSerializer {
         output.push_str(&format!("{section_name}[{schema_str}]("));
 
         if !section.rows.is_empty() {
-            if self.config.compact {
-                let row_parts: Vec<String> = section
-                    .rows
-                    .iter()
-                    .map(|row| {
-                        row.iter()
-                            .map(|v| self.serialize_table_value(v))
-                            .collect::<Vec<_>>()
-                            .join(" ")
-                    })
-                    .collect();
-                output.push_str(&row_parts.join(" "));
-            } else {
+            output.push('\n');
+            let use_commas = section.rows.iter().any(|row|
+                row.iter().any(|v| matches!(v, DxLlmValue::Str(s) if s.contains(' ')))
+            );
+            for row in &section.rows {
+                output.push_str("  ");
+                let values: Vec<String> =
+                    row.iter().map(|v| self.serialize_table_value(v, use_commas)).collect();
+                let sep = if use_commas { ", " } else { " " };
+                let row_str = values.join(sep);
+                output.push_str(&row_str);
                 output.push('\n');
-                for row in &section.rows {
-                    let values: Vec<String> =
-                        row.iter().map(|v| self.serialize_table_value(v)).collect();
-                    output.push_str(&values.join(" "));
-                    output.push('\n');
-                }
             }
         }
 
@@ -234,8 +246,9 @@ impl LlmSerializer {
         output
     }
 
-    /// Serialize a table value for table rows with quotes for multi-word strings
-    fn serialize_table_value(&self, value: &DxLlmValue) -> String {
+    /// Serialize a table value. If `use_commas`, quote values containing commas.
+    /// Otherwise, quote values containing spaces.
+    fn serialize_table_value(&self, value: &DxLlmValue, use_commas: bool) -> String {
         match value {
             DxLlmValue::Bool(true) => "true".to_string(),
             DxLlmValue::Bool(false) => "false".to_string(),
@@ -248,8 +261,12 @@ impl LlmSerializer {
                 }
             }
             DxLlmValue::Str(s) => {
-                // Use quotes for strings with spaces
-                if s.contains(' ') {
+                let needs_quoting = if use_commas {
+                    s.contains(',')
+                } else {
+                    s.contains(' ')
+                };
+                if needs_quoting {
                     format!("\"{}\"", s.replace('"', "\\\""))
                 } else {
                     s.clone()
@@ -258,23 +275,24 @@ impl LlmSerializer {
             DxLlmValue::Arr(items) => {
                 let serialized: Vec<String> = items
                     .iter()
-                    .map(|item| self.serialize_table_value(item))
+                    .map(|item| self.serialize_table_value(item, use_commas))
                     .collect();
-                serialized.join(",")
+                let sep = if use_commas { ", " } else { " " };
+                serialized.join(sep)
             }
             DxLlmValue::Obj(fields) => {
-                // Inline object in table cell: (key=value,key2=value2)
                 let fields_str: Vec<String> = fields
                     .iter()
-                    .map(|(k, v)| format!("{}={}", k, self.serialize_table_value(v)))
+                    .map(|(k, v)| format!("{}={}", k, self.serialize_table_value(v, use_commas)))
                     .collect();
-                format!("({})", fields_str.join(","))
+                let sep = if use_commas { ", " } else { " " };
+                format!("({})", fields_str.join(sep))
             }
             DxLlmValue::Ref(key) => format!("^{key}"),
         }
     }
 
-    /// Serialize a single value with quotes for multi-word strings
+    /// Serialize a single value — raw, no quoting (caller handles quoting).
     fn serialize_value(&self, value: &DxLlmValue) -> String {
         match value {
             DxLlmValue::Bool(true) => "true".to_string(),
@@ -287,30 +305,32 @@ impl LlmSerializer {
                     format!("{n}")
                 }
             }
-            DxLlmValue::Str(s) => {
-                // Use quotes for strings with spaces
-                if s.contains(' ') {
-                    format!("\"{}\"", s.replace('"', "\\\""))
-                } else {
-                    s.clone()
-                }
-            }
+            DxLlmValue::Str(s) => s.clone(),
             DxLlmValue::Arr(items) => {
                 let serialized: Vec<String> = items
                     .iter()
                     .map(|item| self.serialize_value(item))
                     .collect();
-                serialized.join(",")
+                serialized.join(", ")
             }
             DxLlmValue::Obj(fields) => {
-                // Nested object: [key=value,key2=value2]
                 let fields_str: Vec<String> = fields
                     .iter()
                     .map(|(k, v)| format!("{}={}", k, self.serialize_value(v)))
                     .collect();
-                format!("[{}]", fields_str.join(","))
+                fields_str.join(", ")
             }
             DxLlmValue::Ref(key) => format!("^{key}"),
+        }
+    }
+
+    /// Serialize a single value for root-level context, quoting if it contains commas.
+    fn serialize_single_value(&self, value: &DxLlmValue) -> String {
+        let raw = self.serialize_value(value);
+        if raw.contains(',') {
+            format!("\"{}\"", raw.replace('"', "\\\""))
+        } else {
+            raw
         }
     }
 }
@@ -349,8 +369,8 @@ mod tests {
             .insert("count".to_string(), DxLlmValue::Num(42.0));
 
         let output = serializer.serialize(&doc);
-        assert!(output.contains("count=42"), "Output was: {output}");
-        assert!(output.contains("name=Test"), "Output was: {output}");
+        assert!(output.contains("count = 42"), "Output was: {output}");
+        assert!(output.contains("name = Test"), "Output was: {output}");
     }
 
     #[test]
@@ -363,12 +383,12 @@ mod tests {
             .insert("deleted".to_string(), DxLlmValue::Bool(false));
 
         let output = serializer.serialize(&doc);
-        assert!(output.contains("active=true"), "Output was: {output}");
-        assert!(output.contains("deleted=false"), "Output was: {output}");
+        assert!(output.contains("active = true"), "Output was: {output}");
+        assert!(output.contains("deleted = false"), "Output was: {output}");
     }
 
     #[test]
-    fn test_serialize_array() {
+    fn test_serialize_array_simple() {
         let serializer = LlmSerializer::new();
         let mut doc = DxDocument::new();
         doc.context.insert(
@@ -382,7 +402,28 @@ mod tests {
 
         let output = serializer.serialize(&doc);
         assert!(
-            output.contains("friends=[ana luis sam]"),
+            output.contains("friends = ana luis sam"),
+            "Output was: {output}"
+        );
+    }
+
+    #[test]
+    fn test_serialize_array_with_spaces() {
+        let serializer = LlmSerializer::new();
+        let mut doc = DxDocument::new();
+        doc.context.insert(
+            "friends".to_string(),
+            DxLlmValue::Arr(vec![
+                DxLlmValue::Str("ana".to_string()),
+                DxLlmValue::Str("bob smith".to_string()),
+                DxLlmValue::Str("sam".to_string()),
+            ]),
+        );
+
+        let output = serializer.serialize(&doc);
+        // Uses commas because one value has a space
+        assert!(
+            output.contains("friends = ana, bob smith, sam"),
             "Output was: {output}"
         );
     }
@@ -410,13 +451,12 @@ mod tests {
         doc.sections.insert('d', section);
 
         let output = serializer.serialize(&doc);
-        // Wrapped dataframe format
         assert!(
-            output.contains("d[id name active]("),
+            output.contains("d[id, name, active]("),
             "Output was: {output}"
         );
-        assert!(output.contains("1 Alpha true"), "Output was: {output}");
-        assert!(output.contains("2 Beta false"), "Output was: {output}");
+        assert!(output.contains("  1 Alpha true"), "Output was: {output}");
+        assert!(output.contains("  2 Beta false"), "Output was: {output}");
         assert!(output.contains(')'), "Output was: {output}");
     }
 
@@ -443,13 +483,12 @@ mod tests {
         doc.sections.insert('e', section);
 
         let output = serializer.serialize(&doc);
-        // Strings with spaces use quotes
         assert!(
-            output.contains("1 \"James Smith\" Engineering"),
+            output.contains("  1, James Smith, Engineering"),
             "Output was: {output}"
         );
         assert!(
-            output.contains("2 \"Mary Johnson\" \"Research and Development\""),
+            output.contains("  2, Mary Johnson, Research and Development"),
             "Output was: {output}"
         );
     }
@@ -461,11 +500,11 @@ mod tests {
         doc.context.insert("value".to_string(), DxLlmValue::Null);
 
         let output = serializer.serialize(&doc);
-        assert!(output.contains("value=null"), "Output was: {output}");
+        assert!(output.contains("value = null"), "Output was: {output}");
     }
 
     #[test]
-    fn test_serialize_quoted_string() {
+    fn test_serialize_single_string_with_spaces() {
         let serializer = LlmSerializer::new();
         let mut doc = DxDocument::new();
         doc.context.insert(
@@ -474,9 +513,9 @@ mod tests {
         );
 
         let output = serializer.serialize(&doc);
-        // Strings with spaces use quotes
+        // Single strings with spaces don't need quotes (no ambiguity)
         assert!(
-            output.contains("task=\"Our favorite hikes together\""),
+            output.contains("task = Our favorite hikes together"),
             "Output was: {output}"
         );
     }
@@ -491,9 +530,9 @@ mod tests {
         );
 
         let output = serializer.serialize(&doc);
-        // Strings with spaces use quotes
+        // Strings with commas need quotes to avoid being parsed as array
         assert!(
-            output.contains("desc=\"hello, world\""),
+            output.contains("desc = \"hello, world\""),
             "Output was: {output}"
         );
     }
@@ -510,10 +549,10 @@ mod tests {
             .insert("config".to_string(), DxLlmValue::Obj(fields));
 
         let output = serializer.serialize(&doc);
-        // Parentheses for objects
+        // Multi-line object format
         assert!(output.contains("config("), "Output was: {output}");
-        assert!(output.contains("host=localhost"), "Output was: {output}");
-        assert!(output.contains("port=8080"), "Output was: {output}");
+        assert!(output.contains("  host = localhost"), "Output was: {output}");
+        assert!(output.contains("  port = 8080"), "Output was: {output}");
         assert!(output.contains(')'), "Output was: {output}");
     }
 
@@ -535,10 +574,9 @@ mod tests {
             .insert("item".to_string(), DxLlmValue::Obj(fields));
 
         let output = serializer.serialize(&doc);
-        // Parentheses for objects, square brackets for arrays
         assert!(output.contains("item("), "Output was: {output}");
         assert!(
-            output.contains("tags=[rust fast]"),
+            output.contains("  tags = rust fast"),
             "Output was: {output}"
         );
     }
