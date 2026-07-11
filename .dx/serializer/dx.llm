@@ -1,0 +1,142 @@
+[project]
+name                         = dx-os
+version                      = 1.0.0
+description                  = DX Operating System — resource monitor, serializer, and ecosystem CLI
+license                      = Apache-2.0
+repository                   = https://github.com/essence-dx/os
+
+[build]
+compiler                     = gcc
+std                          = c++23
+opt                          = -O2
+static                       = true
+
+[scripts]
+settings                     = 
+recipes:
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+aliases:
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+vars:
+- 
+- 
+- 
+- 
+
+[ci]
+runner                       = ubuntu-latest
+timeout                      = 30
+parallel                     = true
+matrix:
+- 
+- 
+- 
+- 
+- 
+steps:
+- 
+- 
+- 
+- 
+- 
+- 
+
+[dependencies:1]
+name                         = serde
+version                      = 1
+optional                     = false
+
+[dependencies:2]
+name                         = tokio
+version                      = 1.35
+optional                     = false
+
+[dependencies:3]
+name                         = clap
+version                      = 4.5
+optional                     = false
+
+[dependencies:4]
+name                         = rayon
+version                      = 1.9
+optional                     = true
+
+[dependencies:5]
+name                         = tracing
+version                      = 0.1
+optional                     = false
+
+[dependencies:6]
+name                         = reqwest
+version                      = 0.12
+optional                     = true
+
+[dependencies:7]
+name                         = serde json
+version                      = 1
+optional                     = false
+
+[dependencies:8]
+name                         = thiserror
+version                      = 1
+optional                     = false
+
+[dependencies:9]
+name                         = anyhow
+version                      = 1
+optional                     = false
+
+[features]
+gpu                          = true
+wasm                         = false
+dbg                          = false
+default:
+- serde
+- tokio
+- clap
+- tracing
+- serde json
+- thiserror
+- anyhow

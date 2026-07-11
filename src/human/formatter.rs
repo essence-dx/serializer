@@ -197,6 +197,11 @@ impl HumanFormatter {
     }
 
     /// Format an object from context as a [section]
+    /// Known table section names that should not appear as context entries
+    const TABLE_SECTION_NAMES: &'static [&'static str] = &[
+        "recipes", "aliases", "vars", "matrix", "steps", "dependencies",
+    ];
+
     fn format_object_as_section(
         &self,
         section_id: &str,
@@ -206,29 +211,36 @@ impl HumanFormatter {
 
         lines.push(format!("[{section_id}]"));
 
-        // Separate scalars and arrays
-        let mut scalars: Vec<(String, String)> = Vec::new();
-        let mut arrays: Vec<(String, Vec<String>)> = Vec::new();
-
         for (key, value) in fields {
-            if let DxLlmValue::Arr(items) = value {
-                let array_items: Vec<String> = items.iter().map(|v| self.format_value(v)).collect();
-                arrays.push((key.clone(), array_items));
-            } else {
-                scalars.push((key.clone(), self.format_value(value)));
+            // Skip keys that are table sections rendered separately
+            if Self::TABLE_SECTION_NAMES.contains(&key.as_str()) {
+                continue;
             }
-        }
-
-        // Output scalars first
-        for (key, value) in scalars {
-            lines.push(self.format_key_value(&key, &value));
-        }
-
-        // Output arrays (key: followed by - item lines)
-        for (key, items) in arrays {
-            lines.push(format!("{key}:"));
-            for item in items {
-                lines.push(format!("- {item}"));
+            match value {
+                DxLlmValue::Obj(sub_fields) => {
+                    let sub = self.format_object_as_section(key, sub_fields);
+                    let sub_lines: Vec<&str> = sub.lines().filter(|l| {
+                        let t = l.trim();
+                        !t.is_empty() && t != &format!("[{key}]")
+                    }).collect();
+                    if !sub_lines.is_empty() {
+                        lines.push(String::new());
+                        for sub_line in sub.lines() {
+                            lines.push(sub_line.to_string());
+                        }
+                    } else {
+                        lines.push(self.format_key_value(key, "none"));
+                    }
+                }
+                DxLlmValue::Arr(items) if items.is_empty() => {}
+                DxLlmValue::Arr(items) => {
+                    let array_items: Vec<String> = items.iter().map(|v| self.format_value(v)).collect();
+                    lines.push(format!("{key}:"));
+                    for item in array_items { lines.push(format!("- {item}")); }
+                }
+                _ => {
+                    lines.push(self.format_key_value(key, &self.format_value(value)));
+                }
             }
         }
 
@@ -253,44 +265,42 @@ impl HumanFormatter {
     fn format_section(&self, section_id: &str, section: &DxSection) -> String {
         let mut lines: Vec<String> = Vec::new();
 
-        lines.push(format!("[{section_id}]"));
-
         if section.rows.is_empty() {
+            lines.push(format!("[{section_id}]"));
             return lines.join("\n");
         }
 
-        let row = &section.rows[0];
-
-        // Separate scalars and arrays
-        let mut scalars: Vec<(String, String)> = Vec::new();
-        let mut arrays: Vec<(String, Vec<String>)> = Vec::new();
-
-        for (i, field) in section.schema.iter().enumerate() {
-            if i >= row.len() {
-                break;
+        if section.rows.len() == 1 {
+            lines.push(format!("[{section_id}]"));
+            let row = &section.rows[0];
+            for (i, field) in section.schema.iter().enumerate() {
+                if i >= row.len() { break; }
+                let value = &row[i];
+                if let DxLlmValue::Arr(items) = value {
+                    let array_items: Vec<String> = items.iter().map(|v| self.format_value(v)).collect();
+                    lines.push(format!("{field}:"));
+                    for item in array_items { lines.push(format!("- {item}")); }
+                } else {
+                    lines.push(self.format_key_value(field, &self.format_value(value)));
+                }
             }
-
-            let key = field.clone();
-            let value = &row[i];
-
-            if let DxLlmValue::Arr(items) = value {
-                let array_items: Vec<String> = items.iter().map(|v| self.format_value(v)).collect();
-                arrays.push((key, array_items));
-            } else {
-                scalars.push((key, self.format_value(value)));
-            }
-        }
-
-        // Output scalars first
-        for (key, value) in scalars {
-            lines.push(self.format_key_value(&key, &value));
-        }
-
-        // Output arrays (key: followed by - item lines)
-        for (key, items) in arrays {
-            lines.push(format!("{key}:"));
-            for item in items {
-                lines.push(format!("- {item}"));
+        } else {
+            for (row_idx, row) in section.rows.iter().enumerate() {
+                lines.push(format!("[{section_id}:{}]", row_idx + 1));
+                for (i, field) in section.schema.iter().enumerate() {
+                    if i >= row.len() { break; }
+                    let value = &row[i];
+                    if let DxLlmValue::Arr(items) = value {
+                        let array_items: Vec<String> = items.iter().map(|v| self.format_value(v)).collect();
+                        lines.push(format!("{field}:"));
+                        for item in array_items { lines.push(format!("- {item}")); }
+                    } else {
+                        lines.push(self.format_key_value(field, &self.format_value(value)));
+                    }
+                }
+                if row_idx < section.rows.len() - 1 {
+                    lines.push(String::new());
+                }
             }
         }
 

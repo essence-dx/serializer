@@ -193,8 +193,9 @@ impl HumanParser {
                             row_lines.push(rest_inner);
                         }
                     }
-                    while consumed < lines.len().saturating_sub(i) {
-                        let rline = lines[i + consumed].trim();
+                    let line_offset = if remainder.is_empty() { 0 } else { 1 }; // skip header line if already on same line
+                    while consumed < lines.len().saturating_sub(i + line_offset) {
+                        let rline = lines[i + line_offset + consumed].trim();
                         if rline.is_empty() && row_lines.is_empty() {
                             consumed += 1;
                             continue;
@@ -253,6 +254,11 @@ impl HumanParser {
                     let full_name = inner_doc.section_names.get(&id).cloned().unwrap_or_else(|| id.to_string());
                     doc.section_names.insert(id, full_name);
                     doc.sections.insert(id, section);
+                    // Ensure sections appear in entry_order for formatters
+                    let entry_ref = crate::llm::types::EntryRef::Section(id);
+                    if !doc.entry_order.contains(&entry_ref) {
+                        doc.entry_order.push(entry_ref);
+                    }
                 }
                 if !has_context && !has_sections {
                     doc.context.insert(group_name.clone(), DxLlmValue::Obj(IndexMap::new()));
@@ -666,17 +672,22 @@ impl HumanParser {
             return Ok(DxLlmValue::Null);
         }
 
-        // Array with brackets
+        // Array with brackets — auto-detect separator
         if s.starts_with('[') && s.ends_with(']') {
             let inner = s[1..s.len() - 1].trim();
             if inner.is_empty() {
                 return Ok(DxLlmValue::Arr(vec![]));
             }
-            let items: Result<Vec<DxLlmValue>, _> = inner
-                .split(',')
-                .map(|item| self.parse_config_value(item.trim()))
-                .collect();
-            return Ok(DxLlmValue::Arr(items?));
+            let items: Vec<DxLlmValue> = if inner.contains(',') {
+                inner.split(',')
+                    .map(|item| self.parse_config_value(item.trim()))
+                    .collect::<Result<Vec<_>, _>>()?
+            } else {
+                inner.split_whitespace()
+                    .map(|item| self.parse_config_value(item))
+                    .collect::<Result<Vec<_>, _>>()?
+            };
+            return Ok(DxLlmValue::Arr(items));
         }
 
         // Number

@@ -226,7 +226,7 @@ impl LlmSerializer {
         match value {
             DxLlmValue::Arr(items) => {
                 let serialized = self.smart_join(items, |v| self.serialize_value(v));
-                if items.len() == 1 {
+                if self.config.level == OptimizationLevel::Low || items.len() == 1 {
                     format!("{} = [{}]", key, serialized)
                 } else {
                     format!("{} = {}", key, serialized)
@@ -268,7 +268,7 @@ impl LlmSerializer {
                     }
                     DxLlmValue::Arr(arr) => {
                         let vals: Vec<String> = arr.iter().map(|item| self.serialize_value(item)).collect();
-                        format!("{}={}", k, vals.join(" "))
+                        format!("{}={}", k, vals.join(","))
                     }
                     _ => format!("{}={}", k, self.serialize_value(v))
                 }
@@ -340,14 +340,14 @@ impl LlmSerializer {
         let schema_str = section.schema.join(self.schema_separator());
 
         if self.config.level == OptimizationLevel::Low {
-            // Compact: name[cols](row1 val,row2 val)
+            // Compact: name[cols](row1 row2)
             output.push_str(&format!("{section_name}[{schema_str}]("));
             let row_strs: Vec<String> = section.rows.iter().map(|row| {
                 let values: Vec<String> =
                     row.iter().map(|v| self.serialize_table_value(v, false)).collect();
                 values.join(" ")
             }).collect();
-            output.push_str(&row_strs.join(","));
+            output.push_str(&row_strs.join(" "));
             output.push(')');
         } else {
             output.push_str(&format!("{section_name}[{schema_str}]("));
@@ -564,9 +564,10 @@ mod tests {
         let mut doc = mk_doc();
         doc.sections.insert('d', sample_section());
         let output = lp().serialize(&doc);
-        // Low: compact single-line rows joined by comma
+        // Low: compact single-line rows joined by space
         assert!(output.contains("d[id name active]("), "Output: {output}");
-        assert!(output.contains("1 Alpha true,2 Beta false"), "Output: {output}");
+        assert!(output.contains("1 Alpha true"), "Output: {output}");
+        assert!(output.contains("2 Beta false"), "Output: {output}");
     }
 
     #[test]

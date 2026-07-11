@@ -407,7 +407,7 @@ impl DxSection {
 ///
 /// ```rust
 /// use serializer::llm::DxLlmValue;
-/// use std::collections::HashMap;
+/// use indexmap::IndexMap;
 ///
 /// // Primitive values
 /// let null = DxLlmValue::Null;
@@ -416,7 +416,7 @@ impl DxSection {
 /// let string = DxLlmValue::Str("hello".to_string());
 ///
 /// // Object value
-/// let mut fields = HashMap::new();
+/// let mut fields = IndexMap::new();
 /// fields.insert("host".to_string(), DxLlmValue::Str("localhost".to_string()));
 /// fields.insert("port".to_string(), DxLlmValue::Num(8080.0));
 /// let obj = DxLlmValue::Obj(fields);

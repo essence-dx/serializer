@@ -1,7 +1,0 @@
-logs[6]{timestamp,level,service,message,duration_ms,status_code}:
-  "2025-06-26T10:00:00Z",INFO,api-gateway,Request received,45,200
-  "2025-06-26T10:00:01Z",INFO,auth-service,Token validated,12,200
-  "2025-06-26T10:00:02Z",WARN,api-gateway,Rate limit approaching,2,200
-  "2025-06-26T10:00:03Z",ERROR,payment-worker,Payment timeout,5034,504
-  "2025-06-26T10:00:04Z",INFO,auth-service,User registered,98,201
-  "2025-06-26T10:00:05Z",ERROR,api-gateway,Internal server error,0,500

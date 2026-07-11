@@ -16,9 +16,10 @@
 #[path = "../js_cache_artifacts.rs"]
 mod js_cache_artifacts;
 
-use serializer::llm::convert::CompressionAlgorithm;
-use serializer::llm::serializer::SerializerConfig;
+use serializer::llm::convert::{CompressionAlgorithm, document_to_human};
+use serializer::llm::serializer::{LlmSerializer, SerializerConfig};
 use serializer::llm::types::OptimizationLevel;
+use serializer::human::parser::HumanParser;
 use serializer::{SerializerOutput, SerializerOutputConfig};
 use std::env;
 use std::fs;
@@ -104,6 +105,7 @@ fn print_help(bin: &str) {
     eprintln!("  --zstd | --size          Use Zstd compression (better ratio)");
     eprintln!("  --no-compression         Disable compression");
     eprintln!("  --beautify               Human-readable output");
+    eprintln!("  --compact                Compact LLM output (single-line, minified)");
     eprintln!("  --format                 Formatted LLM output");
     eprintln!("  --stdout                 Print LLM output to stdout instead of writing files");
     eprintln!();
@@ -116,7 +118,7 @@ fn print_help(bin: &str) {
 }
 
 fn parse_extra_flags(args: &[String]) -> ExtraFlags {
-    let mut flags = ExtraFlags::default();
+    let mut flags = ExtraFlags::defaults_with_generation();
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
@@ -131,6 +133,7 @@ fn parse_extra_flags(args: &[String]) -> ExtraFlags {
             "--zstd" | "--size" => flags.compression = CompressionAlgorithm::Zstd,
             "--no-compression" => flags.compression = CompressionAlgorithm::None,
             "--beautify" => flags.beautify = true,
+            "--compact" => flags.compact = true,
             "--format" => flags.format_llm = true,
             "--stdout" => flags.stdout = true,
             arg if !arg.starts_with("--") && flags.input_file.is_none() => {
@@ -153,8 +156,19 @@ struct ExtraFlags {
     generate_metadata: bool,
     compression: CompressionAlgorithm,
     beautify: bool,
+    compact: bool,
     format_llm: bool,
     stdout: bool,
+}
+
+impl ExtraFlags {
+    fn defaults_with_generation() -> Self {
+        Self {
+            generate_llm: true,
+            generate_machine: true,
+            ..Self::default()
+        }
+    }
 }
 
 impl ExtraFlags {
@@ -166,13 +180,22 @@ impl ExtraFlags {
 }
 
 fn run_serialize_with_format(file: &str, format: &str, flags: &ExtraFlags) {
-    let output_dir = flags.output_dir_or_default();
+    let source_path = Path::new(file);
+    let output_dir = flags.output_dir.clone().unwrap_or_else(|| {
+        let parent = source_path.parent().unwrap_or(Path::new("."));
+        if flags.js_cache {
+            parent.join(".dx/js").to_string_lossy().to_string()
+        } else {
+            parent.join(".dx/serializer").to_string_lossy().to_string()
+        }
+    });
 
-    let (level, compact) = match format {
-        "human" => (OptimizationLevel::High, false),
-        "llm" => (OptimizationLevel::Medium, false),
-        "machine" => (OptimizationLevel::Low, true),
-        _ => (OptimizationLevel::Medium, false),
+    let compact = if format == "machine" { true } else { flags.compact };
+    let level = match format {
+        "human" => if compact { OptimizationLevel::Low } else { OptimizationLevel::Medium },
+        "llm" => if compact { OptimizationLevel::Low } else { OptimizationLevel::Medium },
+        "machine" => OptimizationLevel::Low,
+        _ => OptimizationLevel::Medium,
     };
 
     let mut extra_generate_llm = flags.generate_llm;
@@ -191,7 +214,7 @@ fn run_serialize_with_format(file: &str, format: &str, flags: &ExtraFlags) {
         .with_metadata(flags.generate_metadata)
         .with_compression(flags.compression)
         .with_serializer_config(serializer_config.clone())
-        .with_beautify(flags.beautify || format == "human")
+        .with_beautify(flags.beautify)
         .with_format_llm(flags.format_llm);
     let serializer = SerializerOutput::with_config(config);
     let source = Path::new(file);
@@ -228,6 +251,18 @@ fn run_serialize_with_format(file: &str, format: &str, flags: &ExtraFlags) {
         return;
     }
 
+    // Parse source for additional file generation — HumanParser first for .sr/dx files
+    let source_content = fs::read_to_string(source).ok();
+    let doc = source_content.as_ref().and_then(|c| {
+        let parser = HumanParser::new();
+        parser.parse(c).ok().or_else(|| {
+            serializer::llm::parser::LlmParser::parse(c).ok()
+        })
+    });
+
+    let loose_path = source.parent().unwrap_or(Path::new(".")).join("dx-loose");
+    let compact_llm_path = source.parent().unwrap_or(Path::new(".")).join("dx-compact.llm");
+
     match serializer.process_file(source) {
         Ok(result) => {
             let compression_name = match flags.compression {
@@ -235,12 +270,30 @@ fn run_serialize_with_format(file: &str, format: &str, flags: &ExtraFlags) {
                 CompressionAlgorithm::Zstd => "Zstd",
                 CompressionAlgorithm::None => "None",
             };
-            println!("Generated outputs for {} (compression: {compression_name}, format: {format}):", source.display());
+            println!("Generated outputs (compression: {compression_name}, format: {format}):");
             if result.llm_generated {
-                println!("  LLM:     {} ({} bytes)", result.paths.llm.display(), result.llm_size);
+                println!("  LLM:       {} ({} bytes)", result.paths.llm.display(), result.llm_size);
             }
             if result.machine_generated {
-                println!("  Machine: {} ({} bytes)", result.paths.machine.display(), result.machine_size);
+                println!("  Machine:   {} ({} bytes)", result.paths.machine.display(), result.machine_size);
+            }
+
+            // Generate human loose (TOML-like) format
+            if let Some(ref d) = doc {
+                let loose = serializer::llm::document_to_human(d);
+                if fs::write(&loose_path, &loose).is_ok() {
+                    println!("  Loose:     {} ({} bytes)", loose_path.display(), loose.len());
+                }
+            }
+
+            // Generate compact LLM if not already
+            if let Some(ref d) = doc {
+                let compact_config = SerializerConfig { compact: true, level: OptimizationLevel::Low };
+                let compact_ser = LlmSerializer::with_config(compact_config);
+                let compact = compact_ser.serialize(d);
+                if fs::write(&compact_llm_path, &compact).is_ok() {
+                    println!("  Compact:   {} ({} bytes)", compact_llm_path.display(), compact.len());
+                }
             }
         }
         Err(e) => {
