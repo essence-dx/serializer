@@ -250,7 +250,16 @@ fn run_serialize_legacy(args: &[String]) {
         }
     };
     let flags = parse_extra_flags(args);
-    run_serialize_with_level(&file, OptimizationLevel::Medium, &flags);
+    // Auto-detect: dx extensionless files always use High (human-readable)
+    let path = Path::new(&file);
+    let is_dx_file = path.file_name().is_some_and(|name| name.eq_ignore_ascii_case("dx"))
+        || path.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("dx"));
+    let level = if is_dx_file {
+        OptimizationLevel::High
+    } else {
+        OptimizationLevel::Medium
+    };
+    run_serialize_with_level(&file, level, &flags);
 }
 
 fn run_convert(file: &str, format: &str, flags: &ExtraFlags) {

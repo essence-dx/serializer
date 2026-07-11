@@ -1292,17 +1292,20 @@ impl<'a> DsrParser<'a> {
         let mut current_value = String::new();
         let mut in_parens: i32 = 0;
 
-        // Detect separator: space or comma
-        // Look ahead to determine which separator is used
+        // Detect separator: space or comma, respecting quoted strings
         let _line_start = self.pos;
         let mut has_comma = false;
         let mut temp_pos = self.pos;
+        let mut in_quotes = false;
         while temp_pos < self.input.len() {
             let ch = self.input[temp_pos..].chars().next().unwrap_or('\0');
-            if ch == '\n' || ch == '\r' || ch == ']' {
+            if ch == '"' {
+                in_quotes = !in_quotes;
+            }
+            if !in_quotes && (ch == '\n' || ch == '\r' || ch == ']') {
                 break;
             }
-            if ch == ',' {
+            if !in_quotes && ch == ',' {
                 has_comma = true;
                 break;
             }
@@ -1422,15 +1425,19 @@ impl<'a> DsrParser<'a> {
 
     /// Parse a single wrapped dataframe row (space or comma-separated with quote support)
     fn parse_wrapped_row(&mut self, expected_cols: usize) -> Result<Vec<DxLlmValue>, ParseError> {
-        // Detect separator: scan ahead for comma
+        // Detect separator: scan ahead for comma, respecting quoted strings
         let mut has_comma = false;
         let mut temp_pos = self.pos;
+        let mut in_quotes = false;
         while temp_pos < self.input.len() {
             let ch = self.input[temp_pos..].chars().next().unwrap_or('\0');
-            if ch == '\n' || ch == '\r' || ch == ')' {
+            if ch == '"' {
+                in_quotes = !in_quotes;
+            }
+            if !in_quotes && (ch == '\n' || ch == '\r' || ch == ')') {
                 break;
             }
-            if ch == ',' {
+            if !in_quotes && ch == ',' {
                 has_comma = true;
                 break;
             }
@@ -1531,6 +1538,60 @@ impl<'a> DsrParser<'a> {
                 let nested = self.parse_parenthesized_object()?;
                 self.expect_char(')')?;
                 fields.insert(key, nested);
+                continue;
+            }
+
+            // Check for wrapped table or inline object: key[headers](rows) or key[inline]
+            if self.peek_char() == Some('[') {
+                let saved_pos = self.pos;
+                self.advance(); // consume '['
+                let bracket_content = self.parse_until_char(']')?;
+                self.expect_char(']')?;
+                self.skip_whitespace();
+
+                if self.peek_char() == Some('(') {
+                    // Wrapped dataframe table: key[headers](rows)
+                    let schema: Vec<String> = if bracket_content.contains(',') {
+                        bracket_content
+                            .split(',')
+                            .map(|s| s.trim().to_string())
+                            .filter(|s| !s.is_empty())
+                            .collect()
+                    } else {
+                        bracket_content
+                            .split_whitespace()
+                            .map(std::string::ToString::to_string)
+                            .collect()
+                    };
+                    self.advance(); // consume '('
+                    let section = self.parse_wrapped_dataframe_rows(&schema)?;
+                    self.expect_char(')')?;
+                    // Convert section rows to array of objects for storage
+                    let rows: Vec<DxLlmValue> = section
+                        .rows
+                        .iter()
+                        .map(|row| {
+                            let mut obj = IndexMap::new();
+                            for (i, val) in row.iter().enumerate() {
+                                if let Some(col_name) = schema.get(i) {
+                                    obj.insert(col_name.clone(), val.clone());
+                                }
+                            }
+                            DxLlmValue::Obj(obj)
+                        })
+                        .collect();
+                    fields.insert(key, DxLlmValue::Arr(rows));
+                    continue;
+                }
+
+                // Not a wrapped table, restore and parse as inline object/array
+                self.pos = saved_pos;
+                // Parse as array: key=[items]
+                self.advance(); // consume '['
+                let items_str = self.parse_until_char(']')?;
+                self.expect_char(']')?;
+                let items = self.parse_quoted_items(&items_str);
+                fields.insert(key, DxLlmValue::Arr(items));
                 continue;
             }
 
@@ -2002,9 +2063,38 @@ impl<'a> DsrParser<'a> {
     fn parse_until_delimiter(&mut self, delimiters: &[char]) -> Result<String, ParseError> {
         let mut value = String::new();
         let mut in_nested = 0;
+        let mut in_quotes = false;
+        let mut escape_next = false;
 
         while self.pos < self.input.len() {
             let ch = self.current_char();
+
+            if escape_next {
+                value.push(ch);
+                escape_next = false;
+                self.advance();
+                continue;
+            }
+
+            if ch == '\\' && in_quotes {
+                escape_next = true;
+                value.push(ch);
+                self.advance();
+                continue;
+            }
+
+            if ch == '"' {
+                in_quotes = !in_quotes;
+                value.push(ch);
+                self.advance();
+                continue;
+            }
+
+            if in_quotes {
+                value.push(ch);
+                self.advance();
+                continue;
+            }
 
             if ch == '[' || ch == '(' {
                 in_nested += 1;

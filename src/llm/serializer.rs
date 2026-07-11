@@ -437,7 +437,7 @@ impl LlmSerializer {
                     .iter()
                     .map(|(k, v)| format!("{}={}", k, self.serialize_value(v)))
                     .collect();
-                fields_str.join(", ")
+                format!("({})", fields_str.join(" "))
             }
             DxLlmValue::Ref(key) => format!("^{key}"),
         }
