@@ -18,7 +18,7 @@
 //! ```
 
 use crate::llm::convert::{ConvertError, document_to_llm, document_to_machine};
-use crate::llm::human_parser::HumanParser;
+use crate::human::parser::HumanParser;
 use crate::llm::types::DxDocument;
 use std::fs;
 use std::io;

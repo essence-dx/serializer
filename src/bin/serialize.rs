@@ -4,10 +4,10 @@
 //! Also converts JSON, YAML, TOON, and JSONC to DX LLM format.
 //!
 //! Usage:
-//!   dx-serialize <file> [options]                 Process file (Medium level)
-//!   dx-serialize low <file> [options]             Low optimization (compact)
-//!   dx-serialize medium <file> [options]          Medium optimization (balanced)
-//!   dx-serialize high <file> [options]            High optimization (human-readable)
+//!   dx-serialize <file> [options]                 Process file (auto-detect format)
+//!   dx-serialize human <file> [options]           Process as Human format (readable)
+//!   dx-serialize llm <file> [options]             Generate LLM format output
+//!   dx-serialize machine <file> [options]         Generate Machine format output
 //!   dx-serialize convert json <file> [options]    Convert JSON to DX LLM
 //!   dx-serialize convert yml <file> [options]     Convert YAML to DX LLM
 //!   dx-serialize convert toon <file> [options]    Convert TOON to DX LLM
@@ -18,7 +18,7 @@ mod js_cache_artifacts;
 
 use serializer::llm::convert::CompressionAlgorithm;
 use serializer::llm::serializer::SerializerConfig;
-use serializer::llm::OptimizationLevel;
+use serializer::llm::types::OptimizationLevel;
 use serializer::{SerializerOutput, SerializerOutputConfig};
 use std::env;
 use std::fs;
@@ -40,24 +40,19 @@ fn main() {
 
     // Route subcommands
     match args[1].as_str() {
-        "low" | "medium" | "high" => {
-            let level = match args[1].as_str() {
-                "low" => OptimizationLevel::Low,
-                "medium" => OptimizationLevel::Medium,
-                "high" => OptimizationLevel::High,
-                _ => unreachable!(),
-            };
+        "human" | "llm" | "machine" => {
+            let format = args[1].clone();
             let file_args = &args[2..];
             let file = file_args.iter().find(|a| !a.starts_with("--"));
             let file = match file {
                 Some(f) => f.clone(),
                 None => {
-                    eprintln!("Error: No input file specified for '{level:?}' mode");
-                    eprintln!("Usage: {app_name} {level:?} <file> [options]");
+                    eprintln!("Error: No input file specified for '{format}' mode");
+                    eprintln!("Usage: {app_name} {format} <file> [options]");
                     std::process::exit(1);
                 }
             };
-            run_serialize_with_level(&file, level, &parse_extra_flags(file_args));
+            run_serialize_with_format(&file, &format, &parse_extra_flags(file_args));
         }
         "convert" => {
             if args.len() < 3 {
@@ -90,14 +85,14 @@ fn print_help(bin: &str) {
     eprintln!("DX Serializer — token-efficient LLM serialization");
     eprintln!();
     eprintln!("Usage:");
-    eprintln!("  {name} <file> [options]                 Process file (Medium level)");
-    eprintln!("  {name} low <file> [options]              Low optimization (compact single-line)");
-    eprintln!("  {name} medium <file> [options]           Medium optimization (balanced, auto-select)");
-    eprintln!("  {name} high <file> [options]             High optimization (human-readable)");
-    eprintln!("  {name} convert json <file> [options]     Convert JSON to DX LLM format");
-    eprintln!("  {name} convert yml <file> [options]      Convert YAML to DX LLM format");
-    eprintln!("  {name} convert toon <file> [options]     Convert TOON to DX LLM format");
-    eprintln!("  {name} convert jsonc <file> [options]    Convert JSONC to DX LLM format");
+    eprintln!("  {name} <file> [options]               Process file (auto-detect format)");
+    eprintln!("  {name} human <file> [options]         Process as Human format (readable)");
+    eprintln!("  {name} llm <file> [options]           Generate LLM format output");
+    eprintln!("  {name} machine <file> [options]       Generate Machine format output");
+    eprintln!("  {name} convert json <file> [options]  Convert JSON to DX LLM format");
+    eprintln!("  {name} convert yml <file> [options]   Convert YAML to DX LLM format");
+    eprintln!("  {name} convert toon <file> [options]  Convert TOON to DX LLM format");
+    eprintln!("  {name} convert jsonc <file> [options] Convert JSONC to DX LLM format");
     eprintln!();
     eprintln!("Options:");
     eprintln!("  --output-dir <dir>       Output directory (default: .dx/serializer)");
@@ -114,8 +109,8 @@ fn print_help(bin: &str) {
     eprintln!();
     eprintln!("Examples:");
     eprintln!("  {name} config.dx");
-    eprintln!("  {name} low deps50.json");
-    eprintln!("  {name} high project.dx --stdout");
+    eprintln!("  {name} human project.dx --stdout");
+    eprintln!("  {name} llm deps50.json");
     eprintln!("  {name} convert json package.json --stdout");
     eprintln!("  {name} convert yml config.yml --stdout");
 }
@@ -170,18 +165,33 @@ impl ExtraFlags {
     }
 }
 
-fn run_serialize_with_level(file: &str, level: OptimizationLevel, flags: &ExtraFlags) {
+fn run_serialize_with_format(file: &str, format: &str, flags: &ExtraFlags) {
     let output_dir = flags.output_dir_or_default();
 
-    let serializer_config = SerializerConfig { compact: level == OptimizationLevel::Low, level };
+    let (level, compact) = match format {
+        "human" => (OptimizationLevel::High, false),
+        "llm" => (OptimizationLevel::Medium, false),
+        "machine" => (OptimizationLevel::Low, true),
+        _ => (OptimizationLevel::Medium, false),
+    };
+
+    let mut extra_generate_llm = flags.generate_llm;
+    let mut extra_generate_machine = flags.generate_machine;
+
+    if format == "machine" {
+        extra_generate_llm = false;
+        extra_generate_machine = true;
+    }
+
+    let serializer_config = SerializerConfig { compact, level };
     let config = SerializerOutputConfig::new()
         .with_output_dir(&output_dir)
-        .with_llm(flags.generate_llm)
-        .with_machine(flags.generate_machine)
+        .with_llm(extra_generate_llm)
+        .with_machine(extra_generate_machine)
         .with_metadata(flags.generate_metadata)
         .with_compression(flags.compression)
         .with_serializer_config(serializer_config.clone())
-        .with_beautify(flags.beautify)
+        .with_beautify(flags.beautify || format == "human")
         .with_format_llm(flags.format_llm);
     let serializer = SerializerOutput::with_config(config);
     let source = Path::new(file);
@@ -225,7 +235,7 @@ fn run_serialize_with_level(file: &str, level: OptimizationLevel, flags: &ExtraF
                 CompressionAlgorithm::Zstd => "Zstd",
                 CompressionAlgorithm::None => "None",
             };
-            println!("Generated outputs for {} (compression: {compression_name}, level: {level:?}):", source.display());
+            println!("Generated outputs for {} (compression: {compression_name}, format: {format}):", source.display());
             if result.llm_generated {
                 println!("  LLM:     {} ({} bytes)", result.paths.llm.display(), result.llm_size);
             }
@@ -250,16 +260,7 @@ fn run_serialize_legacy(args: &[String]) {
         }
     };
     let flags = parse_extra_flags(args);
-    // Auto-detect: dx extensionless files always use High (human-readable)
-    let path = Path::new(&file);
-    let is_dx_file = path.file_name().is_some_and(|name| name.eq_ignore_ascii_case("dx"))
-        || path.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("dx"));
-    let level = if is_dx_file {
-        OptimizationLevel::High
-    } else {
-        OptimizationLevel::Medium
-    };
-    run_serialize_with_level(&file, level, &flags);
+    run_serialize_with_format(&file, "human", &flags);
 }
 
 fn run_convert(file: &str, format: &str, flags: &ExtraFlags) {

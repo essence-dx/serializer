@@ -55,7 +55,7 @@
 //! let text = serializer.serialize(&doc);
 //! ```
 
-use crate::llm::human_formatter::HumanFormatConfig;
+use crate::human::formatter::HumanFormatConfig;
 use crate::llm::pretty_printer::{PrettyPrinter, PrettyPrinterConfig};
 use crate::llm::serializer_output::{SerializerOutput, SerializerOutputConfig};
 use crate::llm::types::DxDocument;

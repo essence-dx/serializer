@@ -16,8 +16,8 @@
 //! // Output is guaranteed to be parseable
 //! ```
 
-use crate::llm::human_formatter::{HumanFormatConfig, HumanFormatter};
-use crate::llm::human_parser::HumanParser;
+use crate::human::formatter::{HumanFormatConfig, HumanFormatter};
+use crate::human::parser::HumanParser;
 use crate::llm::types::DxDocument;
 use thiserror::Error;
 
@@ -622,7 +622,7 @@ mod property_tests {
                 PrettyPrinterConfig::new()
                     .with_validation(false) // Don't validate internally
             );
-            let parser = crate::llm::human_parser::HumanParser::new();
+            let parser = crate::human::parser::HumanParser::new();
 
             // Format without validation
             let output = printer.format(&doc).unwrap();

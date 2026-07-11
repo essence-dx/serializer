@@ -4,8 +4,8 @@
 //! All conversions go through the common `DxDocument` representation.
 
 use crate::llm::formatter::LlmFormatter;
-use crate::llm::human_formatter::{HumanFormatConfig, HumanFormatter};
-use crate::llm::human_parser::{HumanParseError, HumanParser};
+use crate::human::formatter::{HumanFormatConfig, HumanFormatter};
+use crate::human::parser::{HumanParseError, HumanParser};
 use crate::llm::parser::{LlmParser, ParseError};
 use crate::llm::serializer::{LlmSerializer, SerializerConfig};
 use crate::llm::types::DxDocument;

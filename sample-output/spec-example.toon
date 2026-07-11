@@ -1,6 +1,0 @@
-name: MyApp
-version: 1.0.0
-tags[2]: rust,performance
-users[2]{id,name,email}:
-  1,Alice,alice@ex.com
-  2,Bob,bob@ex.com

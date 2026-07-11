@@ -253,6 +253,8 @@ pub mod formatter;
 // TODO: Re-enable when async-io feature is implemented
 // #[cfg(feature = "async-io")]
 // pub mod io;
+/// Human-readable format module (`.sr`/`.dx` front-facing files).
+pub mod human;
 pub mod llm;
 pub mod llm_models;
 pub mod machine;
@@ -329,9 +331,9 @@ pub use indexmap::IndexMap;
 // Re-export LLM/Human format types at crate root for convenience
 #[cfg(feature = "mmap")]
 pub use llm::machine_file_to_document_mmap;
+pub use human::{HumanFormatConfig, HumanFormatter, HumanParseError, HumanParser};
 pub use llm::{
-    AbbrevDict, ConvertError, DxDocument, DxLlmValue, DxSection, HumanFormatConfig, HumanFormatter,
-    HumanParseError, HumanParser, LlmParser, LlmSerializer, MachineFormat,
+    AbbrevDict, ConvertError, DxDocument, DxLlmValue, DxSection, LlmParser, LlmSerializer, MachineFormat,
     ParseError as LlmParseError,
 };
 pub use llm::{

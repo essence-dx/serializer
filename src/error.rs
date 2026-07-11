@@ -932,7 +932,7 @@ mod tests {
     #[test]
     fn test_error_from_convert_error_human_parse() {
         use crate::llm::convert::ConvertError;
-        use crate::llm::human_parser::HumanParseError;
+        use crate::human::parser::HumanParseError;
 
         let human_err = HumanParseError::InvalidSectionHeader {
             msg: "Missing closing bracket".to_string(),
@@ -952,7 +952,7 @@ mod tests {
     #[test]
     fn test_error_from_convert_error_human_parse_invalid_key_value() {
         use crate::llm::convert::ConvertError;
-        use crate::llm::human_parser::HumanParseError;
+        use crate::human::parser::HumanParseError;
 
         let human_err = HumanParseError::InvalidKeyValue {
             msg: "No equals sign found".to_string(),
@@ -972,7 +972,7 @@ mod tests {
     #[test]
     fn test_error_from_convert_error_human_parse_invalid_table() {
         use crate::llm::convert::ConvertError;
-        use crate::llm::human_parser::HumanParseError;
+        use crate::human::parser::HumanParseError;
 
         let human_err = HumanParseError::InvalidTable {
             line: 42,
@@ -1030,7 +1030,7 @@ mod tests {
     #[test]
     fn test_error_from_convert_error_all_variants_convertible() {
         use crate::llm::convert::ConvertError;
-        use crate::llm::human_parser::HumanParseError;
+        use crate::human::parser::HumanParseError;
         use crate::llm::parser::ParseError;
 
         // Test that all ConvertError variants can be converted to DxError

@@ -33,7 +33,7 @@ crate-type = ["rlib"]
 
 [dependencies]
 dirs = "6.0"
-dx-serializer-derive = { version = "1.0.0", path = "derive", optional = true }
+dx-serializer-derive = { version = "1.0.0", path = "crates/derive", optional = true }
 bytemuck = { version = "1.18", features = ["derive"] }
 bytes = "1.5"
 rustc-hash = "1.1"

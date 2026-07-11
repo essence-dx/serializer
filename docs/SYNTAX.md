@@ -1,197 +1,197 @@
-
 # DX Serializer Syntax Reference
 
-This document describes the two official formats for DX Serializer.
+**Version:** 1.0  
+**3 Formats:** Human, LLM, Machine
 
-## LLM Format (Dx Serializer)
+---
 
-The LLM format is a compact, token-efficient format stored on disk.
+## 3 Formats
 
-### Objects
+### Human — Visually beautiful (default for `dx` extensionless files & `.sr`)
 
-```dsr
-config(
-  host = localhost
-  port = 5432
-  debug = true
+```
+project(
+  name    = dx-tree
+  version = 1.0.0
+)
+
+tree(
+  exclude   = node_modules target .git dist build
+  prune     = true
+  icons     = false
+  level     = 3
+  dirsfirst = true
+  noreport  = true
 )
 ```
-- Name followed by parentheses containing key=value pairs, one per line
+
 - Spaces around `=`
-- No quotes needed for values with spaces (commas and newlines delimit)
+- Multi-line parenthesized objects
+- Aligned indentation
+- **Used for:** hand-edited `dx` config files, `.sr` files meant for human review
 
-### Arrays
+### LLM — Token efficient
 
-```dsr
-tags = [rust, performance, serialization]
-editors = [neovim, zed, "firebase studio"]
 ```
-- Square brackets with comma-separated items
-- Use quotes for items containing commas
+project:
+  name: dx-tree
+  version: 1.0.0
 
-### Tables
+tree:
+  exclude: node_modules target .git dist build
+  prune: true
+```
 
-```dsr
-users[id, name, email](
-1, Alice, alice@ex.com
-2, Bob, bob@ex.com
+- YAML-style `:` for small objects (<8 children)
+- Parens `()` for large objects (8+ children)
+- Auto-selects between token efficiency and readability
+- **Used for:** generated `.llm` files in `.dx/serializer/`
+
+### Machine — Most performance
+
+```
+(binary RKYV + optional LZ4/Zstd compression)
+```
+
+- Zero-copy runtime deserialization
+- **Used for:** generated `.machine` files in `.dx/serializer/`
+
+---
+
+## Separator Styles
+
+Both space and comma separators are supported and auto-detected per row.
+
+### Space-separated (lower token count)
+
+```
+users[id name email](
+  1 "Alice Johnson" alice@example.com
+  2 "Bob Smith" bob@example.com
 )
 ```
-- Headers in square brackets (comma-separated), rows in parentheses
-- Each row on its own line, values comma-separated
-- No quotes needed for values with spaces
 
-### Strings with Commas
+- Lower token count (commas add BPE tokens)
+- Ideal when no value contains spaces
 
-Use double quotes for values containing commas:
-```dsr
-config[title="Enhanced, Developing, Experience",desc="My, description"]
+### Comma-separated (recommended for complex data)
+
 ```
-
-### Nested Sections
-
-Use dot notation in the section name:
-```dsr
-js.dependencies(react = 19.0.1, next = 16.0.1)
-i18n.locales(path = @/locales, default = en-US)
-```
-
-### Complete Example
-
-```dsr
-name = dx
-version = 0.0.1
-title = "Enhanced Developing Experience"
-workspace(
-  paths = [@/www, @/backend]
+recipes[name,group,doc,script](
+  build,all,"Build all workspace crates","cargo build --workspace"
+  test,all,"Run all workspace tests","cargo test --workspace"
 )
-editors(
-  items = [neovim, zed, vscode]
-  default = neovim
-)
-forge(
-  repository = "https://github.com/user/repo"
-  tools = [cli, docs, tests]
-)
-js.dependencies(react = 19.0.1, next = 16.0.1)
 ```
 
-## Human Format
+- Clear visual field separation
+- Values with spaces don't need quoting
+- **Recommended** when doc strings or multi-word values are present
+- Parser auto-detects comma vs space per row
 
-The Human format is designed for readability in text editors.
+---
 
-### Scalars
+## Data Types
 
-```dx
-key = value ```
-- Key followed by `=` and value
-- Keys are padded with spaces for alignment
-- Strings with spaces use quotes: `title = "My Title"`
+### Scalar
 
-
-### Arrays
-
-
-```dx
-key:
-- item1
-- item2
-- item3
 ```
-- Key followed by `:` on its own line
-- Each item on a new line prefixed with `- `
-
-
-### Sections
-
-
-```dx
-[section]
 key = value
-[section.subsection]
-key = value ```
-- Section headers in brackets
-- Nested sections use dot notation
-
-### Complete Example
-
-```dx
-name = dx
-version = 0.0.1
-title = "Enhanced Developing Experience"
-[workspace]
-paths:
-- @/www
-- @/backend
-[editors]
-items:
-- neovim
-- zed
-- vscode
-default = neovim
-[forge]
-repository = https://github.com/user/repo
-tools:
-- cli
-- docs
-- tests
-[js.dependencies]
-react = 19.0.1
-next = 16.0.1
+key=value  (LLM mode)
 ```
 
+### String
 
-## Conversion Rules
-
-### LLM → Human
-
-- Objects `name(key=val)` become `[name]` sections with key-value pairs
-- Arrays `key = [item1, item2]` become `key:` followed by `- item` lines
-- Keys are padded for alignment
-
-### Human → LLM
-
-- `[section]` headers with key-value pairs become `section(\n  key = val\n)`
-- `key:` followed by `- item` lines become `key = [item1, item2]`
-- All whitespace padding is removed
-
-## Grammar (EBNF)
-
-### LLM Format
-
-```ebnf
-document = (scalar | object | array | table)* ;
-scalar = key "=" value ;
-object = identifier "(" pairs ")" ;
-array = key "=" "[" items "]" ;
-table = identifier "[" headers "]" "(" rows ")" ;
-pairs = pair ("\n" pair)* ;                     (* newline-separated *)
-pair = key "=" value ;
-headers = identifier ("," identifier)* ;          (* comma-separated *)
-rows = row* ;
-row = value ("," value)* ;                       (* comma-separated *)
-items = value ("," value)* ;                     (* comma-separated *)
-key = identifier ;
-value = string | identifier | number ;
-string = '"' [^"]* '"' ;
-identifier = [a-zA-Z_][a-zA-Z0-9_.-]* ;
-number = [0-9]+ ("." [0-9]+)? ;
+```
+name    = "Multi word value"
+name    = simple_value
 ```
 
+Quotes required when value contains spaces, commas, or special chars.
 
-### Human Format
+### Number
 
+```
+count = 42
+pi    = 3.14
+```
 
-```ebnf
-document = (root_pair | section)* ;
-root_pair = key "=" value | key ":" array_items ;
-section = "[" identifier "]" section_content ;
-section_content = (pair | array_def)* ;
-pair = key "=" value ;
-array_def = key ":" array_items ;
-array_items = ("- " value)+ ;
-key = identifier ;
-value = string | identifier ;
-string = '"' [^"]* '"' ;
-identifier = [a-zA-Z_][a-zA-Z0-9_.-]* ;
+### Boolean
+
+```
+active  = true
+enabled = false
+```
+
+### Null
+
+```
+result = null
+```
+
+### Array
+
+```
+tags = [rust performance serialization]
+```
+
+Space-separated inside brackets. Comma-separated also supported:
+
+```
+tags = [rust, performance, serialization]
+```
+
+### Object
+
+```
+config(
+  host    = localhost
+  port    = 8080
+  debug   = true
+)
+```
+
+### Nested Object
+
+```
+project(
+  name     = dx-tree
+  version  = 1.0.0
+  authors(
+    name  = "Alice Smith"
+    email = alice@example.com
+  )
+)
+```
+
+### Wrapped Dataframe (Table)
+
+```
+users[id,name,email](
+  1,"Alice Johnson",alice@example.com
+  2,"Bob Smith",bob@example.com
+)
+```
+
+Schema defined in brackets, rows inside parentheses. Parser auto-detects space or comma separator.
+
+---
+
+## EBNF Grammar
+
+```
+document       = statement* ;
+statement      = root_pair | section ;
+root_pair      = key "=" value | key ":" value ;
+section        = identifier "(" pairs ")" ;
+pairs          = pair (" " pair)* ;
+pair           = key "=" value ;
+table          = identifier "[" headers "]" "(" rows ")" ;
+headers        = identifier ("," identifier)* | identifier (" " identifier)* ;
+rows           = row* ;
+row            = value ("," value)* | value (" " value)* ;
+value          = string | identifier | number | "true" | "false" | "null" ;
+string         = '"' [^"]* '"' ;
+key            = identifier ;
+identifier     = [a-zA-Z_][a-zA-Z0-9_-]* ;
+number         = [0-9]+ ("." [0-9]+)? ;
 ```

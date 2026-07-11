@@ -32,8 +32,7 @@ pub mod cache_generator;
 pub mod config_formatter;
 pub mod formatter;
 pub mod convert;
-pub mod human_formatter;
-pub mod human_parser;
+
 pub mod machine_zerocopy;
 pub mod parser;
 pub mod pretty_printer;
@@ -48,8 +47,6 @@ pub mod types;
 mod abbrev_props;
 #[cfg(test)]
 mod convert_props;
-#[cfg(test)]
-mod human_props;
 #[cfg(test)]
 mod llm_props;
 
@@ -67,8 +64,7 @@ pub use convert::{
 };
 pub use config_formatter::{ConfigFormatter, ConfigStyle};
 pub use formatter::LlmFormatter;
-pub use human_formatter::{HumanFormatConfig, HumanFormatter};
-pub use human_parser::{HumanParseError, HumanParser};
+
 pub use machine_zerocopy::{ZeroCopyDocument, ZeroCopyError, ZeroCopyMachine};
 pub use parser::{LlmParser, ParseError};
 pub use pretty_printer::{PrettyPrintError, PrettyPrinter, PrettyPrinterConfig};
@@ -80,4 +76,4 @@ pub use serializer_output::{
 };
 pub use table_wrapper::{TableWrapper, TableWrapperConfig};
 pub use tokens::{ModelType, TokenCounter, TokenInfo};
-pub use types::{DxDocument, DxLlmValue, DxSection, OptimizationLevel};
+pub use types::{DxDocument, DxLlmValue, DxSection};
