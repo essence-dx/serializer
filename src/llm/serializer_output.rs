@@ -223,6 +223,24 @@ impl SerializerOutput {
         }
     }
 
+    /// Read `serializer[name,format,path,generate]` config section from a doc.
+    fn read_serializer_config(doc: &DxDocument) -> Vec<(String, String, String, bool)> {
+        let mut configs = Vec::new();
+        for (id, section) in &doc.sections {
+            let section_name = doc.section_names.get(id).map(|s| s.as_str()).unwrap_or("");
+            if section_name != "serializer" { continue; }
+            for row in &section.rows {
+                if row.len() < 4 { continue; }
+                let name = row[0].as_str().unwrap_or("").to_string();
+                let fmt = row[1].as_str().unwrap_or("").to_string();
+                let path = row[2].as_str().unwrap_or("").to_string();
+                let generate = row[3].as_bool().unwrap_or(false);
+                configs.push((name, fmt, path, generate));
+            }
+        }
+        configs
+    }
+
     /// Process a `.sr`, `.dx`, extensionless `dx`, JSON, or TOML source file and generate outputs.
     pub fn process_file(
         &self,
@@ -268,8 +286,14 @@ impl SerializerOutput {
             machine_size: 0,
         };
 
-        // Generate LLM format (or beautified human format or formatted LLM)
-        if self.config.generate_llm {
+        // Apply serializer config from document (serializer[name,format,path,generate] section)
+        let sconfig = Self::read_serializer_config(doc);
+        let has_config = !sconfig.is_empty();
+        let gen_llm = if has_config { sconfig.iter().any(|(n,_,_,g)| n == "llm" && *g) } else { self.config.generate_llm };
+        let gen_machine = if has_config { sconfig.iter().any(|(n,_,_,g)| n == "machine" && *g) } else { self.config.generate_machine };
+
+        // Generate LLM format
+        if gen_llm {
             let llm_content = if self.config.beautify {
                 document_to_human(doc)
             } else if self.config.format_llm {
@@ -287,7 +311,7 @@ impl SerializerOutput {
         }
 
         // Generate machine format
-        if self.config.generate_machine {
+        if gen_machine {
             let machine_content =
                 try_document_to_machine_with_compression(doc, self.config.compression)?;
             write_atomic(&paths.machine, machine_content.as_bytes())?;

@@ -14,6 +14,7 @@
 //!   dx-serialize convert jsonc <file> [options]   Convert JSONC to DX LLM
 
 #[path = "../js_cache_artifacts.rs"]
+#[allow(dead_code)]
 mod js_cache_artifacts;
 
 use serializer::llm::convert::{CompressionAlgorithm, document_to_human};
@@ -41,6 +42,14 @@ fn main() {
 
     // Route subcommands
     match args[1].as_str() {
+        "format" | "fmt" => {
+            let file = if args.len() > 2 { &args[2] } else {
+                eprintln!("Error: No file specified for 'format'");
+                eprintln!("Usage: {app_name} format <file>");
+                std::process::exit(1);
+            };
+            cmd_format(file, &parse_extra_flags(&args[3..]));
+        }
         "watch" => {
             let dir = if args.len() > 2 { args[2].clone() } else { ".".to_string() };
             let interval: u64 = if args.len() > 3 { args[3].parse().unwrap_or(2) } else { 2 };
@@ -95,6 +104,7 @@ fn print_help(bin: &str) {
     eprintln!("  {name} human <file> [options]         Process as Human format (readable)");
     eprintln!("  {name} llm <file> [options]           Generate LLM format output");
     eprintln!("  {name} machine <file> [options]       Generate Machine format output");
+    eprintln!("  {name} format <file> [options]        Fix and beautify human format file");
     eprintln!("  {name} watch <dir> [interval]         Watch dir, auto-process .sr/.dx files");
     eprintln!("  {name} convert json <file> [options]  Convert JSON to DX LLM format");
     eprintln!("  {name} convert yml <file> [options]   Convert YAML to DX LLM format");
@@ -178,6 +188,7 @@ impl ExtraFlags {
 }
 
 impl ExtraFlags {
+    #[allow(dead_code)]
     fn output_dir_or_default(&self) -> String {
         self.output_dir.clone().unwrap_or_else(|| {
             if self.js_cache { ".dx/js".to_string() } else { ".dx/serializer".to_string() }
@@ -266,8 +277,8 @@ fn run_serialize_with_format(file: &str, format: &str, flags: &ExtraFlags) {
         })
     });
 
-    let loose_path = source.parent().unwrap_or(Path::new(".")).join("dx.loose");
-    let compact_llm_path = source.parent().unwrap_or(Path::new(".")).join("dx.compact");
+    let loose_path = Path::new(&output_dir).join("dx.loose");
+    let compact_llm_path = Path::new(&output_dir).join("dx.compact");
 
     match serializer.process_file(source) {
         Ok(result) => {
@@ -364,6 +375,7 @@ fn run_convert(file: &str, format: &str, flags: &ExtraFlags) {
     }
 }
 
+#[allow(dead_code)]
 fn read_inputs_file(path: &Path) -> std::io::Result<Vec<PathBuf>> {
     Ok(fs::read_to_string(path)?
         .lines()
@@ -374,6 +386,7 @@ fn read_inputs_file(path: &Path) -> std::io::Result<Vec<PathBuf>> {
 }
 
 #[cfg(feature = "parallel")]
+#[allow(dead_code)]
 fn process_input_paths(
     serializer: &SerializerOutput,
     inputs: &[PathBuf],
@@ -391,6 +404,7 @@ fn process_input_paths(
 }
 
 #[cfg(not(feature = "parallel"))]
+#[allow(dead_code)]
 fn process_input_paths(
     serializer: &SerializerOutput,
     inputs: &[PathBuf],
@@ -463,13 +477,13 @@ fn cmd_watch(dir: &str, interval: u64) {
 
                             // Generate .loose
                             let loose = document_to_human(&doc);
-                            let _ = std::fs::write(parent.join("dx.loose"), &loose);
+                            let _ = std::fs::write(output_dir.join("dx.loose"), &loose);
 
                             // Generate .compact
                             let compact_config = SerializerConfig { compact: true, level: OptimizationLevel::Low };
                             let compact_ser = LlmSerializer::with_config(compact_config);
                             let compact = compact_ser.serialize(&doc);
-                            let _ = std::fs::write(parent.join("dx.compact"), &compact);
+                            let _ = std::fs::write(output_dir.join("dx.compact"), &compact);
 
                             print!("  \x1b[K• {} ", path.file_name().unwrap().to_string_lossy());
                             println!("→ .llm .machine .loose .compact");
@@ -488,4 +502,177 @@ fn cmd_watch(dir: &str, interval: u64) {
 
         std::thread::sleep(std::time::Duration::from_secs(interval));
     }
+}
+
+fn cmd_format(file: &str, _flags: &ExtraFlags) {
+    use std::fmt::Write;
+
+    let path = Path::new(file);
+    let content = match std::fs::read_to_string(path) {
+        Ok(c) => c,
+        Err(e) => { eprintln!("Error reading '{}': {e}", path.display()); std::process::exit(1); }
+    };
+
+    // Parse with HumanParser
+    let parser = HumanParser::new();
+    let doc = match parser.parse(&content) {
+        Ok(d) => d,
+        Err(e) => { eprintln!("Parse error in '{}': {e}", path.display()); std::process::exit(1); }
+    };
+
+    // Rebuild source in human normal format (() parens with aligned tables)
+    let mut out = String::new();
+
+    // Helper: format a value
+    fn fmt_val(v: &serializer::llm::types::DxLlmValue) -> String {
+        use serializer::llm::types::DxLlmValue;
+        match v {
+            DxLlmValue::Str(s) => s.clone(),
+            DxLlmValue::Num(n) => { if n.fract() == 0.0 { format!("{}", *n as i64) } else { format!("{}", n) } }
+            DxLlmValue::Bool(true) => "true".to_string(),
+            DxLlmValue::Bool(false) => "false".to_string(),
+            DxLlmValue::Null => "null".to_string(),
+            _ => String::new(),
+        }
+    }
+
+    // Helper: write a parenthesized group with blank lines between children
+    fn write_group(buf: &mut String, name: &str, fields: &indexmap::IndexMap<String, serializer::llm::types::DxLlmValue>, indent: usize) {
+        use serializer::llm::types::DxLlmValue;
+        let pad = "  ".repeat(indent);
+        let _ = writeln!(buf);
+        let _ = writeln!(buf, "{}{}(", pad, name);
+        let max_key_len = fields.keys().map(|k| k.len()).max().unwrap_or(0);
+        let mut prev_was_section = false;
+        for (idx, (key, val)) in fields.iter().enumerate() {
+            let is_section = matches!(val, DxLlmValue::Obj(_) | DxLlmValue::Arr(_));
+            if idx > 0 && (prev_was_section || is_section) {
+                let _ = writeln!(buf);
+            }
+            prev_was_section = is_section;
+            match val {
+                DxLlmValue::Obj(nested) => {
+                    write_group(buf, key, nested, indent + 1);
+                }
+                DxLlmValue::Arr(items) => {
+                    let vals: Vec<String> = items.iter().map(|v| fmt_val(v)).collect();
+                    let _ = writeln!(buf, "{}  {} = [{}]", pad, key, vals.join(" "));
+                }
+                _ => {
+                    let _ = writeln!(buf, "{}  {:<width$} = {}", pad, key, fmt_val(val), width = max_key_len);
+                }
+            }
+        }
+        let _ = writeln!(buf, "{})", pad);
+    }
+
+    // Helper: write a table with aligned columns — auto-detect separator
+    fn write_table(buf: &mut String, name: &str, section: &serializer::llm::types::DxSection, indent: usize) {
+        let pad = "  ".repeat(indent);
+        let schema = &section.schema;
+        let header = schema.join(" ");
+        let _ = writeln!(buf, "{}{}[{}](", pad, name, header);
+
+        // Auto-detect: use comma if any value contains a space
+        let use_comma = section.rows.iter().any(|row| {
+            row.iter().any(|v| {
+                if let serializer::llm::types::DxLlmValue::Str(s) = v { s.contains(' ') } else { false }
+            })
+        });
+
+        // Compute column widths
+        let mut col_widths: Vec<usize> = schema.iter().map(|c| c.len()).collect();
+        for row in &section.rows {
+            for (i, val) in row.iter().enumerate() {
+                if i < col_widths.len() {
+                    let s = fmt_val(val);
+                    if s.len() > col_widths[i] { col_widths[i] = s.len(); }
+                }
+            }
+        }
+
+        for row in &section.rows {
+            let mut line = String::from(&pad);
+            for (i, val) in row.iter().enumerate() {
+                let s_str = fmt_val(val);
+                if i == row.len() - 1 {
+                    let _ = write!(line, "  {}", s_str);
+                } else if use_comma {
+                    // Comma right after value, then pad to column width + 1 for gap
+                    let cell = format!("{},", s_str);
+                    let min_gap = col_widths.get(i).unwrap_or(&0) + 2;
+                    let _ = write!(line, "  {:<width$}", cell, width = min_gap);
+                } else {
+                    let _ = write!(line, "  {:<width$}", s_str, width = col_widths.get(i).unwrap_or(&0));
+                }
+            }
+            let _ = writeln!(buf, "{}", line);
+        }
+        let _ = writeln!(buf, "{})", pad);
+    }
+
+    // Collect all keys that appear as fields inside any group (to avoid duplication)
+    use serializer::llm::types::DxLlmValue;
+    let mut nested_keys: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for val in doc.context.values() {
+        if let DxLlmValue::Obj(fields) = val {
+            for key in fields.keys() {
+                nested_keys.insert(key.clone());
+            }
+        }
+    }
+
+    // Process context entries (skip duplicates of nested groups)
+    let mut first = true;
+    for (key, val) in &doc.context {
+        if nested_keys.contains(key) { continue; }
+        if !first {
+            let _ = writeln!(out);
+        }
+        first = false;
+        match val {
+            DxLlmValue::Obj(fields) => {
+                write_group(&mut out, key, fields, 0);
+            }
+            _ => {
+                let _ = writeln!(out, "{} = {}", key, fmt_val(val));
+            }
+        }
+    }
+
+    // Process sections (tables) with gaps
+    for (id, section) in &doc.sections {
+        let name = doc.section_names.get(id).cloned().unwrap_or_else(|| id.to_string());
+        if !first { let _ = writeln!(out); }
+        first = false;
+        write_table(&mut out, &name, section, 0);
+    }
+
+    // Write back the formatted source
+    let formatted = out.trim().to_string() + "\n";
+    match std::fs::write(path, &formatted) {
+        Ok(_) => println!("✓ Formatted {} ({} bytes)", path.display(), formatted.len()),
+        Err(e) => { eprintln!("Error writing '{}': {e}", path.display()); std::process::exit(1); }
+    }
+
+    // Generate all output formats
+    let parent = path.parent().unwrap_or(Path::new("."));
+    let output_dir = parent.join(".dx/serializer");
+    let _ = std::fs::create_dir_all(&output_dir);
+
+    let llm = serializer::llm::document_to_llm(&doc);
+    let _ = std::fs::write(output_dir.join("dx.llm"), &llm);
+
+    let machine = serializer::llm::document_to_machine(&doc);
+    let _ = std::fs::write(output_dir.join("dx.machine"), &machine.data);
+
+    let loose = document_to_human(&doc);
+    let _ = std::fs::write(output_dir.join("dx.loose"), &loose);
+
+    let compact_config = SerializerConfig { compact: true, level: OptimizationLevel::Low };
+    let compact_ser = LlmSerializer::with_config(compact_config);
+    let compact = compact_ser.serialize(&doc);
+    let _ = std::fs::write(output_dir.join("dx.compact"), &compact);
+
+    println!("  → .llm .machine .loose .compact");
 }
