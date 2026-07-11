@@ -1,197 +1,174 @@
-# DX Serializer Syntax Reference
-
-**Version:** 1.0  
-**3 Formats:** Human, LLM, Machine
-
----
+# DX Serializer — Complete Syntax Reference
 
 ## 3 Formats
 
-### Human — Visually beautiful (default for `dx` extensionless files & `.sr`)
-
-```
-project(
-  name    = dx-tree
-  version = 1.0.0
-)
-
-tree(
-  exclude   = node_modules target .git dist build
-  prune     = true
-  icons     = false
-  level     = 3
-  dirsfirst = true
-  noreport  = true
-)
-```
-
-- Spaces around `=`
-- Multi-line parenthesized objects
-- Aligned indentation
-- **Used for:** hand-edited `dx` config files, `.sr` files meant for human review
-
-### LLM — Token efficient
-
-```
-project:
-  name: dx-tree
-  version: 1.0.0
-
-tree:
-  exclude: node_modules target .git dist build
-  prune: true
-```
-
-- YAML-style `:` for small objects (<8 children)
-- Parens `()` for large objects (8+ children)
-- Auto-selects between token efficiency and readability
-- **Used for:** generated `.llm` files in `.dx/serializer/`
-
-### Machine — Most performance
-
-```
-(binary RKYV + optional LZ4/Zstd compression)
-```
-
-- Zero-copy runtime deserialization
-- **Used for:** generated `.machine` files in `.dx/serializer/`
+| Format | Flavors | Files | 
+|--------|---------|-------|
+| Human | Normal + Loose | `dx` (no ext), `.sr`, `.loose` |
+| LLM | Normal + Compact | `.llm`, `.compact` |
+| Machine | — | `.machine` |
 
 ---
 
-## Separator Styles
+## Human Normal — `key = value` with `()` groups
 
-Both space and comma separators are supported and auto-detected per row.
-
-### Space-separated (lower token count)
+Used in `.sr` and extensionless `dx` files. This is the source of truth on disk.
 
 ```
-users[id name email](
-  1 "Alice Johnson" alice@example.com
-  2 "Bob Smith" bob@example.com
+project(
+  name    = dx-os
+  version = 1.0.0
+  license = Apache-2.0
 )
 ```
 
-- Lower token count (commas add BPE tokens)
-- Ideal when no value contains spaces
+Rules:
+- Spaces around `=`
+- `()` for all groups (not based on child count)
+- `=` alignment within a group — pad to longest key
+- Root-level flat keys also use `key = value`
 
-### Comma-separated (recommended for complex data)
+## Human Loose — `[section]` TOML format
+
+Generated as `dx.loose`. Expanded, subsection-numbered format.
 
 ```
-recipes[name,group,doc,script](
-  build,all,"Build all workspace crates","cargo build --workspace"
-  test,all,"Run all workspace tests","cargo test --workspace"
+[project]
+name                         = dx-os
+version                      = 1.0.0
+
+[recipes:1]
+name                         = build
+group                        = all
+doc                          = Build all workspace crates
+```
+
+Multi-row tables get numbered sub-sections: `[table:1]`, `[table:2]`, etc.
+
+## LLM Normal — `:` yml format
+
+Generated as `.llm`. Token-efficient multi-line format.
+
+```
+project:
+  name: dx-os
+  version: 1.0.0
+```
+
+Rules:
+- `:` after key name, single space before value
+- Nested objects indented with 2 spaces
+- No `()` wrapping
+
+## LLM Compact — `()` single-line minified
+
+Generated as `dx.compact` with `--compact` flag. Most token-efficient.
+
+```
+project(name=dx-os version=1.0.0)
+```
+
+Rules:
+- `()` for objects, single line
+- `key=value` without spaces around `=`
+- No newlines within a section
+- Space-separated between sections on different lines
+
+---
+
+## Table Syntax
+
+Tables are the core data structure. Example with both separator styles:
+
+```
+# Header always uses space separator for column names
+recipes[name group doc script](
+
+  # Comma separator — for rows with sentences (no quotes needed)
+  build,all,Build all workspace crates,cargo build --workspace
+
+  # Space separator — for rows with only simple values
+  b,  build
+  c,  check
+)
+
+aliases[name target](
+  b   build
+  br  build-release
 )
 ```
 
-- Clear visual field separation
-- Values with spaces don't need quoting
-- **Recommended** when doc strings or multi-word values are present
-- Parser auto-detects comma vs space per row
+### Separator Rules
+
+| Separator | Best for | Token cost |
+|-----------|----------|------------|
+| **Space** | Values without spaces (names, flags, booleans) | Lowest |
+| **Comma** | Values with spaces (sentences, paths, URLs) | Low |
+
+- Auto-detected per row — mix within the same table
+- With comma separator: NO `""` needed — the comma IS the field boundary
+- With space separator: values with spaces must use comma separator instead
 
 ---
 
 ## Data Types
 
-### Scalar
-
 ```
-key = value
-key=value  (LLM mode)
-```
+# String (unquoted)
+name    = dx-os
 
-### String
+# String (quoted — only when value has spaces in flat context)
+name    = "DX Operating System"
 
-```
-name    = "Multi word value"
-name    = simple_value
-```
+# Number
+count   = 42
+pi      = 3.14
+neg     = -10
 
-Quotes required when value contains spaces, commas, or special chars.
-
-### Number
-
-```
-count = 42
-pi    = 3.14
-```
-
-### Boolean
-
-```
+# Boolean
 active  = true
 enabled = false
+
+# Null
+value   = null
+
+# Array — [space sep] or [comma,sep], auto-detected
+tags    = [rust performance serialization]
+tags    = [rust, performance, serialization]
 ```
 
-### Null
+---
+
+## Comments
 
 ```
-result = null
+# This is a comment
+name = dx-os  # This is an end-of-line comment
 ```
 
-### Array
+---
 
-```
-tags = [rust performance serialization]
-```
-
-Space-separated inside brackets. Comma-separated also supported:
-
-```
-tags = [rust, performance, serialization]
-```
-
-### Object
-
-```
-config(
-  host    = localhost
-  port    = 8080
-  debug   = true
-)
-```
-
-### Nested Object
+## Nesting
 
 ```
 project(
-  name     = dx-tree
-  version  = 1.0.0
-  authors(
-    name  = "Alice Smith"
-    email = alice@example.com
+  name    = dx-os
+  scripts(
+    build = cargo build
+    test  = cargo test
   )
 )
 ```
 
-### Wrapped Dataframe (Table)
-
-```
-users[id,name,email](
-  1,"Alice Johnson",alice@example.com
-  2,"Bob Smith",bob@example.com
-)
-```
-
-Schema defined in brackets, rows inside parentheses. Parser auto-detects space or comma separator.
-
 ---
 
-## EBNF Grammar
+## File Generation
+
+When `dx-serializer human file.dx` runs:
 
 ```
-document       = statement* ;
-statement      = root_pair | section ;
-root_pair      = key "=" value | key ":" value ;
-section        = identifier "(" pairs ")" ;
-pairs          = pair (" " pair)* ;
-pair           = key "=" value ;
-table          = identifier "[" headers "]" "(" rows ")" ;
-headers        = identifier ("," identifier)* | identifier (" " identifier)* ;
-rows           = row* ;
-row            = value ("," value)* | value (" " value)* ;
-value          = string | identifier | number | "true" | "false" | "null" ;
-string         = '"' [^"]* '"' ;
-key            = identifier ;
-identifier     = [a-zA-Z_][a-zA-Z0-9_-]* ;
-number         = [0-9]+ ("." [0-9]+)? ;
+file.dx  ──→  .dx/serializer/file.llm     (LLM Normal)
+            →  .dx/serializer/file.machine (Machine)
+            →  file.loose                  (Human Loose)
+            →  file.compact                (LLM Compact)
 ```

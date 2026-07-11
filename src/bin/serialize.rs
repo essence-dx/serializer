@@ -41,6 +41,11 @@ fn main() {
 
     // Route subcommands
     match args[1].as_str() {
+        "watch" => {
+            let dir = if args.len() > 2 { args[2].clone() } else { ".".to_string() };
+            let interval: u64 = if args.len() > 3 { args[3].parse().unwrap_or(2) } else { 2 };
+            cmd_watch(&dir, interval);
+        }
         "human" | "llm" | "machine" => {
             let format = args[1].clone();
             let file_args = &args[2..];
@@ -90,6 +95,7 @@ fn print_help(bin: &str) {
     eprintln!("  {name} human <file> [options]         Process as Human format (readable)");
     eprintln!("  {name} llm <file> [options]           Generate LLM format output");
     eprintln!("  {name} machine <file> [options]       Generate Machine format output");
+    eprintln!("  {name} watch <dir> [interval]         Watch dir, auto-process .sr/.dx files");
     eprintln!("  {name} convert json <file> [options]  Convert JSON to DX LLM format");
     eprintln!("  {name} convert yml <file> [options]   Convert YAML to DX LLM format");
     eprintln!("  {name} convert toon <file> [options]  Convert TOON to DX LLM format");
@@ -260,8 +266,8 @@ fn run_serialize_with_format(file: &str, format: &str, flags: &ExtraFlags) {
         })
     });
 
-    let loose_path = source.parent().unwrap_or(Path::new(".")).join("dx-loose");
-    let compact_llm_path = source.parent().unwrap_or(Path::new(".")).join("dx-compact.llm");
+    let loose_path = source.parent().unwrap_or(Path::new(".")).join("dx.loose");
+    let compact_llm_path = source.parent().unwrap_or(Path::new(".")).join("dx.compact");
 
     match serializer.process_file(source) {
         Ok(result) => {
@@ -397,4 +403,89 @@ fn process_input_paths(
                 .map_err(|error| (source.clone(), error))
         })
         .collect()
+}
+
+fn cmd_watch(dir: &str, interval: u64) {
+    use std::collections::HashMap;
+    use std::time::SystemTime;
+
+    let watch_path = Path::new(dir);
+    if !watch_path.is_dir() {
+        eprintln!("Error: '{}' is not a directory", watch_path.display());
+        std::process::exit(1);
+    }
+
+    println!("Watching {} for .sr / .dx files (refresh: {}s)  Press Ctrl+C to stop", watch_path.display(), interval);
+
+    let mut last_mtimes: HashMap<std::path::PathBuf, SystemTime> = HashMap::new();
+    let mut processed: HashMap<std::path::PathBuf, bool> = HashMap::new();
+
+    loop {
+        let mut entries: Vec<std::path::PathBuf> = Vec::new();
+        if let Ok(read) = watch_path.read_dir() {
+            for entry in read.flatten() {
+                let path = entry.path();
+                let ext = path.extension().map(|e| e.to_string_lossy().to_string());
+                let is_sr = ext.as_deref() == Some("sr");
+                let is_dx = path.file_name().map(|n| n == "dx").unwrap_or(false);
+                if is_sr || is_dx {
+                    entries.push(path);
+                }
+            }
+        }
+
+        for path in &entries {
+            let changed = match (last_mtimes.get(path), path.metadata().ok().and_then(|m| m.modified().ok())) {
+                (Some(old), Some(new)) => *old != new,
+                (None, Some(_)) => true,
+                _ => false,
+            };
+
+            if changed || !*processed.get(path).unwrap_or(&false) {
+                if let Ok(content) = std::fs::read_to_string(path) {
+                    let parser = HumanParser::new();
+                    match parser.parse(&content) {
+                        Ok(doc) => {
+                            let parent = path.parent().unwrap_or(Path::new("."));
+                            let output_dir = parent.join(".dx/serializer");
+
+                            // Generate .llm
+                            let llm = serializer::llm::document_to_llm(&doc);
+                            if let Ok(()) = std::fs::create_dir_all(&output_dir) {
+                                let _ = std::fs::write(output_dir.join("dx.llm"), &llm);
+                            }
+
+                            // Generate .machine
+                            let machine = serializer::llm::document_to_machine(&doc);
+                            if let Ok(()) = std::fs::create_dir_all(&output_dir) {
+                                let _ = std::fs::write(output_dir.join("dx.machine"), &machine.data);
+                            }
+
+                            // Generate .loose
+                            let loose = document_to_human(&doc);
+                            let _ = std::fs::write(parent.join("dx.loose"), &loose);
+
+                            // Generate .compact
+                            let compact_config = SerializerConfig { compact: true, level: OptimizationLevel::Low };
+                            let compact_ser = LlmSerializer::with_config(compact_config);
+                            let compact = compact_ser.serialize(&doc);
+                            let _ = std::fs::write(parent.join("dx.compact"), &compact);
+
+                            print!("  \x1b[K• {} ", path.file_name().unwrap().to_string_lossy());
+                            println!("→ .llm .machine .loose .compact");
+                        }
+                        Err(e) => {
+                            eprintln!("  ✗ {} parse error: {}", path.display(), e);
+                        }
+                    }
+                }
+                if let Ok(mt) = path.metadata().and_then(|m| m.modified()) {
+                    last_mtimes.insert(path.clone(), mt);
+                }
+                processed.insert(path.clone(), true);
+            }
+        }
+
+        std::thread::sleep(std::time::Duration::from_secs(interval));
+    }
 }

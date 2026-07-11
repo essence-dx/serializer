@@ -40,14 +40,6 @@ Every `.machine` file starts with a 56-byte header:
 | Deserialize (mmap hot) | 1.3 µs | 2.1 µs | 31 µs |
 | Round-trip | 6.1 µs | 10.2 µs | 175 µs |
 
-## vs JSON
-
-| Metric | JSON parse | .machine validated | .machine mmap hot |
-|--------|-----------|-------------------|-------------------|
-| Small (86 KB) | 305 µs | 28 µs (10.9x) | 1.3 µs (229x) |
-| Medium (2.7 MB) | 8.7 ms | 675 µs (12.8x) | 56 µs (155x) |
-| Large (22 MB) | 98 ms | 5.5 ms (17.7x) | 500 µs (197x) |
-
 ## Usage
 
 ```
