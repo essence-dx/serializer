@@ -1,8 +1,0 @@
-dist
-node_modules
-.DS_Store
-.env
-docs/.vitepress/dist
-docs/.vitepress/cache
-packages/toon/test/fixtures/*.json
-packages/toon/test/fixtures/*.toon
