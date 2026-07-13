@@ -1,0 +1,22 @@
+{
+  "tool_calls": [
+    { "name": "read_file", "arguments": { "path": "src/index.ts", "encoding": "utf-8", "offset": 0, "limit": 100 } },
+    { "name": "grep", "arguments": { "query": "export default", "path": "src/", "include": "*.ts", "case_insensitive": false } },
+    { "name": "search_files", "arguments": { "pattern": "**/*.test.ts", "root": "src/", "max_results": 50 } },
+    { "name": "run_command", "arguments": { "command": "npm run build", "cwd": ".", "timeout_ms": 60000, "capture": true } },
+    { "name": "git", "arguments": { "action": "diff", "files": ["src/index.ts", "src/utils.ts"] } },
+    { "name": "create_component", "arguments": { "name": "UserCard", "path": "src/components/", "style": "tailwind", "typescript": true, "test": true } },
+    { "name": "create_api_route", "arguments": { "path": "/api/users", "method": "GET", "auth": true, "validation": true, "rate_limit": 100 } },
+    { "name": "database", "arguments": { "query": "SELECT * FROM users WHERE active = $1", "params": ["true"], "limit": 50 } },
+    { "name": "deploy", "arguments": { "service": "api-gateway", "env": "staging", "replicas": 2, "memory_mb": 1024, "rollback": true } },
+    { "name": "monitor", "arguments": { "name": "High Latency", "metric": "request_latency_p99", "condition": "gt", "threshold": 500, "notify": ["slack", "pagerduty"] } },
+    { "name": "test", "arguments": { "pattern": "**/*.test.ts", "coverage": true, "watch": false, "parallel": true } },
+    { "name": "lint", "arguments": { "fix": true, "paths": ["src/"] } },
+    { "name": "typecheck", "arguments": { "strict": true, "project": "tsconfig.json" } },
+    { "name": "build", "arguments": { "target": "production", "minify": true, "sourcemap": false } },
+    { "name": "api_request", "arguments": { "url": "https://api.example.com/health", "method": "GET", "timeout_ms": 5000 } },
+    { "name": "web_search", "arguments": { "query": "DX Serializer token efficiency", "num_results": 5, "safe_search": true } },
+    { "name": "email", "arguments": { "to": "team@company.com", "subject": "Deploy Complete", "body": "Staging deploy successful", "html": false, "priority": "normal" } },
+    { "name": "slack", "arguments": { "channel": "#deployments", "message": "Deployed api-gateway to staging", "blocks": [] } }
+  ]
+}

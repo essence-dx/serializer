@@ -1,0 +1,349 @@
+{
+  "agent": {
+    "name": "Full-Stack Coding Agent",
+    "version": "2.0.0",
+    "capabilities": {
+      "file_system": {
+        "read": true,
+        "write": true,
+        "delete": true,
+        "watch": true,
+        "permissions": {
+          "owner": ["read", "write", "delete"],
+          "group": ["read", "write"],
+          "other": ["read"]
+        }
+      },
+      "terminal": {
+        "execute": true,
+        "background": true,
+        "timeout_ms": 30000,
+        "env_inherit": true,
+        "sandbox": {
+          "enabled": true,
+          "max_memory_mb": 512,
+          "max_cpu_percent": 50,
+          "network_access": false,
+          "filesystem_access": "workspace-only"
+        }
+      },
+      "git": {
+        "read": true,
+        "write": true,
+        "remote_access": false,
+        "branch_protection": {
+          "require_review": true,
+          "require_tests": true,
+          "auto_merge": false
+        }
+      },
+      "ai": {
+        "models": {
+          "primary": "gpt-4o",
+          "fallback": "claude-3.5-sonnet",
+          "embedding": "text-embedding-3-small"
+        },
+        "limits": {
+          "max_tokens_per_request": 4096,
+          "max_requests_per_minute": 60,
+          "max_context_window": 128000,
+          "cost_budget_daily_usd": 50.00
+        }
+      }
+    },
+    "tools": [
+      {
+        "name": "read_file",
+        "description": "Read file contents with line range support",
+        "category": "filesystem",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "path": { "type": "string", "description": "File path" },
+            "encoding": { "type": "string", "enum": ["utf-8", "base64"], "default": "utf-8" },
+            "offset": { "type": "integer", "minimum": 0, "default": 0 },
+            "limit": { "type": "integer", "minimum": 1, "maximum": 10000, "default": 1000 }
+          },
+          "required": ["path"]
+        }
+      },
+      {
+        "name": "write_file",
+        "description": "Write content to file with auto-mkdir",
+        "category": "filesystem",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "path": { "type": "string" },
+            "content": { "type": "string" },
+            "mode": { "type": "string", "enum": ["overwrite", "append"], "default": "overwrite" },
+            "create_dirs": { "type": "boolean", "default": true }
+          },
+          "required": ["path", "content"]
+        }
+      },
+      {
+        "name": "search_files",
+        "description": "Glob pattern file search",
+        "category": "filesystem",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "pattern": { "type": "string" },
+            "root": { "type": "string", "default": "." },
+            "max_results": { "type": "integer", "default": 100 }
+          },
+          "required": ["pattern"]
+        }
+      },
+      {
+        "name": "grep",
+        "description": "Regex content search across files",
+        "category": "search",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "query": { "type": "string" },
+            "path": { "type": "string" },
+            "include": { "type": "string" },
+            "case_insensitive": { "type": "boolean", "default": false }
+          },
+          "required": ["query"]
+        }
+      },
+      {
+        "name": "run_command",
+        "description": "Execute shell command",
+        "category": "terminal",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "command": { "type": "string" },
+            "cwd": { "type": "string" },
+            "timeout_ms": { "type": "integer", "default": 30000 },
+            "capture": { "type": "boolean", "default": true }
+          },
+          "required": ["command"]
+        }
+      },
+      {
+        "name": "git",
+        "description": "Git operations",
+        "category": "vcs",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "action": { "type": "string", "enum": ["status", "diff", "commit", "push", "pull", "log"] },
+            "message": { "type": "string" },
+            "files": { "type": "array", "items": { "type": "string" } }
+          },
+          "required": ["action"]
+        }
+      },
+      {
+        "name": "create_component",
+        "description": "Generate React component",
+        "category": "codegen",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "path": { "type": "string" },
+            "style": { "type": "string", "enum": ["tailwind", "css", "scss"], "default": "tailwind" },
+            "typescript": { "type": "boolean", "default": true },
+            "test": { "type": "boolean", "default": true }
+          },
+          "required": ["name", "path"]
+        }
+      },
+      {
+        "name": "create_api_route",
+        "description": "Generate API endpoint",
+        "category": "codegen",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "path": { "type": "string" },
+            "method": { "type": "string", "enum": ["GET", "POST", "PUT", "DELETE"] },
+            "auth": { "type": "boolean", "default": true },
+            "validation": { "type": "boolean", "default": true },
+            "rate_limit": { "type": "integer", "default": 100 }
+          },
+          "required": ["path", "method"]
+        }
+      },
+      {
+        "name": "database",
+        "description": "Execute SQL query",
+        "category": "data",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "query": { "type": "string" },
+            "params": { "type": "array", "items": { "type": "string" } },
+            "limit": { "type": "integer", "default": 100 }
+          },
+          "required": ["query"]
+        }
+      },
+      {
+        "name": "deploy",
+        "description": "Deploy to cloud",
+        "category": "devops",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "service": { "type": "string" },
+            "env": { "type": "string", "enum": ["staging", "production"] },
+            "replicas": { "type": "integer", "default": 2 },
+            "memory_mb": { "type": "integer", "default": 512 },
+            "rollback": { "type": "boolean", "default": true }
+          },
+          "required": ["service", "env"]
+        }
+      },
+      {
+        "name": "monitor",
+        "description": "Create monitoring alert",
+        "category": "devops",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "metric": { "type": "string" },
+            "condition": { "type": "string", "enum": ["gt", "lt", "eq"] },
+            "threshold": { "type": "number" },
+            "notify": { "type": "array", "items": { "type": "string" } }
+          },
+          "required": ["name", "metric", "condition", "threshold"]
+        }
+      },
+      {
+        "name": "test",
+        "description": "Run test suite",
+        "category": "testing",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "pattern": { "type": "string", "default": "**/*.test.ts" },
+            "coverage": { "type": "boolean", "default": false },
+            "watch": { "type": "boolean", "default": false },
+            "parallel": { "type": "boolean", "default": true }
+          }
+        }
+      },
+      {
+        "name": "lint",
+        "description": "Run linter",
+        "category": "quality",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "fix": { "type": "boolean", "default": false },
+            "paths": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      },
+      {
+        "name": "typecheck",
+        "description": "Run TypeScript type checker",
+        "category": "quality",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "strict": { "type": "boolean", "default": true },
+            "project": { "type": "string", "default": "tsconfig.json" }
+          }
+        }
+      },
+      {
+        "name": "build",
+        "description": "Build the project",
+        "category": "build",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "target": { "type": "string", "enum": ["development", "production"], "default": "production" },
+            "minify": { "type": "boolean", "default": true },
+            "sourcemap": { "type": "boolean", "default": false }
+          }
+        }
+      },
+      {
+        "name": "api_request",
+        "description": "Make HTTP request",
+        "category": "network",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "url": { "type": "string" },
+            "method": { "type": "string", "enum": ["GET", "POST", "PUT", "DELETE"], "default": "GET" },
+            "headers": { "type": "object", "additionalProperties": { "type": "string" } },
+            "body": { "type": "object" },
+            "timeout_ms": { "type": "integer", "default": 10000 }
+          },
+          "required": ["url"]
+        }
+      },
+      {
+        "name": "web_search",
+        "description": "Search the web",
+        "category": "search",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "query": { "type": "string" },
+            "num_results": { "type": "integer", "default": 5 },
+            "safe_search": { "type": "boolean", "default": true }
+          },
+          "required": ["query"]
+        }
+      },
+      {
+        "name": "generate_image",
+        "description": "Generate image with AI",
+        "category": "media",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "prompt": { "type": "string" },
+            "size": { "type": "string", "enum": ["256x256", "512x512", "1024x1024"], "default": "512x512" },
+            "style": { "type": "string", "enum": ["natural", "vivid"], "default": "natural" }
+          },
+          "required": ["prompt"]
+        }
+      },
+      {
+        "name": "email",
+        "description": "Send email notification",
+        "category": "notification",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "to": { "type": "string" },
+            "subject": { "type": "string" },
+            "body": { "type": "string" },
+            "html": { "type": "boolean", "default": false },
+            "priority": { "type": "string", "enum": ["low", "normal", "high"], "default": "normal" }
+          },
+          "required": ["to", "subject", "body"]
+        }
+      },
+      {
+        "name": "slack",
+        "description": "Send Slack message",
+        "category": "notification",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "channel": { "type": "string" },
+            "message": { "type": "string" },
+            "thread_ts": { "type": "string" },
+            "blocks": { "type": "array", "items": { "type": "object" } }
+          },
+          "required": ["channel", "message"]
+        }
+      }
+    ]
+  }
+}
