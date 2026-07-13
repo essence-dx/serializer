@@ -4,13 +4,15 @@ All decisions finalized. This is the source of truth for the DX Serializer.
 
 ---
 
-## 3 Formats
+## 5 Formats
 
-| Format | Flavors | File Extensions | Purpose |
-|--------|---------|-----------------|---------|
-| **Human** | Normal, Loose | `.sr`, `dx` (none), `.loose` | Source of truth on disk, hand-editable |
-| **LLM** | Normal, Compact | `.llm`, `.compact` | Token-optimized for AI context windows |
-| **Machine** | — | `.machine` | Binary RKYV, zero-copy runtime access |
+| Format | File Extensions | Purpose |
+|--------|-----------------|---------|
+| **Human** | `.sr`, `dx` (none) | Source of truth on disk, hand-editable, `()` parenthesized groups |
+| **Loose** | `.loose` | Expanded `[section]` TOML-like style |
+| **LLM** | `.llm` | Token-optimized for AI context windows, `:` YAML-style |
+| **Compact** | `.compact` | Minified single-line `()`, most token-efficient |
+| **Machine** | `.machine` | Binary RKYV, zero-copy runtime access |
 
 ## CLI
 
@@ -19,10 +21,10 @@ All decisions finalized. This is the source of truth for the DX Serializer.
 | `dx-serializer human <file>` | Parse as Human, generate .llm/.machine/.loose/.compact |
 | `dx-serializer llm <file>` | Generate only .llm output |
 | `dx-serializer machine <file>` | Generate only .machine output |
-| `--compact` | Output compact LLM flavor (single-line `()`) |
+| `--compact` | Output compact format (single-line `()`) |
 | `--stdout` | Print to stdout |
 
-## Human Format (Normal)
+## Human Format
 
 ```
 project(
@@ -35,7 +37,7 @@ project(
 - `=` with spaces around it, aligned to longest key
 - Groups with 1-2 children also use `()` (consistent style for dx files)
 
-## Human Format (Loose)
+## Loose Format
 
 ```
 [project]
@@ -46,7 +48,7 @@ version                      = 1.0.0
 - TOML-like `[section]` headers
 - Auto-generated as `dx.loose`
 
-## LLM Format (Normal)
+## LLM Format
 
 ```
 project:
@@ -54,10 +56,10 @@ project:
   version: 1.0.0
 ```
 
-- `:` yml-style, multi-line
+- `:` YAML-style, multi-line
 - Auto-generated as `.llm`
 
-## LLM Format (Compact)
+## Compact Format
 
 ```
 project(name=dx-os version=1.0.0)
@@ -78,7 +80,7 @@ recipes[name group doc script](
   check,all,Run cargo check,cargo check --workspace
 )
 
-# Spave separator (simple values)
+# Space separator (simple values)
 aliases[name target](
   b  build
   c  check
@@ -108,9 +110,9 @@ key = value  # end-of-line comment
 ## Conversion Pipeline
 
 ```
-dx / .sr (Human Normal)
-  ├──→ .llm (LLM Normal)
+dx / .sr (Human)
+  ├──→ .llm (LLM)
   ├──→ .machine (Machine binary)
-  ├──→ .loose (Human Loose)
-  └──→ .compact (LLM Compact)
+  ├──→ .loose (Loose)
+  └──→ .compact (Compact)
 ```

@@ -1,6 +1,6 @@
 # DX Compact Format
 
-**Type:** LLM format flavor (minified)  
+**Type:** Minified text format  
 **Extension:** `.compact`  
 **Location:** Next to source file (auto-generated)  
 **Purpose:** Most token-efficient text representation

@@ -5,28 +5,32 @@
 | File | Description |
 |------|-------------|
 | `SYNTAX.md` | Complete syntax reference |
-| `HUMAN.md` | Human format (Normal flavor) |
-| `LOOSE.md` | Human format (Loose flavor — expanded `[section]` style) |
-| `LLM.md` | LLM format (Normal flavor — `:` yml style) |
-| `COMPACT.md` | LLM format (Compact flavor — single-line minified) |
+| `HUMAN.md` | Human format — parenthesized groups with aligned `=` |
+| `LOOSE.md` | Loose format — expanded `[section]` TOML-like style |
+| `LLM.md` | LLM format — `:` YAML-style multi-line |
+| `COMPACT.md` | Compact format — single-line parenthesized, minified |
 | `MACHINE.md` | Machine binary format (RKYV) |
 | `SERIALIZER.md` | Design decisions and options |
 
 ## Quick Reference
 
-### 3 Formats, 2 Flavors Each
+### 5 Formats
 
 ```
-Human (source of truth)
-  ├── Normal   () aligned =     — hand-editable dx / .sr files
-  └── Loose    [section] TOML   — expanded, generated as dx.loose
+Human (source of truth, hand-editable)
+  └── scripts(...)    parenthesized groups, aligned =
+
+Loose (expanded TOML-like)
+  └── [scripts]       section headers, key = value
 
 LLM (token-optimized)
-  ├── Normal   : yml multi-line — generated as .llm
-  └── Compact  () single-line   — minified, generated as dx.compact
+  └── scripts:        YAML-style multi-line
 
-Machine (binary performance)
-  └── RKYV binary               — generated as .machine
+Compact (minified)
+  └── scripts(...)    single-line parenthesized
+
+Machine (binary)
+  └── RKYV binary     zero-copy runtime
 ```
 
 ### CLI Commands
@@ -36,5 +40,5 @@ Machine (binary performance)
 | `dx-serializer human <file>` | Process as Human format, generate .llm + .machine + .loose + .compact |
 | `dx-serializer llm <file>` | Generate only .llm output |
 | `dx-serializer machine <file>` | Generate only .machine output |
-| `--compact` | Output compact LLM flavor |
+| `--compact` | Output compact flavor |
 | `--stdout` | Print to stdout instead of writing files |

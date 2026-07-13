@@ -2,12 +2,15 @@
 //!
 //! A high-performance serialization library optimized for Humans, LLMs, AND Machines.
 //!
-//! ## Two Primary Formats
+//! ## Five Formats
 //!
-//! | Format | Use Case | Performance |
-//! |--------|----------|-------------|
-//! | **DX LLM** | Text format for humans & LLMs | 26.8% more efficient than TOON |
-//! | **DX Machine** | Binary format for runtime | 0.70ns field access |
+//! | Format | Use Case | File |
+//! |--------|----------|------|
+//! | **Human** | Hand-editable source of truth, `()` parenthesized groups | `.sr` / `dx` |
+//! | **Loose** | Expanded `[section]` TOML-like style | `.loose` |
+//! | **LLM** | Token-optimized `:` YAML-style multi-line | `.llm` |
+//! | **Compact** | Minified single-line `()` | `.compact` |
+//! | **Machine** | Binary RKYV, zero-copy runtime | `.machine` |
 //!
 //! ## Quick Start
 //!
@@ -139,17 +142,21 @@
 //! These types implement `Send` (can be moved between threads) but not `Sync`
 //! (cannot be shared via `&T`). Create separate instances for each thread.
 //!
-//! ## Triple Format Architecture (2026 Update)
+//! ## Five Format Architecture
 //!
-//! DX seamlessly converts between three formats:
-//! - **Human Format** (Front-facing files: .sr, .dx) - Beautiful, readable, on disk
-//! - **LLM Format** (.dx/serializer/*.llm) - Token-efficient, 26.8% better than TOON
-//! - **Machine Format** (.dx/serializer/*.machine) - Binary, 0.70ns access
+//! DX seamlessly converts between five formats:
+//! - **Human** (Front-facing: .sr, .dx) - `()` parenthesized groups with aligned `=`
+//! - **Loose** (.dx/serializer/*.loose) - Expanded `[section]` TOML-like style
+//! - **LLM** (.dx/serializer/*.llm) - Token-optimized, 26.8% better than TOON
+//! - **Compact** (.dx/serializer/*.compact) - Minified single-line `()`
+//! - **Machine** (.dx/serializer/*.machine) - Binary, 0.70ns access
 //!
-//! ### New Architecture (January 2026)
-//! - Front-facing .sr/.dx files now contain **Human format** (readable)
-//! - LLM format moved to `.dx/serializer/*.llm` (token-optimized for AI)
-//! - Machine format remains in `.dx/serializer/*.machine` (binary performance)
+//! ### Architecture
+//! - Front-facing .sr/.dx files contain **Human format** (readable, hand-editable)
+//! - Loose format expanded to `.dx/serializer/*.loose` (section headers)
+//! - LLM format in `.dx/serializer/*.llm` (token-optimized for AI)
+//! - Compact format in `.dx/serializer/*.compact` (single-line minified)
+//! - Machine format in `.dx/serializer/*.machine` (binary performance)
 //!
 //! ## Key Features
 //! - Base62 integers (%x): 320→5A, 540→8k

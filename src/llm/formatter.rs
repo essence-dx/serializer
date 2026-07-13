@@ -159,7 +159,7 @@ impl LlmFormatter {
                     format!("{n}")
                 }
             }
-            DxLlmValue::Str(s) => s.clone(),
+            DxLlmValue::Str(s) => s.replace('\n', " "),
             DxLlmValue::Arr(items) => {
                 let serialized: Vec<String> =
                     items.iter().map(|item| self.serialize_value(item)).collect();
@@ -189,15 +189,16 @@ impl LlmFormatter {
                 }
             }
             DxLlmValue::Str(s) => {
+                let cleaned = s.replace('\n', " ");
                 let needs_quoting = if use_commas {
-                    s.contains(',')
+                    cleaned.contains(',')
                 } else {
-                    s.contains(' ')
+                    cleaned.contains(' ')
                 };
                 if needs_quoting {
-                    format!("\"{}\"", s.replace('"', "\\\""))
+                    format!("\"{}\"", cleaned.replace('"', "\\\""))
                 } else {
-                    s.clone()
+                    cleaned
                 }
             }
             DxLlmValue::Arr(items) => {

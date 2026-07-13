@@ -527,7 +527,7 @@ fn cmd_format(file: &str, _flags: &ExtraFlags) {
     fn fmt_val(v: &serializer::llm::types::DxLlmValue) -> String {
         use serializer::llm::types::DxLlmValue;
         match v {
-            DxLlmValue::Str(s) => s.clone(),
+            DxLlmValue::Str(s) => s.replace('\n', " "),
             DxLlmValue::Num(n) => { if n.fract() == 0.0 { format!("{}", *n as i64) } else { format!("{}", n) } }
             DxLlmValue::Bool(true) => "true".to_string(),
             DxLlmValue::Bool(false) => "false".to_string(),
@@ -559,7 +559,13 @@ fn cmd_format(file: &str, _flags: &ExtraFlags) {
                     let _ = writeln!(buf, "{}  {} = [{}]", pad, key, vals.join(" "));
                 }
                 _ => {
-                    let _ = writeln!(buf, "{}  {:<width$} = {}", pad, key, fmt_val(val), width = max_key_len);
+                    let raw = fmt_val(val);
+                    let needs_quoting = raw.contains('=') || raw.contains('(') || raw.contains(')') || raw.contains('"') || raw.starts_with(' ') || raw.ends_with(' ');
+                    if needs_quoting {
+                        let _ = writeln!(buf, "{}  {:<width$} = \"{}\"", pad, key, raw.replace('\\', "\\\\").replace('"', "\\\""), width = max_key_len);
+                    } else {
+                        let _ = writeln!(buf, "{}  {:<width$} = {}", pad, key, raw, width = max_key_len);
+                    }
                 }
             }
         }
@@ -596,7 +602,12 @@ fn cmd_format(file: &str, _flags: &ExtraFlags) {
             for (i, val) in row.iter().enumerate() {
                 let s_str = fmt_val(val);
                 if i == row.len() - 1 {
-                    let _ = write!(line, "  {}", s_str);
+                    let needs_quoting = use_comma && s_str.contains(',') || s_str.contains(' ');
+                    if needs_quoting {
+                        let _ = write!(line, "  \"{}\"", s_str.replace('"', "\\\""));
+                    } else {
+                        let _ = write!(line, "  {}", s_str);
+                    }
                 } else if use_comma {
                     // Comma right after value, then pad to column width + 1 for gap
                     let cell = format!("{},", s_str);

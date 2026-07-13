@@ -1,6 +1,6 @@
 # DX Loose Format
 
-**Type:** Human format flavor (expanded)  
+**Type:** Expanded TOML-like format  
 **Extension:** `.loose`  
 **Location:** Next to source file (auto-generated)  
 **Purpose:** Extended human-readable representation with numbered sections

@@ -166,7 +166,7 @@ impl HumanParser {
                 }
 
                 let mut rows = Vec::new();
-                let mut row_lines: Vec<&str> = Vec::new();
+                let mut row_lines: Vec<String> = Vec::new();
                 let mut paren_depth = 0;
                 let mut consumed = 0;
 
@@ -182,18 +182,19 @@ impl HumanParser {
                     if remainder.ends_with(')') {
                         let inner = remainder[remainder.find('(').map(|p| p + 1).unwrap_or(0)..remainder.len() - 1].trim();
                         if !inner.is_empty() {
-                            row_lines.push(inner);
+                            row_lines.push(inner.to_string());
                         }
                     }
                 } else if paren_depth > 0 {
                     if !remainder.is_empty() {
                         let paren_start = remainder.find('(').map(|p| p + 1).unwrap_or(0);
                         let rest_inner = remainder[paren_start..].trim();
-                        if !rest_inner.is_empty() {
-                            row_lines.push(rest_inner);
-                        }
+                            if !rest_inner.is_empty() {
+                                row_lines.push(rest_inner.to_string());
+                            }
                     }
                     let line_offset = if remainder.is_empty() { 0 } else { 1 }; // skip header line if already on same line
+                    let mut in_quoted_string = false;
                     while consumed < lines.len().saturating_sub(i + line_offset) {
                         let rline = lines[i + line_offset + consumed].trim();
                         if rline.is_empty() && row_lines.is_empty() {
@@ -204,16 +205,27 @@ impl HumanParser {
                             if ch == '(' { paren_depth += 1; }
                             else if ch == ')' { paren_depth -= 1; }
                         }
-                        if paren_depth == 0 && !rline.is_empty() {
+                        // Count quotes to detect multi-line quoted strings
+                        let quote_count = rline.chars().filter(|&c| c == '"').count();
+                        if quote_count % 2 == 1 {
+                            in_quoted_string = !in_quoted_string;
+                        }
+                        if paren_depth == 0 && !rline.is_empty() && !in_quoted_string {
                             let clean = rline.trim_end_matches(')').trim();
                             if !clean.is_empty() {
-                                row_lines.push(clean);
+                                row_lines.push(clean.to_string());
                             }
                             consumed += 1;
                             break;
                         }
                         if !rline.is_empty() {
-                            row_lines.push(rline);
+                            if in_quoted_string && !row_lines.is_empty() {
+                                // Continue the previous quoted string onto this line
+                                let last = row_lines.len() - 1;
+                                row_lines[last] = [row_lines[last].as_str(), " ", rline].concat();
+                            } else {
+                                row_lines.push(rline.to_string());
+                            }
                         }
                         consumed += 1;
                     }
@@ -654,9 +666,26 @@ impl HumanParser {
     fn parse_config_value(&self, s: &str) -> Result<DxLlmValue, HumanParseError> {
         let s = s.trim();
 
-        // Quoted string
+        // Quoted string (JSON-style escaping: \\ → \, \" → ")
         if s.starts_with('"') && s.ends_with('"') && s.len() >= 2 {
-            return Ok(DxLlmValue::Str(s[1..s.len() - 1].to_string()));
+            let inner = &s[1..s.len() - 1];
+            let mut unescaped = String::with_capacity(inner.len());
+            let mut escape = false;
+            for ch in inner.chars() {
+                if escape {
+                    match ch {
+                        '"' => unescaped.push('"'),
+                        '\\' => unescaped.push('\\'),
+                        _ => { unescaped.push('\\'); unescaped.push(ch); }
+                    }
+                    escape = false;
+                } else if ch == '\\' {
+                    escape = true;
+                } else {
+                    unescaped.push(ch);
+                }
+            }
+            return Ok(DxLlmValue::Str(unescaped));
         }
 
         // Boolean (support true/false, yes/no, +/-)

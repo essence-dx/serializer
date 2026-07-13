@@ -2,14 +2,13 @@
 
 **Type:** Text (readable, hand-editable)  
 **Extension:** `.sr`, `dx` (extensionless)  
-**Location:** On disk (source of truth)  
-**2 Flavors:** Normal, Loose
+**Location:** On disk (source of truth)
 
 ---
 
-## Normal Flavor — `()` with aligned `=`
+## Format — `()` with aligned `=`
 
-The default human format used in hand-edited files.
+The default human-readable format used in hand-edited files.
 
 ```
 project(
@@ -24,15 +23,10 @@ scripts(
 )
 ```
 
-## Loose Flavor — `[section]` TOML-like
-
-Expanded format, auto-generated as `dx.loose`.
-
-```
-[project]
-name                         = dx-os
-version                      = 1.0.0
-```
+Key characteristics:
+- Parenthesized groups `name(...)` for objects
+- Aligned `=` signs inside groups
+- Nested groups for sub-objects
 
 ---
 

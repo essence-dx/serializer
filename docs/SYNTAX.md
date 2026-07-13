@@ -1,16 +1,18 @@
 # DX Serializer — Complete Syntax Reference
 
-## 3 Formats
+## 5 Formats
 
-| Format | Flavors | Files | 
-|--------|---------|-------|
-| Human | Normal + Loose | `dx` (no ext), `.sr`, `.loose` |
-| LLM | Normal + Compact | `.llm`, `.compact` |
-| Machine | — | `.machine` |
+| Format | Files | 
+|--------|-------|
+| Human | `dx` (no ext), `.sr` |
+| Loose | `.loose` |
+| LLM | `.llm` |
+| Compact | `.compact` |
+| Machine | `.machine` |
 
 ---
 
-## Human Normal — `key = value` with `()` groups
+## Human — `key = value` with `()` groups
 
 Used in `.sr` and extensionless `dx` files. This is the source of truth on disk.
 
@@ -28,7 +30,7 @@ Rules:
 - `=` alignment within a group — pad to longest key
 - Root-level flat keys also use `key = value`
 
-## Human Loose — `[section]` TOML format
+## Loose — `[section]` TOML style
 
 Generated as `dx.loose`. Expanded, subsection-numbered format.
 
@@ -45,7 +47,7 @@ doc                          = Build all workspace crates
 
 Multi-row tables get numbered sub-sections: `[table:1]`, `[table:2]`, etc.
 
-## LLM Normal — `:` yml format
+## LLM — `:` yml format
 
 Generated as `.llm`. Token-efficient multi-line format.
 
@@ -60,7 +62,7 @@ Rules:
 - Nested objects indented with 2 spaces
 - No `()` wrapping
 
-## LLM Compact — `()` single-line minified
+## Compact — `()` single-line minified
 
 Generated as `dx.compact` with `--compact` flag. Most token-efficient.
 
@@ -167,8 +169,8 @@ project(
 When `dx-serializer human file.dx` runs:
 
 ```
-file.dx  ──→  .dx/serializer/file.llm     (LLM Normal)
-            →  .dx/serializer/file.machine (Machine)
-            →  file.loose                  (Human Loose)
-            →  file.compact                (LLM Compact)
+file.dx  ──→  .dx/serializer/file.llm     (LLM)
+             →  .dx/serializer/file.machine (Machine)
+             →  file.loose                  (Loose)
+             →  file.compact                (Compact)
 ```
