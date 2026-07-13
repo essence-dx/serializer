@@ -1,0 +1,28 @@
+{
+  "name": "@toon/benchmarks",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "benchmark:tokens": "node scripts/token-efficiency-benchmark.ts",
+    "benchmark:accuracy": "node --env-file=.env scripts/accuracy-benchmark.ts",
+    "fetch:github-repos": "node scripts/fetch-github-repos.ts"
+  },
+  "devDependencies": {
+    "@ai-sdk/anthropic": "^3.0.78",
+    "@ai-sdk/google": "^3.0.75",
+    "@ai-sdk/openai": "^3.0.64",
+    "@ai-sdk/provider": "^3.0.10",
+    "@ai-sdk/xai": "^3.0.91",
+    "@clack/prompts": "^1.4.0",
+    "@faker-js/faker": "^10.4.0",
+    "ai": "^6.0.185",
+    "csv-stringify": "^6.7.0",
+    "fast-xml-parser": "^5.8.0",
+    "gpt-tokenizer": "^3.4.0",
+    "ofetch": "^1.5.1",
+    "p-map": "^7.0.4",
+    "p-queue": "^9.3.0",
+    "unstorage": "^1.17.5",
+    "yaml": "^2.9.0"
+  }
+}

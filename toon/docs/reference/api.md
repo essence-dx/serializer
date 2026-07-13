@@ -1,0 +1,766 @@
+---
+description: TypeScript and JavaScript encode and decode functions, options, error types, and streaming decoders for @toon-format/toon.
+---
+
+# API Reference
+
+TypeScript/JavaScript API documentation for the `@toon-format/toon` package. For format rules, see the [Format Overview](/guide/format-overview) or the [Specification](/reference/spec). For other languages, see [Implementations](/ecosystem/implementations).
+
+## Installation
+
+::: code-group
+
+```bash [npm]
+npm install @toon-format/toon
+```
+
+```bash [pnpm]
+pnpm add @toon-format/toon
+```
+
+```bash [yarn]
+yarn add @toon-format/toon
+```
+
+:::
+
+## Encoding Functions
+
+### `encode(input, options?)`
+
+Converts any JSON-serializable value to TOON format.
+
+```ts
+import { encode } from '@toon-format/toon'
+
+const toon = encode(data, {
+  indent: 2,
+  delimiter: ',',
+  keyFolding: 'off',
+  flattenDepth: Infinity
+})
+```
+
+#### Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `input` | `unknown` | Any JSON-serializable value (object, array, primitive, or nested structure) |
+| `options` | `EncodeOptions?` | Optional encoding options (see [Configuration Reference](#configuration-reference)) |
+
+#### Return Value
+
+Returns a TOON-formatted string with no trailing newline or spaces.
+
+#### Type Normalization
+
+Non-JSON-serializable values are normalized before encoding:
+
+| Input | Output |
+|-------|--------|
+| `Object` with `toJSON()` method | Result of calling `toJSON()`, recursively normalized |
+| Finite number in `[1e-6, 1e21)` (or zero) | Canonical decimal (e.g., `1e6` → `1000000`, `-0` → `0`) |
+| Finite number outside that range | Exponent form permitted (e.g., `1e-7`, `1e+21`) |
+| `NaN`, `Infinity`, `-Infinity` | `null` |
+| `BigInt` (within safe range) | Number |
+| `BigInt` (out of range) | Quoted decimal string (e.g., `"9007199254740993"`) |
+| `Date` | ISO string in quotes (e.g., `"2025-01-01T00:00:00.000Z"`) |
+| `Set` | Array of normalized values |
+| `Map` | Object with `String(key)` keys |
+| `undefined`, `function`, `symbol` | `null` |
+
+::: info
+TOON itself doesn't specify how `Date` should be encoded – the spec leaves this to implementations. This library emits an ISO 8601 string in quotes; other implementations may choose differently.
+:::
+
+#### Example
+
+```ts
+import { encode } from '@toon-format/toon'
+
+const items = [
+  { sku: 'A1', qty: 2, price: 9.99 },
+  { sku: 'B2', qty: 1, price: 14.5 }
+]
+
+console.log(encode({ items }))
+```
+
+**Output:**
+
+```yaml
+items[2]{sku,qty,price}:
+  A1,2,9.99
+  B2,1,14.5
+```
+
+### `encodeLines(input, options?)`
+
+**Preferred method for streaming TOON output.** Converts any JSON-serializable value to TOON format as a sequence of lines, without building the full string in memory. Suitable for streaming large outputs to files, HTTP responses, or process stdout.
+
+```ts
+import { encodeLines } from '@toon-format/toon'
+
+// Stream to stdout (Node.js)
+for (const line of encodeLines(data)) {
+  process.stdout.write(`${line}\n`)
+}
+
+// Write to file line-by-line
+const lines = encodeLines(data, { indent: 2, delimiter: '\t' })
+for (const line of lines) {
+  await writeToStream(`${line}\n`)
+}
+
+// Collect to array
+const lineArray = Array.from(encodeLines(data))
+```
+
+#### Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `input` | `unknown` | Any JSON-serializable value (object, array, primitive, or nested structure) |
+| `options` | `EncodeOptions?` | Optional encoding options (see [Configuration Reference](#configuration-reference)) |
+
+#### Return Value
+
+Returns an `Iterable<string>` that yields TOON lines one at a time. **Each yielded string is a single line without a trailing newline character** – you must add `\n` when writing to streams or stdout.
+
+::: info Relationship to `encode()`
+`encode(value, options)` is equivalent to:
+```ts
+Array.from(encodeLines(value, options)).join('\n')
+```
+:::
+
+#### Example
+
+```ts
+import { createWriteStream } from 'node:fs'
+import { encodeLines } from '@toon-format/toon'
+
+const data = {
+  items: Array.from({ length: 100000 }, (_, i) => ({
+    id: i,
+    name: `Item ${i}`,
+    value: Math.random()
+  }))
+}
+
+// Stream large dataset to file
+const stream = createWriteStream('output.toon')
+for (const line of encodeLines(data, { delimiter: '\t' })) {
+  stream.write(`${line}\n`)
+}
+stream.end()
+```
+
+### Replacer Function
+
+The `replacer` option allows you to transform or filter values during encoding. It works similarly to `JSON.stringify`'s replacer parameter, but with path tracking for more precise control.
+
+#### Type Signature
+
+```typescript
+type EncodeReplacer = (
+  key: string,
+  value: JsonValue,
+  path: readonly (string | number)[]
+) => unknown
+```
+
+#### Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `key` | `string` | Property name, array index (as string), or empty string for root |
+| `value` | `JsonValue` | The normalized value at this location |
+| `path` | `readonly (string \| number)[]` | Path from root to current value |
+
+#### Return Value
+
+- Return the value unchanged to keep it
+- Return a different value to replace it (will be normalized)
+- Return `undefined` to omit properties/array elements
+- For root value, `undefined` means "no change" (root cannot be omitted)
+
+#### Examples
+
+**Filtering sensitive data:**
+
+```typescript
+import { encode } from '@toon-format/toon'
+
+const data = {
+  user: { name: 'Alice', password: 'secret123', email: 'alice@example.com' }
+}
+
+function replacer(key, value) {
+  if (key === 'password')
+    return undefined
+  return value
+}
+
+console.log(encode(data, { replacer }))
+```
+
+**Output:**
+
+```yaml
+user:
+  name: Alice
+  email: alice@example.com
+```
+
+**Transforming values:**
+
+```typescript
+const data = { user: 'alice', role: 'admin' }
+
+function replacer(key, value) {
+  if (typeof value === 'string')
+    return value.toUpperCase()
+  return value
+}
+
+console.log(encode(data, { replacer }))
+```
+
+**Output:**
+
+```yaml
+user: ALICE
+role: ADMIN
+```
+
+**Path-based transformations:**
+
+```typescript
+const data = {
+  metadata: { created: '2025-01-01' },
+  user: { created: '2025-01-02' }
+}
+
+function replacer(key, value, path) {
+  // Add timezone info only to top-level metadata
+  if (path.length === 1 && path[0] === 'metadata' && key === 'created') {
+    return `${value}T00:00:00Z`
+  }
+  return value
+}
+
+console.log(encode(data, { replacer }))
+```
+
+**Output:**
+
+```yaml
+metadata:
+  created: "2025-01-01T00:00:00Z"
+user:
+  created: 2025-01-02
+```
+
+::: info Replacer Execution Order
+The replacer is called in a depth-first manner:
+1. Root value first (key = `''`, path = `[]`)
+2. Then each property/element (with proper key and path)
+3. Values are re-normalized after replacement
+4. Children are processed after parent transformation
+:::
+
+::: warning Array Indices as Strings
+Following `JSON.stringify` behavior, array indices are passed as strings (`'0'`, `'1'`, `'2'`, etc.) to the replacer, not as numbers.
+:::
+
+## Decoding Functions
+
+### `decode(input, options?)`
+
+Converts a TOON-formatted string back to JavaScript values.
+
+```ts
+import { decode } from '@toon-format/toon'
+
+const data = decode(toon, {
+  indent: 2,
+  strict: true,
+  expandPaths: 'off'
+})
+```
+
+#### Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `input` | `string` | A TOON-formatted string to parse |
+| `options` | `DecodeOptions?` | Optional decoding options (see [Configuration Reference](#configuration-reference)) |
+
+#### Return Value
+
+Returns a JavaScript value (object, array, or primitive) representing the parsed TOON data.
+
+#### Example
+
+```ts
+import { decode } from '@toon-format/toon'
+
+const toon = `
+items[2]{sku,qty,price}:
+  A1,2,9.99
+  B2,1,14.5
+`
+
+const data = decode(toon)
+console.log(data)
+```
+
+**Output:**
+
+```json
+{
+  "items": [
+    { "sku": "A1", "qty": 2, "price": 9.99 },
+    { "sku": "B2", "qty": 1, "price": 14.5 }
+  ]
+}
+```
+
+### `decodeFromLines(lines, options?)`
+
+Decodes TOON format from pre-split lines into a JavaScript value. This is a streaming-friendly wrapper around the event-based decoder that builds the full value in memory.
+
+Useful when you already have lines as an array or iterable (e.g., from file streams, readline interfaces, or network responses) and want the standard decode behavior with path expansion support.
+
+#### Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `lines` | `Iterable<string>` | Iterable of TOON lines (without trailing newlines) |
+| `options` | `DecodeOptions?` | Optional decoding configuration (see [Configuration Reference](#configuration-reference)) |
+
+#### Return Value
+
+Returns a `JsonValue` (the parsed JavaScript value: object, array, or primitive).
+
+#### Example
+
+**Basic usage with arrays:**
+
+```ts
+import { decodeFromLines } from '@toon-format/toon'
+
+const lines = ['name: Alice', 'age: 30']
+const value = decodeFromLines(lines)
+// { name: 'Alice', age: 30 }
+```
+
+**Streaming from Node.js readline:**
+
+```ts
+import { createReadStream } from 'node:fs'
+import { createInterface } from 'node:readline'
+import { decodeFromLines } from '@toon-format/toon'
+
+const rl = createInterface({
+  input: createReadStream('data.toon'),
+  crlfDelay: Infinity,
+})
+
+const value = decodeFromLines(rl)
+console.log(value)
+```
+
+**With path expansion:**
+
+```ts
+const lines = ['user.name: Alice', 'user.age: 30']
+const value = decodeFromLines(lines, { expandPaths: 'safe' })
+// { user: { name: 'Alice', age: 30 } }
+```
+
+### Choosing the Right Decoder
+
+| Function | Input | Output | Async | Path Expansion | Use When |
+|----------|-------|--------|-------|----------------|----------|
+| `decode()` | String | Value | No | Yes | You have a complete TOON string |
+| `decodeFromLines()` | Lines | Value | No | Yes | You have lines and want the full value |
+| `decodeStreamSync()` | Lines | Events | No | No | You need event-by-event processing (sync) |
+| `decodeStream()` | Lines | Events | Yes | No | You need event-by-event processing (async) |
+
+::: info Key Differences
+- **Value vs. Events**: Functions ending in `Stream` yield events without building the full value in memory.
+- **Path expansion**: Only `decode()` and `decodeFromLines()` support `expandPaths: 'safe'`.
+- **Async support**: Only `decodeStream()` accepts async iterables (useful for file/network streams).
+:::
+
+## Streaming Decoders
+
+### `decodeStreamSync(lines, options?)`
+
+Synchronously decodes TOON lines into a stream of JSON events. This function yields structured events that represent the JSON data model without building the full value tree.
+
+Useful for streaming processing, custom transformations, or memory-efficient parsing of large datasets where you don't need the full value in memory.
+
+::: tip Event Streaming
+This is a low-level API that returns individual parse events. For most use cases, [`decodeFromLines()`](#decodefromlines-lines-options) or [`decode()`](#decode-input-options) are more convenient.
+
+Path expansion (`expandPaths: 'safe'`) is **not supported** in streaming mode since it requires the full value tree.
+:::
+
+#### Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `lines` | `Iterable<string>` | Iterable of TOON lines (without trailing newlines) |
+| `options` | `DecodeStreamOptions?` | Optional streaming decoding configuration (see [Configuration Reference](#configuration-reference)) |
+
+#### Return Value
+
+Returns an `Iterable<JsonStreamEvent>` that yields structured events (see [TypeScript Types](#typescript-types) for event structure).
+
+#### Example
+
+**Basic event streaming:**
+
+```ts
+import { decodeStreamSync } from '@toon-format/toon'
+
+const lines = ['name: Alice', 'age: 30']
+
+for (const event of decodeStreamSync(lines)) {
+  console.log(event)
+}
+
+// Output:
+// { type: 'startObject' }
+// { type: 'key', key: 'name' }
+// { type: 'primitive', value: 'Alice' }
+// { type: 'key', key: 'age' }
+// { type: 'primitive', value: 30 }
+// { type: 'endObject' }
+```
+
+**Custom processing:**
+
+```ts
+import { decodeStreamSync } from '@toon-format/toon'
+
+const lines = ['users[2]{id,name}:', '  1,Alice', '  2,Bob']
+let userCount = 0
+
+for (const event of decodeStreamSync(lines)) {
+  if (event.type === 'endObject' && userCount < 2) {
+    userCount++
+    console.log(`Processed user ${userCount}`)
+  }
+}
+```
+
+### `decodeStream(source, options?)`
+
+Asynchronously decodes TOON lines into a stream of JSON events. This is the async version of [`decodeStreamSync()`](#decodestreamsync-lines-options), supporting both synchronous and asynchronous iterables.
+
+Useful for processing file streams, network responses, or other async sources where you want to handle data incrementally as it arrives.
+
+#### Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `source` | `AsyncIterable<string>` \| `Iterable<string>` | Async or sync iterable of TOON lines (without trailing newlines) |
+| `options` | `DecodeStreamOptions?` | Optional streaming decoding configuration (see [Configuration Reference](#configuration-reference)) |
+
+#### Return Value
+
+Returns an `AsyncIterable<JsonStreamEvent>` that yields structured events asynchronously (see [TypeScript Types](#typescript-types) for event structure).
+
+#### Example
+
+**Streaming from file:**
+
+```ts
+import { createReadStream } from 'node:fs'
+import { createInterface } from 'node:readline'
+import { decodeStream } from '@toon-format/toon'
+
+const fileStream = createReadStream('data.toon', 'utf-8')
+const rl = createInterface({ input: fileStream, crlfDelay: Infinity })
+
+for await (const event of decodeStream(rl)) {
+  console.log(event)
+  // Process events as they arrive
+}
+```
+
+## Error Handling
+
+Decoding throws a `ToonDecodeError` when input cannot be parsed. The class extends `SyntaxError`, so existing `error instanceof SyntaxError` checks keep working without code changes.
+
+### `ToonDecodeError`
+
+```ts
+import { ToonDecodeError } from '@toon-format/toon'
+```
+
+#### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | `'ToonDecodeError'` | Discriminator – `error.name === 'ToonDecodeError'` |
+| `message` | `string` | Human-readable message; prefixed with `Line N: ` when a line is known |
+| `line` | `number?` | 1-based line number where the error was detected |
+| `source` | `string?` | Raw source line (including its leading whitespace) |
+| `cause` | `unknown?` | The original error when the decoder enriched a lower-level parser failure |
+
+The `line` and `source` fields are populated for every error that has line context – essentially every parse error during normal decoding. The `cause` chain points back to the underlying `SyntaxError` or `TypeError` thrown by the token-level parser, so debuggers and verbose loggers can show the original frame.
+
+#### Example
+
+```ts
+import { decode, ToonDecodeError } from '@toon-format/toon'
+
+try {
+  decode('a:\n\tb: 1')
+}
+catch (error) {
+  if (error instanceof ToonDecodeError) {
+    console.error(`Line ${error.line}:`, error.source)
+    console.error(error.message)
+    // Line 2: 	b: 1
+    // Line 2: Tabs are not allowed in indentation in strict mode
+  }
+  else {
+    throw error
+  }
+}
+```
+
+::: info Backwards Compatibility
+`ToonDecodeError` extends `SyntaxError`. Code written against earlier versions that catches `SyntaxError` continues to match these errors. The class adds structured fields without removing anything.
+:::
+
+## Configuration Reference
+
+### `EncodeOptions`
+
+Configuration for [`encode()`](#encode-input-options) and [`encodeLines()`](#encodelines-input-options):
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `indent` | `number` | `2` | Number of spaces per indentation level |
+| `delimiter` | `','` \| `'\t'` \| `'\|'` | `','` | Delimiter for array values and tabular rows |
+| `keyFolding` | `'off'` \| `'safe'` | `'off'` | Enable key folding to collapse single-key wrapper chains into dotted paths |
+| `flattenDepth` | `number` | `Infinity` | Maximum number of segments to fold when `keyFolding` is enabled (values 0-1 have no practical effect) |
+| `replacer` | `EncodeReplacer` | `undefined` | Optional hook to transform or omit values before encoding (see [Replacer Function](#replacer-function)) |
+
+**Delimiter options:**
+
+::: code-group
+
+```ts [Comma (default)]
+encode(data, { delimiter: ',' })
+```
+
+```ts [Tab]
+encode(data, { delimiter: '\t' })
+```
+
+```ts [Pipe]
+encode(data, { delimiter: '|' })
+```
+
+:::
+
+See [Delimiter Strategies](#delimiter-strategies) for guidance on choosing delimiters.
+
+### `DecodeOptions`
+
+Configuration for [`decode()`](#decode-input-options) and [`decodeFromLines()`](#decodefromlines-lines-options):
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `indent` | `number` | `2` | Expected number of spaces per indentation level |
+| `strict` | `boolean` | `true` | Enable strict validation (array counts, indentation, delimiter consistency) |
+| `expandPaths` | `'off'` \| `'safe'` | `'off'` | Enable path expansion to reconstruct dotted keys into nested objects (pairs with `keyFolding: 'safe'`) |
+
+By default (`strict: true`), the decoder validates input strictly:
+
+- **Invalid escape sequences**: Throws on `\x`, unterminated strings, lone-surrogate `\uXXXX`
+- **Syntax errors**: Throws on missing colons, malformed headers
+- **Array length mismatches**: Throws when declared length doesn't match actual count
+- **Header delimiter mismatch**: Throws when the bracket-declared delimiter differs from the field-list delimiter (§14.2)
+- **Indentation errors**: Throws when leading spaces aren't exact multiples of `indent`
+- **Header structure**: Throws on leading-zero or non-integer array lengths and on intervening content between bracket/fields/colon
+- **Duplicate sibling keys**: Throws when an object has two children with the same key (§14.4)
+- **Path-expansion conflicts**: When `expandPaths: 'safe'` is set, throws on overlapping dotted paths that would collide
+
+All decode errors are thrown as [`ToonDecodeError`](#error-handling) instances with structured `line` and `source` fields.
+
+Set `strict: false` to skip these checks. Duplicate sibling keys and path-expansion conflicts then resolve with last-write-wins in document order.
+
+See [Key Folding & Path Expansion](#key-folding-path-expansion) for more details on path expansion behavior and conflict resolution.
+
+### `DecodeStreamOptions`
+
+Configuration for [`decodeStreamSync()`](#decodestreamsync-lines-options) and [`decodeStream()`](#decodestream-source-options):
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `indent` | `number` | `2` | Expected number of spaces per indentation level |
+| `strict` | `boolean` | `true` | Enable strict validation (array counts, indentation, delimiter consistency) |
+
+::: warning Path Expansion Not Supported
+Path expansion requires building the full value tree, which is incompatible with event streaming. Use [`decodeFromLines()`](#decodefromlines-lines-options) if you need path expansion.
+:::
+
+## TypeScript Types
+
+### `JsonStreamEvent`
+
+Events emitted by [`decodeStreamSync()`](#decodestreamsync-lines-options) and [`decodeStream()`](#decodestream-source-options):
+
+```ts
+type JsonStreamEvent
+  = | { type: 'startObject' }
+    | { type: 'endObject' }
+    | { type: 'startArray', length: number }
+    | { type: 'endArray' }
+    | { type: 'key', key: string, wasQuoted?: boolean }
+    | { type: 'primitive', value: JsonPrimitive }
+```
+
+### Delimiters
+
+```ts
+import { DEFAULT_DELIMITER, DELIMITERS } from '@toon-format/toon'
+
+DEFAULT_DELIMITER // ','
+DELIMITERS // { comma: ',', tab: '\t', pipe: '|' }
+```
+
+| Export | Description |
+|--------|-------------|
+| `DEFAULT_DELIMITER` | The default delimiter character (`,`) used when none is specified |
+| `DELIMITERS` | Frozen record mapping delimiter names to their characters |
+| `Delimiter` | Type union of valid delimiter characters: `',' \| '\t' \| '\|'` |
+| `DelimiterKey` | Type union of delimiter names: `'comma' \| 'tab' \| 'pipe'` |
+
+### Option Types
+
+| Export | Description |
+|--------|-------------|
+| `EncodeOptions` | Options accepted by [`encode()`](#encode-input-options) and [`encodeLines()`](#encodelines-input-options) |
+| `DecodeOptions` | Options accepted by [`decode()`](#decode-input-options) and [`decodeFromLines()`](#decodefromlines-lines-options) |
+| `DecodeStreamOptions` | Options accepted by [`decodeStreamSync()`](#decodestreamsync-lines-options) and [`decodeStream()`](#decodestream-source-options) |
+| `EncodeReplacer` | Signature of the [replacer function](#replacer-function) |
+| `ResolvedEncodeOptions` | `EncodeOptions` after defaults are applied (advanced) |
+| `ResolvedDecodeOptions` | `DecodeOptions` after defaults are applied (advanced) |
+
+## Guides & Examples
+
+### Round-Trip Compatibility
+
+TOON provides lossless round-trips after normalization:
+
+```ts
+import { decode, encode } from '@toon-format/toon'
+
+const original = {
+  users: [
+    { id: 1, name: 'Alice', role: 'admin' },
+    { id: 2, name: 'Bob', role: 'user' }
+  ]
+}
+
+const toon = encode(original)
+const restored = decode(toon)
+
+console.log(JSON.stringify(original) === JSON.stringify(restored))
+// true
+```
+
+**With Key Folding:**
+
+```ts
+import { decode, encode } from '@toon-format/toon'
+
+const original = { data: { metadata: { items: ['a', 'b'] } } }
+
+// Encode with folding
+const toon = encode(original, { keyFolding: 'safe' })
+// → "data.metadata.items[2]: a,b"
+
+// Decode with expansion
+const restored = decode(toon, { expandPaths: 'safe' })
+// → { data: { metadata: { items: ['a', 'b'] } } }
+
+console.log(JSON.stringify(original) === JSON.stringify(restored))
+// true
+```
+
+### Key Folding & Path Expansion
+
+**Key Folding** (`keyFolding: 'safe'`) collapses single-key wrapper chains during encoding:
+
+```ts
+import { encode } from '@toon-format/toon'
+
+const data = { data: { metadata: { items: ['a', 'b'] } } }
+
+// Without folding
+encode(data)
+// data:
+//   metadata:
+//     items[2]: a,b
+
+// With folding
+encode(data, { keyFolding: 'safe' })
+// data.metadata.items[2]: a,b
+```
+
+**Path Expansion** (`expandPaths: 'safe'`) reverses this during decoding:
+
+```ts
+import { decode } from '@toon-format/toon'
+
+const toon = 'data.metadata.items[2]: a,b'
+
+const data = decode(toon, { expandPaths: 'safe' })
+console.log(data)
+// { data: { metadata: { items: ['a', 'b'] } } }
+```
+
+**Expansion Conflict Resolution:**
+
+When multiple expanded keys construct overlapping paths, the decoder merges them recursively:
+- **Object + Object**: Deep merge recursively
+- **Object + Non-object** (array or primitive): Conflict
+  - With `strict: true` (default): Error
+  - With `strict: false`: Last-write-wins (LWW)
+
+Duplicate sibling keys (independent of `expandPaths`) follow the same policy: strict mode throws, lenient mode keeps the last value seen.
+
+### Delimiter Strategies
+
+Tab delimiters (`\t`) often tokenize more efficiently than commas. Tabs are single characters that rarely appear in natural text, which reduces the need for quote-escaping and leads to smaller token counts in large datasets.
+
+Example:
+
+```yaml
+items[2	]{sku	name	qty	price}:
+  A1	Widget	2	9.99
+  B2	Gadget	1	14.5
+```
+
+For maximum token savings on large tabular data, combine tab delimiters with key folding:
+
+```ts
+encode(data, { delimiter: '\t', keyFolding: 'safe' })
+```
+
+**Choosing a Delimiter:**
+
+- **Comma (`,`)**: Default, widely understood, good for simple tabular data.
+- **Tab (`\t`)**: Best for LLM token efficiency, excellent for large datasets.
+- **Pipe (`|`)**: Alternative when commas appear frequently in data.
