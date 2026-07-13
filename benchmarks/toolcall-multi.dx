@@ -1,0 +1,4 @@
+tool_calls[name arguments](
+search_web(query="DX Serializer token efficiency" max_results=5 language=en safe_search=true)
+get_weather(location="Tokyo, Japan" unit=celsius forecast_days=1)
+)

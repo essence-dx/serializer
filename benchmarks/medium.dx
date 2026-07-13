@@ -1,0 +1,26 @@
+project(name=dx-os version=1.0.0 description="DX Operating System" license=Apache-2.0 repository=https://github.com/essence-dx/os)
+build(compiler=gcc std=c++23 opt=-O2 static=true)
+recipes[name group doc script](
+build all "Build all workspace crates" "cargo build --workspace"
+build-release all "Build all crates in release mode" "cargo build --workspace --release"
+check all "Run cargo check on the whole workspace" "cargo check --workspace"
+build-cli cli "Build dx-cli" "cargo build --manifest-path cli/Cargo.toml"
+build-serializer serializer "Build dx-serializer" "cargo build --manifest-path serializer/Cargo.toml"
+build-script script "Build dx-script" "cargo build --manifest-path script/Cargo.toml"
+build-forge forge "Build dx-forge" "cargo build --manifest-path forge/Cargo.toml"
+build-style style "Build dx-style" "cargo build --manifest-path style/Cargo.toml"
+test all "Run all workspace tests" "cargo test --workspace"
+test-cli cli "Test dx-cli" "cargo test --manifest-path cli/Cargo.toml"
+test-serializer serializer "Test dx-serializer" "cargo test --manifest-path serializer/Cargo.toml"
+lint all "Run clippy on workspace" "cargo clippy --workspace -- -D warnings"
+fmt all "Check formatting" "cargo fmt --check"
+audit all "Run cargo audit" "cargo audit"
+dev-www www "Start DX-WWW dev server" "dx dev"
+serialize serializer "Serialize dx config to LLM format" "dx-serializer human dx"
+)
+aliases[name target](b build br build-release c check t test l lint f fmt a audit)
+ci(runner=ubuntu-latest timeout=30 parallel=true)
+steps[name script](checkout actions/checkout@v4 setup actions/setup-node@v4 build "cargo build --workspace" test "cargo test --workspace" lint "cargo clippy --workspace -- -D warnings")
+dependencies[name version optional](serde 1.0 false tokio 1.35 false clap 4.5 false rayon 1.9 true tracing 0.1 false reqwest 0.12 true)
+features(default=serde,tokio,clap,tracing gpu=true wasm=false)
+tags = serialization performance zero-copy llm

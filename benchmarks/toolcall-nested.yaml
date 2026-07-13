@@ -1,0 +1,22 @@
+tool_call:
+  name: create_file
+  arguments:
+    path: src/components/Button.tsx
+    content: |
+      import React from 'react';
+      
+      interface ButtonProps {
+        label: string;
+        onClick: () => void;
+        variant?: 'primary' | 'secondary';
+      }
+      
+      export const Button: React.FC<ButtonProps> = ({ label, onClick, variant = 'primary' }) => {
+        return (
+          <button className={variant} onClick={onClick}>
+            {label}
+          </button>
+        );
+      };
+    overwrite: false
+    create_dirs: true
