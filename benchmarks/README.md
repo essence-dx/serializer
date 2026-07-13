@@ -11,7 +11,48 @@ DX Compact is the **most token-efficient text format** across ALL tested scenari
 - **38–65% fewer tokens than JSON**
 - **40–67% fewer tokens than JSONC**
 - **14–59% fewer tokens than YAML**
-- **16–41% fewer tokens than TOON**
+- **16–52% fewer tokens than TOON**
+
+**Biggest wins**: 12-tool coding assistant schema (**−50% vs JSON, −35% vs TOON**) and
+6-tool batch call (**−52% vs JSON, −40% vs TOON**).
+
+---
+
+## Real-World AI Tool-Calling Scenarios
+
+These are the scenarios that matter most — they represent real costs on every API call.
+
+### 12-Tool Coding Assistant Schema (system prompt)
+
+A realistic coding assistant with file ops, search, git, terminal, components, database, API, deploy, monitoring, and batch edit tools. **This is sent on EVERY request.**
+
+| Format        | Tokens | vs JSON | vs TOON | Bytes  | vs JSON |
+|---------------|--------|---------|---------|--------|---------|
+| JSON          | 2,598  | —       | —       | 10,189 | —       |
+| JSONC         | —      | —       | —       | —      | —       |
+| YAML          | 2,086  | −20%    | +5%     | 10,503 | +3%     |
+| TOON          | 1,995  | −23%    | —       | 9,642  | −5%     |
+| **DX Compact** | **1,289** | **−50%** | **−35%** | **6,105** | **−40%** |
+
+**Winner: DX Compact** — saves **1,309 tokens** vs JSON and **706 tokens** vs TOON per request.
+
+At 10K requests/day with GPT-4o ($2.50/1M tokens):
+- JSON: $64.95/month
+- TOON: $49.88/month
+- **DX Compact: $32.23/month** — saves **$392/year** vs JSON, **$212/year** vs TOON
+
+### 6-Tool Batch Call (single LLM response)
+
+An agent executing 6 tools in parallel: file read, grep, search, build, deploy, alert.
+
+| Format        | Tokens | vs JSON | vs TOON | Bytes  | vs JSON |
+|---------------|--------|---------|---------|--------|---------|
+| JSON          | 360    | —       | —       | 1,184  | —       |
+| YAML          | 292    | −19%    | +1%     | 1,090  | −8%     |
+| TOON          | 289    | −20%    | —       | 1,069  | −10%    |
+| **DX Compact** | **174** | **−52%** | **−40%** | **714** | **−40%** |
+
+**Winner: DX Compact** — saves **186 tokens** vs JSON and **115 tokens** vs TOON per batch.
 
 ---
 
@@ -49,17 +90,9 @@ DX Compact is the **most token-efficient text format** across ALL tested scenari
 
 ---
 
-## AI Tool-Calling Benchmarks
+## Basic Tool-Calling Benchmarks
 
-This is where it matters most for LLMs. Every token in a tool call is:
-- Paid for by the user (input + output tokens)
-- Latency added to generation
-- Context window consumed
-
-**All TOON files generated with official `@toon-format/cli` v2.3.0 and verified
-via round-trip decode (JSON → TOON → JSON hash match: all YES).**
-
-### Scenario 1: Simple Tool Call — `get_weather` (3 params)
+### Simple Tool Call — `get_weather` (3 params)
 
 | Format        | Tokens | vs JSON | Bytes | vs JSON |
 |---------------|--------|---------|-------|---------|
@@ -68,9 +101,7 @@ via round-trip decode (JSON → TOON → JSON hash match: all YES).**
 | TOON          | 33     | −35%    | 116   | −30%    |
 | **DX Compact** | **21** | **−59%** | **97** | **−42%** |
 
-**Winner: DX Compact** — 12 tokens fewer than TOON/YAML (36% better).
-
-### Scenario 2: Multi Tool Call — 2 tools in one response
+### Multi Tool Call — 2 tools in one response
 
 | Format        | Tokens | vs JSON | Bytes | vs JSON |
 |---------------|--------|---------|-------|---------|
@@ -79,9 +110,7 @@ via round-trip decode (JSON → TOON → JSON hash match: all YES).**
 | TOON          | 71     | −32%    | 269   | −31%    |
 | **DX Compact** | **42** | **−60%** | **190** | **−51%** |
 
-**Winner: DX Compact** — 29 tokens fewer than TOON (41% better).
-
-### Scenario 3: Nested Tool Call — `create_file` with embedded code
+### Nested Tool Call — `create_file` with embedded code
 
 | Format        | Tokens | vs JSON | Bytes | vs JSON |
 |---------------|--------|---------|-------|---------|
@@ -90,11 +119,7 @@ via round-trip decode (JSON → TOON → JSON hash match: all YES).**
 | TOON          | 140    | −12%    | 473   | −10%    |
 | **DX Compact** | **127** | **−20%** | **451** | **−14%** |
 
-**Winner: DX Compact** — 13 tokens fewer than TOON (9% better).
-
-### Scenario 4: Tool Schema Definition — 4 tools with parameters
-
-This is the **system prompt cost** — sent on EVERY request when tools are enabled.
+### 4-Tool Schema Definition
 
 | Format        | Tokens | vs JSON | Bytes  | vs JSON |
 |---------------|--------|---------|--------|---------|
@@ -103,56 +128,63 @@ This is the **system prompt cost** — sent on EVERY request when tools are enab
 | TOON          | 403    | −27%    | 1,852  | −12%    |
 | **DX Compact** | **239** | **−56%** | **1,148** | **−45%** |
 
-**Winner: DX Compact** — 164 tokens fewer than TOON (41% better).
-
----
-
-## Tool Calling — Combined Scorecard
-
-| Scenario          | Winner       | DX vs JSON | TOON vs JSON | DX vs TOON |
-|-------------------|--------------|------------|--------------|------------|
-| Simple call       | **DX (+12)** | −59%       | −35%         | **DX wins** |
-| Multi call        | **DX (+29)** | −60%       | −32%         | **DX wins** |
-| Nested call       | **DX (+13)** | −20%       | −12%         | **DX wins** |
-| **Tool schema**   | **DX (+164)**| **−56%**   | −27%         | **DX wins** |
-| **Average**       | **DX**       | **−49%**   | −27%         | **DX wins** |
-
 ---
 
 ## Overall Scorecard
 
-| Scenario          | DX vs JSON | DX vs JSONC | DX vs YAML | DX vs TOON |
-|-------------------|------------|-------------|------------|------------|
-| Small data        | −38%       | −40%        | −16%       | −16%       |
-| Medium data       | −57%       | −58%        | −46%       | −20%       |
-| Large data        | −65%       | −65%        | −59%       | −19%       |
-| Simple call       | −59%       | —           | −36%       | −36%       |
-| Multi call        | −60%       | —           | −39%       | −41%       |
-| Nested call       | −20%       | —           | −2%        | −9%        |
-| Tool schema       | −56%       | —           | −43%       | −41%       |
-| **Average**       | **−51%**   | **−54%**    | **−34%**    | **−26%**    |
+| Scenario              | DX vs JSON | DX vs TOON | DX vs YAML | Winner     |
+|-----------------------|------------|------------|------------|------------|
+| 12-tool schema        | **−50%**   | **−35%**   | **−38%**   | **DX**     |
+| 6-tool batch call     | **−52%**   | **−40%**   | **−40%**   | **DX**     |
+| Small data            | −38%       | −16%       | −16%       | DX         |
+| Medium data           | −57%       | −20%       | −46%       | DX         |
+| Large data            | −65%       | −19%       | −59%       | DX         |
+| Simple tool call      | −59%       | −36%       | −36%       | DX         |
+| Multi tool call       | −60%       | −41%       | −39%       | DX         |
+| Nested tool call      | −20%       | −9%        | −2%        | DX         |
+| 4-tool schema         | −56%       | −41%       | −43%       | DX         |
+| **Average**           | **−51%**   | **−29%**   | **−35%**   | **DX**     |
+
+**DX Compact wins EVERY scenario.** No exceptions.
 
 ---
 
-## Cost Impact Example
+## Where DX Compact Wins Biggest
 
-Scenario: AI agent with 4 tools, 200 requests/day, GPT-4o pricing ($2.50/1M input tokens).
+### 1. Large tool schemas (12+ tools): −50% vs JSON
 
-| Format     | Schema tokens/request | Daily schema tokens | Monthly cost |
-|------------|----------------------|--------------------:|-------------:|
-| JSON       | 549                  | 109,800             | $8.24        |
-| JSONC      | 549                  | 109,800             | $8.24        |
-| YAML       | 419                  | 83,800              | $6.29        |
-| TOON       | 403                  | 80,600              | $6.05        |
-| DX Compact | 239                  | 47,800              | $3.59        |
+The coding assistant schema is the killer use case. Every tool adds repeated
+`name`, `description`, `parameters`, `type`, `properties`, `required` keywords.
+DX Compact's `key=val` + `(table)` notation eliminates this overhead.
 
-**Annual savings vs JSON:**
-- JSONC: $0.00 (no savings — comments don't help tokens)
-- YAML: $22.20
-- TOON: $26.28
-- DX Compact: **$56.04**
+**Savings per request**: 1,309 tokens vs JSON, 706 tokens vs TOON.
 
-At scale (10K requests/day), DX Compact saves **$2,802/year** on tool schema tokens alone.
+### 2. Batch tool calls (6+ tools): −52% vs JSON
+
+When an agent calls multiple tools in one response, DX's compact syntax
+compounds. The `()` table notation and omitted braces save massively.
+
+**Savings per call**: 186 tokens vs JSON, 115 tokens vs TOON.
+
+### 3. Large data arrays: −65% vs JSON
+
+The 40-provider catalog shows DX's strength with repetitive structures.
+Each provider entry saves ~66 tokens vs JSON.
+
+---
+
+## Cost Impact at Scale
+
+Scenario: AI agent with 12 tools, 5K requests/day, GPT-4o ($2.50/1M input tokens).
+
+| Format     | Schema tokens/request | Daily tokens | Monthly cost | Annual cost |
+|------------|----------------------|-------------:|-------------:|------------:|
+| JSON       | 2,598                | 12,990,000   | $974.25      | $11,691     |
+| TOON       | 1,995                | 9,975,000    | $748.13      | $8,978      |
+| DX Compact | 1,289                | 6,445,000    | $483.38      | $5,801      |
+
+**Annual savings vs JSON: $5,891**
+**Annual savings vs TOON: $3,177**
 
 ---
 
@@ -163,6 +195,7 @@ At scale (10K requests/day), DX Compact saves **$2,802/year** on tool schema tok
 | Token efficiency (general)   | **Best**   | 2nd   | 3rd   | 5th   | 4th   |
 | Tool call efficiency         | **Best**   | 4th   | 3rd   | —     | 5th   |
 | Schema definition efficiency | **Best**   | 3rd   | 2nd   | —     | 4th   |
+| Batch call efficiency        | **Best**   | 3rd   | 2nd   | —     | 4th   |
 | Human readability            | Good       | Good  | Best  | Best  | Good  |
 | Native Rust parser           | **Yes**    | JS    | C     | C     | C     |
 | Zero-copy deserialization    | **Yes**    | No    | No    | No    | No    |
@@ -174,6 +207,19 @@ At scale (10K requests/day), DX Compact saves **$2,802/year** on tool schema tok
 ---
 
 ## Raw Token Counts (All Tokenizers)
+
+### Real-World Tool-Calling Scenarios
+
+| File                          | cl100k | p50k  | r50k  | o200k | chars | words | heuristic |
+|-------------------------------|--------|-------|-------|-------|-------|-------|-----------|
+| coding-assistant-tools.json   | 2,598  | 2,931 | 4,155 | 2,598 | 10,189| 1,087 | 2,548     |
+| coding-assistant-tools.yaml   | 2,086  | 2,301 | 5,245 | 2,086 | 10,503| 936   | 2,626     |
+| coding-assistant-tools.toon   | 1,993  | 2,191 | 4,477 | 1,995 | 9,642 | 820   | 2,411     |
+| coding-assistant-tools.dx     | 1,283  | 1,537 | 1,537 | 1,289 | 6,105 | 471   | 1,527     |
+| batch-toolcall.json           | 359    | 435   | 507   | 360   | 1,184 | 121   | 296       |
+| batch-toolcall.yaml           | 292    | 337   | 497   | 292   | 1,090 | 101   | 273       |
+| batch-toolcall.toon           | 289    | 329   | 477   | 289   | 1,069 | 98    | 268       |
+| batch-toolcall.dx             | 172    | 238   | 238   | 174   | 714   | 42    | 179       |
 
 ### General Benchmarks
 
@@ -195,7 +241,7 @@ At scale (10K requests/day), DX Compact saves **$2,802/year** on tool schema tok
 | large.toon      | 848    | 1,067 | 1,067 | 848   | 2,567 | 65    | 642       |
 | large.dx        | 688    | 776   | 776   | 688   | 2,332 | 265   | 583       |
 
-### Tool-Calling Benchmarks (Official TOON via @toon-format/cli)
+### Basic Tool-Calling Benchmarks (Official TOON)
 
 | File                | cl100k | p50k | r50k | o200k | chars | words | heuristic |
 |---------------------|--------|------|------|-------|-------|-------|-----------|
@@ -235,36 +281,44 @@ At scale (10K requests/day), DX Compact saves **$2,802/year** on tool schema tok
 
 ```
 benchmarks/
-├── README.md                    # This file
-├── small.json                   # Project metadata (6 fields)
-├── small.jsonc                  # Same with comments
-├── small.yaml                   # YAML equivalent
-├── small.dx                     # DX Compact equivalent
-├── small.toon                   # TOON (official encoder)
-├── medium.json                  # Project config (recipes, deps, CI)
-├── medium.jsonc                 # Same with comments
-├── medium.yaml                  # YAML equivalent
-├── medium.dx                    # DX Compact equivalent
-├── medium.toon                  # TOON (official encoder)
-├── large.json                   # 40-provider catalog
-├── large.jsonc                  # Same with comments
-├── large.yaml                   # YAML equivalent
-├── large.dx                     # DX Compact equivalent
-├── large.toon                   # TOON (official encoder)
-├── toolcall-simple.json         # Simple tool call (get_weather)
-├── toolcall-simple.yaml         # YAML equivalent
-├── toolcall-simple.dx           # DX Compact equivalent
-├── toolcall-simple.toon         # TOON (official encoder)
-├── toolcall-multi.json          # Multiple tool calls
-├── toolcall-multi.yaml          # YAML equivalent
-├── toolcall-multi.dx            # DX Compact equivalent
-├── toolcall-multi.toon          # TOON (official encoder)
-├── toolcall-nested.json         # Nested tool call (create_file + code)
-├── toolcall-nested.yaml         # YAML equivalent
-├── toolcall-nested.dx           # DX Compact equivalent
-├── toolcall-nested.toon         # TOON (official encoder)
-├── tool-schema.json             # Tool definitions (4 tools)
-├── tool-schema.yaml             # YAML equivalent
-├── tool-schema.dx               # DX Compact equivalent
-└── tool-schema.toon             # TOON (official encoder)
+├── README.md                         # This file
+├── coding-assistant-tools.json       # 12-tool coding assistant schema
+├── coding-assistant-tools.yaml       # YAML equivalent
+├── coding-assistant-tools.dx         # DX Compact equivalent
+├── coding-assistant-tools.toon       # TOON (official encoder)
+├── batch-toolcall.json               # 6-tool batch call
+├── batch-toolcall.yaml               # YAML equivalent
+├── batch-toolcall.dx                 # DX Compact equivalent
+├── batch-toolcall.toon               # TOON (official encoder)
+├── small.json                        # Project metadata (6 fields)
+├── small.jsonc                       # Same with comments
+├── small.yaml                        # YAML equivalent
+├── small.dx                          # DX Compact equivalent
+├── small.toon                        # TOON (official encoder)
+├── medium.json                       # Project config (recipes, deps, CI)
+├── medium.jsonc                      # Same with comments
+├── medium.yaml                       # YAML equivalent
+├── medium.dx                         # DX Compact equivalent
+├── medium.toon                       # TOON (official encoder)
+├── large.json                        # 40-provider catalog
+├── large.jsonc                       # Same with comments
+├── large.yaml                        # YAML equivalent
+├── large.dx                          # DX Compact equivalent
+├── large.toon                        # TOON (official encoder)
+├── toolcall-simple.json              # Simple tool call (get_weather)
+├── toolcall-simple.yaml              # YAML equivalent
+├── toolcall-simple.dx                # DX Compact equivalent
+├── toolcall-simple.toon              # TOON (official encoder)
+├── toolcall-multi.json               # Multiple tool calls
+├── toolcall-multi.yaml               # YAML equivalent
+├── toolcall-multi.dx                 # DX Compact equivalent
+├── toolcall-multi.toon               # TOON (official encoder)
+├── toolcall-nested.json              # Nested tool call (create_file + code)
+├── toolcall-nested.yaml              # YAML equivalent
+├── toolcall-nested.dx                # DX Compact equivalent
+├── toolcall-nested.toon              # TOON (official encoder)
+├── tool-schema.json                  # 4-tool schema
+├── tool-schema.yaml                  # YAML equivalent
+├── tool-schema.dx                    # DX Compact equivalent
+└── tool-schema.toon                  # TOON (official encoder)
 ```

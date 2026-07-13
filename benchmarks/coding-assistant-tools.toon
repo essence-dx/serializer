@@ -1,0 +1,340 @@
+tools[12]:
+  - name: read_file
+    description: Read the contents of a file from the filesystem
+    parameters:
+      type: object
+      properties:
+        path:
+          type: string
+          description: Absolute or relative file path
+        encoding:
+          type: string
+          enum[3]: utf-8,ascii,base64
+          default: utf-8
+        offset:
+          type: integer
+          description: Line number to start reading from
+          minimum: 0
+        limit:
+          type: integer
+          description: Maximum number of lines to read
+          minimum: 1
+          default: 1000
+      required[1]: path
+  - name: write_file
+    description: "Write content to a file, creating it if it doesn't exist"
+    parameters:
+      type: object
+      properties:
+        path:
+          type: string
+          description: File path to write to
+        content:
+          type: string
+          description: File content
+        mode:
+          type: string
+          enum[3]: overwrite,append,create
+          default: overwrite
+        create_dirs:
+          type: boolean
+          description: Create parent directories if missing
+          default: true
+        encoding:
+          type: string
+          enum[3]: utf-8,ascii,base64
+          default: utf-8
+      required[2]: path,content
+  - name: search_files
+    description: Search for files matching a pattern in the workspace
+    parameters:
+      type: object
+      properties:
+        pattern:
+          type: string
+          description: Glob pattern to match
+        directory:
+          type: string
+          description: Root directory to search from
+          default: .
+        max_results:
+          type: integer
+          description: Maximum files to return
+          default: 50
+        include_hidden:
+          type: boolean
+          description: Include hidden files
+          default: false
+        file_type:
+          type: string
+          enum[3]: file,directory,all
+          default: all
+      required[1]: pattern
+  - name: grep_code
+    description: Search file contents using regex patterns
+    parameters:
+      type: object
+      properties:
+        query:
+          type: string
+          description: Regex pattern to search for
+        path:
+          type: string
+          description: Directory or file to search in
+        include:
+          type: string
+          description: File glob to include (e.g. *.ts)
+        exclude:
+          type: string
+          description: File glob to exclude
+        case_insensitive:
+          type: boolean
+          default: false
+        max_matches:
+          type: integer
+          default: 100
+      required[1]: query
+  - name: run_terminal
+    description: Execute a shell command in the workspace
+    parameters:
+      type: object
+      properties:
+        command:
+          type: string
+          description: Shell command to execute
+        cwd:
+          type: string
+          description: Working directory
+        timeout_ms:
+          type: integer
+          description: Command timeout in milliseconds
+          default: 30000
+        env:
+          type: object
+          description: Environment variables
+          additionalProperties:
+            type: string
+        capture_output:
+          type: boolean
+          description: Capture stdout and stderr
+          default: true
+      required[1]: command
+  - name: git_operation
+    description: Perform a git operation on the repository
+    parameters:
+      type: object
+      properties:
+        action:
+          type: string
+          enum[9]: status,diff,commit,push,pull,log,branch,checkout,merge
+        message:
+          type: string
+          description: Commit message (for commit action)
+        branch:
+          type: string
+          description: Branch name (for branch/checkout)
+        files:
+          type: array
+          description: Files to stage
+          items:
+            type: string
+        remote:
+          type: string
+          description: Remote name
+          default: origin
+      required[1]: action
+  - name: create_component
+    description: Generate a new React component with boilerplate
+    parameters:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Component name (PascalCase)
+        directory:
+          type: string
+          description: Directory to create the component in
+        style:
+          type: string
+          enum[5]: css,scss,tailwind,styled-components,none
+          default: tailwind
+        typescript:
+          type: boolean
+          description: Use TypeScript
+          default: true
+        test_file:
+          type: boolean
+          description: Create test file
+          default: true
+        storybook:
+          type: boolean
+          description: Create Storybook story
+          default: false
+        props_interface:
+          type: boolean
+          description: Generate props interface
+          default: true
+      required[2]: name,directory
+  - name: database_query
+    description: Execute a read-only SQL query against the project database
+    parameters:
+      type: object
+      properties:
+        sql:
+          type: string
+          description: SQL query to execute (SELECT only)
+        database:
+          type: string
+          description: Database name
+          default: main
+        limit:
+          type: integer
+          description: Maximum rows to return
+          default: 100
+        format:
+          type: string
+          enum[3]: table,json,csv
+          default: table
+        timeout_ms:
+          type: integer
+          description: Query timeout
+          default: 10000
+      required[1]: sql
+  - name: api_request
+    description: Make an HTTP request to an external API
+    parameters:
+      type: object
+      properties:
+        url:
+          type: string
+          description: Request URL
+        method:
+          type: string
+          enum[5]: GET,POST,PUT,PATCH,DELETE
+          default: GET
+        headers:
+          type: object
+          description: Request headers
+          additionalProperties:
+            type: string
+        body:
+          type: object
+          description: Request body (for POST/PUT/PATCH)
+        timeout_ms:
+          type: integer
+          default: 30000
+        retry_count:
+          type: integer
+          description: Number of retries on failure
+          default: 0
+      required[1]: url
+  - name: deploy_service
+    description: Deploy a service to the cloud infrastructure
+    parameters:
+      type: object
+      properties:
+        service:
+          type: string
+          description: Service name to deploy
+        environment:
+          type: string
+          enum[3]: staging,production,preview
+        region:
+          type: string
+          description: Cloud region
+          default: us-east-1
+        replicas:
+          type: integer
+          description: Number of replicas
+          default: 1
+        memory_mb:
+          type: integer
+          description: Memory allocation in MB
+          default: 512
+        cpu:
+          type: number
+          description: CPU cores
+          default: 0.5
+        env_vars:
+          type: object
+          description: Environment variables
+          additionalProperties:
+            type: string
+        health_check_path:
+          type: string
+          description: Health check endpoint
+          default: /health
+        rollback_on_failure:
+          type: boolean
+          description: Auto-rollback if deploy fails
+          default: true
+      required[2]: service,environment
+  - name: monitoring_alert
+    description: Create or manage monitoring alerts
+    parameters:
+      type: object
+      properties:
+        action:
+          type: string
+          enum[4]: create,update,delete,list
+        name:
+          type: string
+          description: Alert name
+        metric:
+          type: string
+          description: "Metric to monitor (e.g. cpu_usage, request_latency)"
+        condition:
+          type: string
+          enum[5]: gt,lt,eq,gte,lte
+        threshold:
+          type: number
+          description: Alert threshold value
+        duration_minutes:
+          type: integer
+          description: How long condition must be true
+          default: 5
+        notify_channels:
+          type: array
+          description: Notification channels
+          items:
+            type: string
+            enum[4]: email,slack,pagerduty,webhook
+        severity:
+          type: string
+          enum[3]: critical,warning,info
+          default: warning
+      required[1]: action
+  - name: batch_edit
+    description: Apply multiple find-and-replace edits to a file atomically
+    parameters:
+      type: object
+      properties:
+        path:
+          type: string
+          description: File to edit
+        edits:
+          type: array
+          description: List of edits to apply
+          items:
+            type: object
+            properties:
+              find:
+                type: string
+                description: Text to find
+              replace:
+                type: string
+                description: Replacement text
+              regex:
+                type: boolean
+                description: Use regex
+                default: false
+              all_occurrences:
+                type: boolean
+                description: Replace all occurrences
+                default: false
+            required[2]: find,replace
+        dry_run:
+          type: boolean
+          description: Preview changes without applying
+          default: false
+      required[2]: path,edits
