@@ -25,7 +25,7 @@ pub struct SourceLocation {
 
 impl SourceLocation {
     /// Create a new source location
-    #[must_use] 
+    #[must_use]
     pub const fn new(line: usize, column: usize, offset: usize) -> Self {
         Self {
             line,
@@ -35,7 +35,7 @@ impl SourceLocation {
     }
 
     /// Create a source location from a byte offset and input
-    #[must_use] 
+    #[must_use]
     pub fn from_offset(input: &[u8], offset: usize) -> Self {
         let mut line = 1;
         let mut column = 1;
@@ -70,7 +70,7 @@ impl fmt::Display for SourceLocation {
 ///
 /// Returns up to `MAX_SNIPPET_LENGTH` characters centered around the offset,
 /// with invalid UTF-8 bytes replaced with replacement characters.
-#[must_use] 
+#[must_use]
 pub fn extract_snippet(input: &[u8], offset: usize) -> String {
     if input.is_empty() {
         return String::new();
@@ -318,7 +318,7 @@ impl DxError {
     }
 
     /// Create a UTF-8 error at a specific offset
-    #[must_use] 
+    #[must_use]
     pub const fn utf8_error(offset: usize) -> Self {
         Self::Utf8Error { offset }
     }
@@ -333,13 +333,13 @@ impl DxError {
     }
 
     /// Create an invalid magic error
-    #[must_use] 
+    #[must_use]
     pub const fn invalid_magic(byte0: u8, byte1: u8) -> Self {
         Self::InvalidMagic(byte0, byte1)
     }
 
     /// Create an unsupported version error
-    #[must_use] 
+    #[must_use]
     pub const fn unsupported_version(found: u8) -> Self {
         Self::UnsupportedVersion {
             found,
@@ -348,7 +348,7 @@ impl DxError {
     }
 
     /// Create a buffer too small error
-    #[must_use] 
+    #[must_use]
     pub const fn buffer_too_small(required: usize, available: usize) -> Self {
         Self::BufferTooSmall {
             required,
@@ -357,7 +357,7 @@ impl DxError {
     }
 
     /// Create an input too large error
-    #[must_use] 
+    #[must_use]
     pub const fn input_too_large(size: usize) -> Self {
         Self::InputTooLarge {
             size,
@@ -366,7 +366,7 @@ impl DxError {
     }
 
     /// Create a recursion limit exceeded error
-    #[must_use] 
+    #[must_use]
     pub const fn recursion_limit_exceeded(depth: usize) -> Self {
         Self::RecursionLimitExceeded {
             depth,
@@ -375,7 +375,7 @@ impl DxError {
     }
 
     /// Create a table too large error
-    #[must_use] 
+    #[must_use]
     pub const fn table_too_large(rows: usize) -> Self {
         Self::TableTooLarge {
             rows,
@@ -384,7 +384,7 @@ impl DxError {
     }
 
     /// Get the byte offset if available
-    #[must_use] 
+    #[must_use]
     pub const fn offset(&self) -> Option<usize> {
         match self {
             Self::UnexpectedEof(offset) => Some(*offset),
@@ -398,7 +398,7 @@ impl DxError {
     }
 
     /// Get the source location if available
-    #[must_use] 
+    #[must_use]
     pub const fn location(&self) -> Option<&SourceLocation> {
         match self {
             Self::ParseError { location, .. } => Some(location),
@@ -407,7 +407,7 @@ impl DxError {
     }
 
     /// Get the snippet if available
-    #[must_use] 
+    #[must_use]
     pub fn snippet(&self) -> Option<&str> {
         match self {
             Self::ParseError { snippet, .. } => Some(snippet),
@@ -416,19 +416,19 @@ impl DxError {
     }
 
     /// Get line number if available (1-indexed)
-    #[must_use] 
+    #[must_use]
     pub fn line(&self) -> Option<usize> {
         self.location().map(|loc| loc.line)
     }
 
     /// Get column number if available (1-indexed)
-    #[must_use] 
+    #[must_use]
     pub fn column(&self) -> Option<usize> {
         self.location().map(|loc| loc.column)
     }
 
     /// Check if this is a recoverable error
-    #[must_use] 
+    #[must_use]
     pub const fn is_recoverable(&self) -> bool {
         matches!(
             self,
@@ -935,8 +935,8 @@ mod tests {
 
     #[test]
     fn test_error_from_convert_error_human_parse() {
-        use crate::llm::convert::ConvertError;
         use crate::human::parser::HumanParseError;
+        use crate::llm::convert::ConvertError;
 
         let human_err = HumanParseError::InvalidSectionHeader {
             msg: "Missing closing bracket".to_string(),
@@ -955,8 +955,8 @@ mod tests {
 
     #[test]
     fn test_error_from_convert_error_human_parse_invalid_key_value() {
-        use crate::llm::convert::ConvertError;
         use crate::human::parser::HumanParseError;
+        use crate::llm::convert::ConvertError;
 
         let human_err = HumanParseError::InvalidKeyValue {
             msg: "No equals sign found".to_string(),
@@ -975,8 +975,8 @@ mod tests {
 
     #[test]
     fn test_error_from_convert_error_human_parse_invalid_table() {
-        use crate::llm::convert::ConvertError;
         use crate::human::parser::HumanParseError;
+        use crate::llm::convert::ConvertError;
 
         let human_err = HumanParseError::InvalidTable {
             line: 42,
@@ -1033,8 +1033,8 @@ mod tests {
 
     #[test]
     fn test_error_from_convert_error_all_variants_convertible() {
-        use crate::llm::convert::ConvertError;
         use crate::human::parser::HumanParseError;
+        use crate::llm::convert::ConvertError;
         use crate::llm::parser::ParseError;
 
         // Test that all ConvertError variants can be converted to DxError

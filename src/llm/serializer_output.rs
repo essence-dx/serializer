@@ -98,7 +98,7 @@ impl Default for SerializerOutputConfig {
 
 impl SerializerOutputConfig {
     /// Create a new config with default settings
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -110,49 +110,49 @@ impl SerializerOutputConfig {
     }
 
     /// Set whether to generate LLM format
-    #[must_use] 
+    #[must_use]
     pub const fn with_llm(mut self, generate: bool) -> Self {
         self.generate_llm = generate;
         self
     }
 
     /// Set whether to generate machine format
-    #[must_use] 
+    #[must_use]
     pub const fn with_machine(mut self, generate: bool) -> Self {
         self.generate_machine = generate;
         self
     }
 
     /// Set compression algorithm
-    #[must_use] 
+    #[must_use]
     pub const fn with_compression(mut self, compression: CompressionAlgorithm) -> Self {
         self.compression = compression;
         self
     }
 
     /// Set whether to generate source/machine validation metadata.
-    #[must_use] 
+    #[must_use]
     pub const fn with_metadata(mut self, generate: bool) -> Self {
         self.generate_metadata = generate;
         self
     }
 
     /// Set the LLM serializer configuration.
-    #[must_use] 
+    #[must_use]
     pub const fn with_serializer_config(mut self, config: SerializerConfig) -> Self {
         self.serializer_config = config;
         self
     }
 
     /// Set beautify mode (human-readable output).
-    #[must_use] 
+    #[must_use]
     pub const fn with_beautify(mut self, beautify: bool) -> Self {
         self.beautify = beautify;
         self
     }
 
     /// Set formatted LLM mode.
-    #[must_use] 
+    #[must_use]
     pub const fn with_format_llm(mut self, format_llm: bool) -> Self {
         self.format_llm = format_llm;
         self
@@ -194,7 +194,7 @@ pub struct SerializerOutput {
 
 impl SerializerOutput {
     /// Create a new serializer output with default config
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             config: SerializerOutputConfig::default(),
@@ -202,13 +202,13 @@ impl SerializerOutput {
     }
 
     /// Create with custom config
-    #[must_use] 
+    #[must_use]
     pub const fn with_config(config: SerializerOutputConfig) -> Self {
         Self { config }
     }
 
     /// Get output paths for a source file
-    #[must_use] 
+    #[must_use]
     pub fn get_paths(&self, source_path: &Path) -> SerializerPaths {
         let stem = flatten_serializer_output_stem(source_path);
 
@@ -227,10 +227,14 @@ impl SerializerOutput {
     fn read_serializer_config(doc: &DxDocument) -> Vec<(String, String, String, bool)> {
         let mut configs = Vec::new();
         for (id, section) in &doc.sections {
-            let section_name = doc.section_names.get(id).map(|s| s.as_str()).unwrap_or("");
-            if section_name != "serializer" { continue; }
+            let section_name = doc.section_names.get(id).map_or("", std::string::String::as_str);
+            if section_name != "serializer" {
+                continue;
+            }
             for row in &section.rows {
-                if row.len() < 4 { continue; }
+                if row.len() < 4 {
+                    continue;
+                }
                 let name = row[0].as_str().unwrap_or("").to_string();
                 let fmt = row[1].as_str().unwrap_or("").to_string();
                 let path = row[2].as_str().unwrap_or("").to_string();
@@ -289,8 +293,16 @@ impl SerializerOutput {
         // Apply serializer config from document (serializer[name,format,path,generate] section)
         let sconfig = Self::read_serializer_config(doc);
         let has_config = !sconfig.is_empty();
-        let gen_llm = if has_config { sconfig.iter().any(|(n,_,_,g)| n == "llm" && *g) } else { self.config.generate_llm };
-        let gen_machine = if has_config { sconfig.iter().any(|(n,_,_,g)| n == "machine" && *g) } else { self.config.generate_machine };
+        let gen_llm = if has_config {
+            sconfig.iter().any(|(n, _, _, g)| n == "llm" && *g)
+        } else {
+            self.config.generate_llm
+        };
+        let gen_machine = if has_config {
+            sconfig.iter().any(|(n, _, _, g)| n == "machine" && *g)
+        } else {
+            self.config.generate_machine
+        };
 
         // Generate LLM format
         if gen_llm {
@@ -298,9 +310,7 @@ impl SerializerOutput {
                 document_to_human(doc)
             } else if self.config.format_llm {
                 document_to_formatted_llm(doc)
-            } else if self.config.serializer_config
-                != SerializerConfig::default()
-            {
+            } else if self.config.serializer_config != SerializerConfig::default() {
                 document_to_llm_with_config(doc, self.config.serializer_config.clone())
             } else {
                 document_to_llm(doc)
@@ -345,22 +355,21 @@ impl SerializerOutput {
             let entry = entry?;
             let path = entry.path();
 
-            if path.is_file()
-                && is_serializer_source(&path) {
-                    match self.process_file(&path) {
-                        Ok(result) => results.push(result),
-                        Err(e) => {
-                            eprintln!("Warning: Failed to process {}: {}", path.display(), e);
-                        }
+            if path.is_file() && is_serializer_source(&path) {
+                match self.process_file(&path) {
+                    Ok(result) => results.push(result),
+                    Err(e) => {
+                        eprintln!("Warning: Failed to process {}: {}", path.display(), e);
                     }
                 }
+            }
         }
 
         Ok(results)
     }
 
     /// Check if outputs are up-to-date for a source file
-    #[must_use] 
+    #[must_use]
     pub fn is_up_to_date(&self, source_path: &Path) -> bool {
         let paths = self.get_paths(source_path);
 
@@ -383,7 +392,7 @@ impl SerializerOutput {
     }
 
     /// Get the config
-    #[must_use] 
+    #[must_use]
     pub const fn config(&self) -> &SerializerOutputConfig {
         &self.config
     }
@@ -469,13 +478,17 @@ fn write_atomic(path: &Path, bytes: &[u8]) -> io::Result<()> {
     file.sync_all()?;
     drop(file);
 
-    if path.exists() {
-        fs::remove_file(path)?;
+    // Atomic rename — on Unix this atomically replaces the target.
+    // On Windows, rename fails if target exists, so copy + remove instead.
+    match fs::rename(&temp_path, path) {
+        Ok(()) => Ok(()),
+        Err(_e) => {
+            // Fallback: copy then remove temp
+            fs::copy(&temp_path, path)?;
+            fs::remove_file(&temp_path)?;
+            Ok(())
+        }
     }
-
-    fs::rename(&temp_path, path).inspect_err(|_| {
-        let _ = fs::remove_file(&temp_path);
-    })
 }
 
 fn atomic_temp_path(path: &Path) -> PathBuf {
@@ -544,7 +557,11 @@ fn machine_metadata_json(
     let modified_unix_ms = fs::metadata(source_path)
         .and_then(|metadata| metadata.modified())
         .ok()
-        .and_then(|modified| modified.duration_since(UNIX_EPOCH).ok()).map_or_else(|| "null".to_string(), |duration| duration.as_millis().to_string());
+        .and_then(|modified| modified.duration_since(UNIX_EPOCH).ok())
+        .map_or_else(
+            || "null".to_string(),
+            |duration| duration.as_millis().to_string(),
+        );
 
     format!(
         concat!(
@@ -603,8 +620,8 @@ fn parse_source_document(
     }
 
     // For .sr / dx extensionless files, try Human parser first to preserve table structure
-    let is_human_file = source_path.extension().is_none()
-        || source_path.extension().map_or(false, |e| e == "sr");
+    let is_human_file =
+        source_path.extension().is_none() || source_path.extension().is_some_and(|e| e == "sr");
 
     if is_human_file {
         let parser = crate::human::parser::HumanParser::new();
@@ -620,7 +637,9 @@ fn parse_source_document(
 
     // Final fallback: try Human parser for all formats
     let parser = crate::human::parser::HumanParser::new();
-    parser.parse(content).map_err(|e| SerializerOutputError::Parse(e.to_string()))
+    parser
+        .parse(content)
+        .map_err(|e| SerializerOutputError::Parse(e.to_string()))
 }
 
 #[cfg(feature = "converters")]

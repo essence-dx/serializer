@@ -17,8 +17,8 @@
 //!         └── data.dx.bin
 //! ```
 
-use crate::llm::convert::{ConvertError, document_to_llm, document_to_machine};
 use crate::human::parser::HumanParser;
+use crate::llm::convert::{ConvertError, document_to_llm, document_to_machine};
 use crate::llm::types::DxDocument;
 use std::fs;
 use std::io;
@@ -75,7 +75,7 @@ impl Default for CacheConfig {
 
 impl CacheConfig {
     /// Create a new config with default settings
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -87,21 +87,21 @@ impl CacheConfig {
     }
 
     /// Set whether to generate LLM format
-    #[must_use] 
+    #[must_use]
     pub const fn with_llm(mut self, generate: bool) -> Self {
         self.generate_llm = generate;
         self
     }
 
     /// Set whether to generate Machine format
-    #[must_use] 
+    #[must_use]
     pub const fn with_machine(mut self, generate: bool) -> Self {
         self.generate_machine = generate;
         self
     }
 
     /// Set whether to use atomic writes
-    #[must_use] 
+    #[must_use]
     pub const fn with_atomic_writes(mut self, atomic: bool) -> Self {
         self.atomic_writes = atomic;
         self
@@ -116,7 +116,7 @@ pub struct CacheGenerator {
 
 impl CacheGenerator {
     /// Create a new cache generator with default config
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             config: CacheConfig::default(),
@@ -125,7 +125,7 @@ impl CacheGenerator {
     }
 
     /// Create a cache generator with custom config
-    #[must_use] 
+    #[must_use]
     pub fn with_config(config: CacheConfig) -> Self {
         Self {
             config,
@@ -137,7 +137,7 @@ impl CacheGenerator {
     ///
     /// Preserves the relative path structure in the cache directory.
     /// Example: `src/config/data.dx` -> `.dx/cache/llm/src/config/data.dx.llm`
-    #[must_use] 
+    #[must_use]
     pub fn map_path_to_cache(&self, source_path: &Path, base_path: &Path) -> CachePaths {
         // Get relative path from base
         let relative = source_path.strip_prefix(base_path).unwrap_or(source_path);
@@ -239,7 +239,7 @@ impl CacheGenerator {
     }
 
     /// Get the config
-    #[must_use] 
+    #[must_use]
     pub const fn config(&self) -> &CacheConfig {
         &self.config
     }

@@ -7,7 +7,7 @@
 //!
 //! Both styles align `=` signs and group entries with blank lines.
 
-use crate::llm::types::{EntryRef, DxDocument, DxLlmValue, DxSection};
+use crate::llm::types::{DxDocument, DxLlmValue, DxSection, EntryRef};
 use indexmap::IndexMap;
 
 /// Config file formatting style
@@ -144,7 +144,7 @@ impl ConfigFormatter {
             _ => {
                 let padding = " ".repeat(max_key_len - key.len());
                 let val = self.serialize_value(value);
-                output.push_str(&format!("{}{} = {}", key, padding, val));
+                output.push_str(&format!("{key}{padding} = {val}"));
                 output.push('\n');
             }
         }
@@ -159,24 +159,24 @@ impl ConfigFormatter {
     ) {
         match self.style {
             ConfigStyle::Yaml => {
-                output.push_str(&format!("{}:\n", key));
+                output.push_str(&format!("{key}:\n"));
                 for (k, v) in fields {
                     output.push_str("  ");
                     if let DxLlmValue::Arr(items) = v {
                         let serialized = self.join_array_items(items, false);
-                        output.push_str(&format!("{} = {}\n", k, serialized));
+                        output.push_str(&format!("{k} = {serialized}\n"));
                     } else {
                         output.push_str(&format!("{} = {}\n", k, self.serialize_value(v)));
                     }
                 }
             }
             ConfigStyle::Parens => {
-                output.push_str(&format!("{}(\n", key));
+                output.push_str(&format!("{key}(\n"));
                 for (k, v) in fields {
                     output.push_str("  ");
                     if let DxLlmValue::Arr(items) = v {
                         let serialized = self.join_array_items(items, false);
-                        output.push_str(&format!("{} = {}\n", k, serialized));
+                        output.push_str(&format!("{k} = {serialized}\n"));
                     } else {
                         output.push_str(&format!("{} = {}\n", k, self.serialize_value(v)));
                     }
@@ -195,7 +195,7 @@ impl ConfigFormatter {
     ) {
         let padding = " ".repeat(max_key_len.saturating_sub(key.len()));
         let serialized = self.join_array_items(items, false);
-        output.push_str(&format!("{}{} = {}\n", key, padding, serialized));
+        output.push_str(&format!("{key}{padding} = {serialized}\n"));
     }
 
     fn format_section(&self, output: &mut String, name: &str, section: &DxSection) {
@@ -203,7 +203,7 @@ impl ConfigFormatter {
             ConfigStyle::Yaml => {
                 // Schema uses comma-separated headers
                 let schema_str = section.schema.join(", ");
-                output.push_str(&format!("{}[{}]:\n", name, schema_str));
+                output.push_str(&format!("{name}[{schema_str}]:\n"));
                 let use_commas = true; // YAML always uses commas
                 for row in &section.rows {
                     output.push_str("  ");
@@ -218,7 +218,7 @@ impl ConfigFormatter {
             ConfigStyle::Parens => {
                 // Schema uses space-separated headers
                 let schema_str = section.schema.join(" ");
-                output.push_str(&format!("{}[{}](\n", name, schema_str));
+                output.push_str(&format!("{name}[{schema_str}](\n"));
                 let use_commas = false; // Parens uses spaces
                 for row in &section.rows {
                     output.push_str("  ");
@@ -235,7 +235,9 @@ impl ConfigFormatter {
     }
 
     fn join_array_items(&self, items: &[DxLlmValue], force_commas: bool) -> String {
-        let has_spaces = items.iter().any(|v| matches!(v, DxLlmValue::Str(s) if s.contains(' ')));
+        let has_spaces = items
+            .iter()
+            .any(|v| matches!(v, DxLlmValue::Str(s) if s.contains(' ')));
         let use_commas = force_commas || has_spaces;
         let sep = if use_commas { ", " } else { " " };
 
@@ -269,6 +271,7 @@ impl ConfigFormatter {
             DxLlmValue::Bool(true) => "true".to_string(),
             DxLlmValue::Bool(false) => "false".to_string(),
             DxLlmValue::Null => "null".to_string(),
+            DxLlmValue::Int(i) => format!("{i}"),
             DxLlmValue::Num(n) => {
                 if n.fract() == 0.0 {
                     format!("{}", *n as i64)
@@ -300,6 +303,7 @@ impl ConfigFormatter {
             DxLlmValue::Bool(true) => "true".to_string(),
             DxLlmValue::Bool(false) => "false".to_string(),
             DxLlmValue::Null => "null".to_string(),
+            DxLlmValue::Int(i) => format!("{i}"),
             DxLlmValue::Num(n) => {
                 if n.fract() == 0.0 {
                     format!("{}", *n as i64)
@@ -347,14 +351,8 @@ impl Default for ConfigFormatter {
 }
 
 enum ConfigEntry {
-    Context {
-        key: String,
-        value: DxLlmValue,
-    },
-    Section {
-        name: String,
-        section: DxSection,
-    },
+    Context { key: String, value: DxLlmValue },
+    Section { name: String, section: DxSection },
 }
 
 #[cfg(test)]
@@ -368,10 +366,14 @@ mod tests {
             "task".to_string(),
             DxLlmValue::Str("Our favorite hikes together".to_string()),
         );
-        doc.context
-            .insert("location".to_string(), DxLlmValue::Str("Boulder".to_string()));
-        doc.context
-            .insert("season".to_string(), DxLlmValue::Str("spring_2025".to_string()));
+        doc.context.insert(
+            "location".to_string(),
+            DxLlmValue::Str("Boulder".to_string()),
+        );
+        doc.context.insert(
+            "season".to_string(),
+            DxLlmValue::Str("spring_2025".to_string()),
+        );
         doc.context.insert(
             "friends".to_string(),
             DxLlmValue::Arr(vec![
@@ -382,10 +384,7 @@ mod tests {
         );
 
         let mut config = IndexMap::new();
-        config.insert(
-            "host".to_string(),
-            DxLlmValue::Str("localhost".to_string()),
-        );
+        config.insert("host".to_string(), DxLlmValue::Str("localhost".to_string()));
         config.insert("port".to_string(), DxLlmValue::Num(8080.0));
         doc.context
             .insert("config".to_string(), DxLlmValue::Obj(config));
@@ -440,7 +439,9 @@ mod tests {
         assert!(output.contains("season   = "));
         assert!(output.contains("config:"));
         assert!(output.contains("  host = localhost"));
-        assert!(output.contains("hikes[id, name, distanceKm, elevationGain, companion, wasSunny]:"));
+        assert!(
+            output.contains("hikes[id, name, distanceKm, elevationGain, companion, wasSunny]:")
+        );
         assert!(output.contains("  1, Blue Lake Trail, 7.5, 320, ana, true"));
     }
 

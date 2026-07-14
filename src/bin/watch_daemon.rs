@@ -54,12 +54,21 @@ fn main() {
     let abs_dir = serializer_dir.canonicalize().unwrap_or_else(|_| {
         // Directory may not exist yet — create and try again
         let _ = std::fs::create_dir_all(&serializer_dir);
-        serializer_dir.canonicalize().unwrap_or(serializer_dir.clone())
+        serializer_dir
+            .canonicalize()
+            .unwrap_or(serializer_dir.clone())
     });
 
     eprintln!("DX SR Watch Daemon v{}", env!("CARGO_PKG_VERSION"));
     eprintln!("  Watch dir: {}", abs_dir.display());
-    eprintln!("  Mode: {}", if machine_only { "machine-only" } else { "machine + llm" });
+    eprintln!(
+        "  Mode: {}",
+        if machine_only {
+            "machine-only"
+        } else {
+            "machine + llm"
+        }
+    );
     eprintln!("  Watching for .sr changes (Ctrl+C to stop)...");
     eprintln!();
 
@@ -134,7 +143,10 @@ fn main() {
                 eprintln!("    Removed output files");
             }
             FileChange::ConfigChanged(path) => {
-                eprintln!("  [config] {} changed — recompiling all .sr files", path.display());
+                eprintln!(
+                    "  [config] {} changed — recompiling all .sr files",
+                    path.display()
+                );
                 let _ = serializer.process_directory(&serializer_dir);
             }
         }

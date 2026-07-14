@@ -36,12 +36,6 @@ pub use toon::{dx_to_toon, toon_to_dx};
 #[cfg(feature = "converters")]
 pub use yaml::{dx_to_yaml, dx_to_yaml_doc, yaml_to_document, yaml_to_dx};
 
-/// Common converter trait
-pub trait ToDx {
-    /// Convert the implementor into DX text.
-    fn to_dx(&self) -> Result<String, String>;
-}
-
 /// Convert any supported format to DX
 #[cfg(feature = "converters")]
 pub fn convert_to_dx(input: &str, format: &str) -> Result<String, String> {

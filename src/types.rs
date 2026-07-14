@@ -166,7 +166,7 @@ pub struct DxArray {
 
 impl DxArray {
     /// Create an empty array value.
-    #[must_use] 
+    #[must_use]
     pub const fn new() -> Self {
         Self {
             values: Vec::new(),
@@ -175,7 +175,7 @@ impl DxArray {
     }
 
     /// Create an empty array value with preallocated capacity.
-    #[must_use] 
+    #[must_use]
     pub fn with_capacity(cap: usize) -> Self {
         Self {
             values: Vec::with_capacity(cap),
@@ -184,7 +184,7 @@ impl DxArray {
     }
 
     /// Create a stream-style array from existing values.
-    #[must_use] 
+    #[must_use]
     pub const fn stream(values: Vec<DxValue>) -> Self {
         Self {
             values,
@@ -203,14 +203,14 @@ impl Default for DxArray {
 #[derive(Debug, Clone, PartialEq)]
 pub struct DxObject {
     /// Ordered key-value pairs
-    pub fields: Vec<(String, DxValue)>,
+    fields: Vec<(String, DxValue)>,
     /// Fast lookup map (key index)
     lookup: FxHashMap<String, usize>,
 }
 
 impl DxObject {
     /// Create an empty ordered object.
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             fields: Vec::new(),
@@ -219,7 +219,7 @@ impl DxObject {
     }
 
     /// Create an empty ordered object with preallocated field capacity.
-    #[must_use] 
+    #[must_use]
     pub fn with_capacity(cap: usize) -> Self {
         Self {
             fields: Vec::with_capacity(cap),
@@ -239,7 +239,7 @@ impl DxObject {
     }
 
     /// Get a field value by key.
-    #[must_use] 
+    #[must_use]
     pub fn get(&self, key: &str) -> Option<&DxValue> {
         self.lookup.get(key).map(|&idx| &self.fields[idx].1)
     }
@@ -247,6 +247,18 @@ impl DxObject {
     /// Iterate fields in insertion order.
     pub fn iter(&self) -> impl Iterator<Item = &(String, DxValue)> {
         self.fields.iter()
+    }
+
+    /// Get all fields as a slice.
+    #[must_use]
+    pub fn fields(&self) -> &[(String, DxValue)] {
+        &self.fields
+    }
+
+    /// Check if object is empty.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.fields.is_empty()
     }
 }
 
@@ -280,7 +292,7 @@ pub struct DxTable {
 
 impl DxTable {
     /// Create an empty table for the provided schema.
-    #[must_use] 
+    #[must_use]
     pub const fn new(schema: crate::schema::Schema) -> Self {
         Self {
             schema,
@@ -302,13 +314,13 @@ impl DxTable {
     }
 
     /// Return the number of rows currently stored in the table.
-    #[must_use] 
+    #[must_use]
     pub fn row_count(&self) -> usize {
         self.rows.len()
     }
 
     /// Return the number of columns declared by the table schema.
-    #[must_use] 
+    #[must_use]
     pub fn column_count(&self) -> usize {
         self.schema.columns.len()
     }
@@ -316,13 +328,13 @@ impl DxTable {
 
 impl DxValue {
     /// Check if this value is "empty" for ditto logic
-    #[must_use] 
+    #[must_use]
     pub const fn is_empty(&self) -> bool {
         matches!(self, Self::Null)
     }
 
     /// Get type name for error messages
-    #[must_use] 
+    #[must_use]
     pub const fn type_name(&self) -> &'static str {
         match self {
             Self::Null => "null",
@@ -338,7 +350,7 @@ impl DxValue {
     }
 
     /// Convert to boolean if possible
-    #[must_use] 
+    #[must_use]
     pub const fn as_bool(&self) -> Option<bool> {
         match self {
             Self::Bool(b) => Some(*b),
@@ -347,7 +359,7 @@ impl DxValue {
     }
 
     /// Convert to integer if possible
-    #[must_use] 
+    #[must_use]
     pub const fn as_int(&self) -> Option<i64> {
         match self {
             Self::Int(i) => Some(*i),
@@ -357,7 +369,7 @@ impl DxValue {
     }
 
     /// Convert to float if possible
-    #[must_use] 
+    #[must_use]
     pub const fn as_float(&self) -> Option<f64> {
         match self {
             Self::Float(f) => Some(*f),
@@ -367,7 +379,7 @@ impl DxValue {
     }
 
     /// Convert to string if possible
-    #[must_use] 
+    #[must_use]
     pub fn as_str(&self) -> Option<&str> {
         match self {
             Self::String(s) => Some(s),

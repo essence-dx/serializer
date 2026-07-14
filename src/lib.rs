@@ -256,9 +256,6 @@ pub mod error;
 #[cfg(test)]
 mod error_props;
 pub mod formatter;
-// TODO: Re-enable when async-io feature is implemented
-// #[cfg(feature = "async-io")]
-// pub mod io;
 /// Human-readable format module (`.sr`/`.dx` front-facing files).
 pub mod human;
 pub mod llm;
@@ -313,19 +310,18 @@ pub use biome_config::{
 pub use converters::{convert_to_dx, dx_to_toon, toon_to_dx};
 #[cfg(feature = "converters")]
 pub use converters::{
-    dx_to_json, dx_to_json_doc, dx_to_json_min,
-    dx_to_toml, dx_to_toml_doc,
-    dx_to_yaml, dx_to_yaml_doc,
-    json_to_document, json_to_dx,
-    toml_to_document, toml_to_dx,
-    yaml_to_document, yaml_to_dx,
+    dx_to_json, dx_to_json_doc, dx_to_json_min, dx_to_toml, dx_to_toml_doc, dx_to_yaml,
+    dx_to_yaml_doc, json_to_document, json_to_dx, toml_to_document, toml_to_dx, yaml_to_document,
+    yaml_to_dx,
 };
-pub use encoder::Encoder;
+pub use encoder::{Encoder, EncoderConfig};
 pub use error::{DxError, Result};
-pub use formatter::{HumanFormatter as BinaryHumanFormatter, format_human};
+pub use formatter::{
+    FormatterConfig, HumanFormatter as BinaryHumanFormatter, format_human, format_human_with_config,
+};
 pub use parser::{Parser, parse, parse_stream};
 pub use schema::{Schema, TypeHint};
-pub use types::{DxArray, DxObject, DxValue};
+pub use types::{DxArray, DxObject, DxTable, DxValue};
 pub use utf8::{
     Utf8ValidationError, validate_string_input, validate_utf8, validate_utf8_detailed,
     validate_utf8_owned,
@@ -335,19 +331,19 @@ pub use utf8::{
 pub use indexmap::IndexMap;
 
 // Re-export LLM/Human format types at crate root for convenience
+pub use human::{HumanFormatConfig, HumanFormatter, HumanParseError, HumanParser};
 #[cfg(feature = "mmap")]
 pub use llm::machine_file_to_document_mmap;
-pub use human::{HumanFormatConfig, HumanFormatter, HumanParseError, HumanParser};
 pub use llm::{
     ConvertError, DxDocument, DxLlmValue, DxSection, LlmParser, LlmSerializer, MachineFormat,
     ParseError as LlmParseError,
 };
 pub use llm::{
     document_to_compact, document_to_human, document_to_llm, document_to_loose,
-    document_to_machine, human_to_document, human_to_llm,
-    human_to_machine, human_to_machine_uncompressed, is_llm_format, llm_to_document, llm_to_human,
-    llm_to_machine, machine_bytes_to_document, machine_to_document, machine_to_human,
-    machine_to_llm, try_document_to_machine_with_compression, try_read_machine_or_sr,
+    document_to_machine, human_to_document, human_to_llm, human_to_machine,
+    human_to_machine_uncompressed, is_llm_format, llm_to_document, llm_to_human, llm_to_machine,
+    machine_bytes_to_document, machine_to_document, machine_to_human, machine_to_llm,
+    try_document_to_machine_with_compression, try_read_machine_or_sr,
 };
 
 // Re-export Serializer Output types for .dx/serializer/ generation

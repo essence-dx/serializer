@@ -3,9 +3,9 @@
 //! Provides conversion between DX Serializer (LLM), Human, and Machine formats.
 //! All conversions go through the common `DxDocument` representation.
 
-use crate::llm::formatter::LlmFormatter;
 use crate::human::formatter::{HumanFormatConfig, HumanFormatter};
 use crate::human::parser::{HumanParseError, HumanParser};
+use crate::llm::formatter::LlmFormatter;
 use crate::llm::parser::{LlmParser, ParseError};
 use crate::llm::serializer::{LlmSerializer, SerializerConfig};
 use crate::llm::types::DxDocument;
@@ -211,8 +211,7 @@ pub fn document_to_human(doc: &DxDocument) -> String {
 /// This is an alias for [`document_to_human`].
 #[must_use]
 pub fn document_to_loose(doc: &DxDocument) -> String {
-    let formatter = HumanFormatter::new();
-    formatter.format(doc)
+    document_to_human(doc)
 }
 
 /// Convert `DxDocument` to Compact format (single-line minified `()`).
@@ -232,7 +231,7 @@ pub fn document_to_compact(doc: &DxDocument) -> String {
 }
 
 /// Convert `DxDocument` to Human format string with custom config
-#[must_use] 
+#[must_use]
 pub fn document_to_human_with_config(doc: &DxDocument, config: HumanFormatConfig) -> String {
     let formatter = HumanFormatter::with_config(config);
     formatter.format(doc)
@@ -302,7 +301,7 @@ pub struct MachineFormat {
 
 impl MachineFormat {
     /// Create a new `MachineFormat` from raw data
-    #[must_use] 
+    #[must_use]
     pub const fn new(data: Vec<u8>) -> Self {
         Self {
             data,
@@ -357,19 +356,22 @@ pub fn human_to_machine_with_compression(
 }
 
 /// Convert `DxDocument` to Machine format (RKYV + LZ4 by default)
-#[must_use] 
+///
+/// Panics on serialization failure. Use `try_document_to_machine_with_compression` for fallible access.
+#[must_use]
 pub fn document_to_machine(doc: &DxDocument) -> MachineFormat {
     document_to_machine_with_compression(doc, CompressionAlgorithm::default())
+        .unwrap_or_else(|e| panic!("Machine serialization failed: {e}"))
 }
 
 /// Convert `DxDocument` to Machine format with specific compression
-#[must_use] 
+///
+/// Returns `Ok(MachineFormat)` on success. Propagates errors from serialization or compression.
 pub fn document_to_machine_with_compression(
     doc: &DxDocument,
     compression: CompressionAlgorithm,
-) -> MachineFormat {
+) -> Result<MachineFormat, ConvertError> {
     try_document_to_machine_with_compression(doc, compression)
-        .unwrap_or_else(|error| panic!("Machine serialization failed: {error}"))
 }
 
 /// Try to convert `DxDocument` to Machine format with specific compression.
@@ -720,17 +722,21 @@ pub fn machine_to_human(machine: &MachineFormat) -> Result<String, ConvertError>
 /// If the machine file is fresher (by mtime), reads and parses it.
 /// Otherwise falls back to parsing the `.sr` file as LLM text.
 /// Returns `None` if neither file exists or both fail to parse.
+#[must_use]
 pub fn try_read_machine_or_sr(sr_path: &Path) -> Option<(DxDocument, bool)> {
     let machine_path = sr_path.with_extension("machine");
-    let (from_machine, bytes) = if machine_path.exists() && machine_is_fresher(&machine_path, sr_path) {
-        (true, std::fs::read(&machine_path).ok()?)
-    } else {
-        let text = std::fs::read_to_string(sr_path).ok()?;
-        (false, text.into_bytes())
-    };
+    let (from_machine, bytes) =
+        if machine_path.exists() && machine_is_fresher(&machine_path, sr_path) {
+            (true, std::fs::read(&machine_path).ok()?)
+        } else {
+            let text = std::fs::read_to_string(sr_path).ok()?;
+            (false, text.into_bytes())
+        };
 
     if from_machine {
-        machine_bytes_to_document(&bytes).ok().map(|doc| (doc, true))
+        machine_bytes_to_document(&bytes)
+            .ok()
+            .map(|doc| (doc, true))
     } else {
         let text = String::from_utf8(bytes).ok()?;
         llm_to_document(&text).ok().map(|doc| (doc, false))
@@ -742,9 +748,7 @@ fn machine_is_fresher(machine_path: &Path, sr_path: &Path) -> bool {
     let machine_mtime = std::fs::metadata(machine_path)
         .and_then(|m| m.modified())
         .ok();
-    let sr_mtime = std::fs::metadata(sr_path)
-        .and_then(|m| m.modified())
-        .ok();
+    let sr_mtime = std::fs::metadata(sr_path).and_then(|m| m.modified()).ok();
     match (machine_mtime, sr_mtime) {
         (Some(mm), Some(sm)) => mm >= sm,
         _ => false,
@@ -828,7 +832,8 @@ mod tests {
         doc.context
             .insert("name".to_string(), DxLlmValue::Str("Test".to_string()));
 
-        let mut machine = document_to_machine_with_compression(&doc, CompressionAlgorithm::None);
+        let mut machine =
+            document_to_machine_with_compression(&doc, CompressionAlgorithm::None).unwrap();
         let last = machine.data.len() - 1;
         machine.data[last] ^= 0xFF;
 
@@ -841,7 +846,8 @@ mod tests {
         let mut doc = DxDocument::new();
         doc.context
             .insert("name".to_string(), DxLlmValue::Str("Test".to_string()));
-        let machine = document_to_machine_with_compression(&doc, CompressionAlgorithm::None);
+        let machine =
+            document_to_machine_with_compression(&doc, CompressionAlgorithm::None).unwrap();
 
         let truncated = MachineFormat::new(machine.data[..8].to_vec());
         assert!(
@@ -884,9 +890,10 @@ mod tests {
         let mut doc = DxDocument::new();
         doc.context
             .insert("name".to_string(), DxLlmValue::Str("Test".to_string()));
-        let machine = document_to_machine_with_compression(&doc, CompressionAlgorithm::None);
+        let machine =
+            document_to_machine_with_compression(&doc, CompressionAlgorithm::None).unwrap();
 
-        let mut bad_payload_len = machine.clone();
+        let mut bad_payload_len = MachineFormat::new(machine.data.clone());
         bad_payload_len.data[8..16].copy_from_slice(&1u64.to_le_bytes());
         assert!(
             machine_to_document(&bad_payload_len)
@@ -895,7 +902,7 @@ mod tests {
                 .contains("length mismatch")
         );
 
-        let mut bad_uncompressed_len = machine;
+        let mut bad_uncompressed_len = MachineFormat::new(machine.data);
         bad_uncompressed_len.data[16..24].copy_from_slice(&1u64.to_le_bytes());
         assert!(
             machine_to_document(&bad_uncompressed_len)
@@ -934,7 +941,8 @@ mod tests {
         let mut doc = DxDocument::new();
         doc.context
             .insert("name".to_string(), DxLlmValue::Str("mmap".to_string()));
-        let machine = document_to_machine_with_compression(&doc, CompressionAlgorithm::None);
+        let machine =
+            document_to_machine_with_compression(&doc, CompressionAlgorithm::None).unwrap();
         std::fs::write(&machine_path, machine.as_bytes()).unwrap();
 
         let round_trip_doc = machine_file_to_document_mmap(&machine_path).unwrap();
@@ -948,8 +956,10 @@ mod tests {
     #[test]
     fn test_document_to_loose() {
         let mut doc = DxDocument::new();
-        doc.context.insert("name".to_string(), DxLlmValue::Str("dx-os".to_string()));
-        doc.context.insert("version".to_string(), DxLlmValue::Str("1.0.0".to_string()));
+        doc.context
+            .insert("name".to_string(), DxLlmValue::Str("dx-os".to_string()));
+        doc.context
+            .insert("version".to_string(), DxLlmValue::Str("1.0.0".to_string()));
 
         let loose = document_to_loose(&doc);
         assert!(!loose.is_empty());
@@ -959,8 +969,10 @@ mod tests {
     #[test]
     fn test_document_to_compact() {
         let mut doc = DxDocument::new();
-        doc.context.insert("name".to_string(), DxLlmValue::Str("dx-os".to_string()));
-        doc.context.insert("version".to_string(), DxLlmValue::Str("1.0.0".to_string()));
+        doc.context
+            .insert("name".to_string(), DxLlmValue::Str("dx-os".to_string()));
+        doc.context
+            .insert("version".to_string(), DxLlmValue::Str("1.0.0".to_string()));
 
         let compact = document_to_compact(&doc);
         assert!(!compact.is_empty());

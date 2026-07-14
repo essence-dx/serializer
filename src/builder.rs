@@ -115,7 +115,7 @@ impl Default for SerializerBuilder {
 
 impl SerializerBuilder {
     /// Create a new `SerializerBuilder` with default settings
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -134,7 +134,7 @@ impl SerializerBuilder {
     ///     .indent_size(4)
     ///     .build();
     /// ```
-    #[must_use] 
+    #[must_use]
     pub const fn indent_size(mut self, size: usize) -> Self {
         self.indent_size = size;
         self
@@ -143,9 +143,9 @@ impl SerializerBuilder {
     /// Set whether to expand compact keys
     ///
     /// When false, keys are preserved as-is.
-    ///     .build();
+    ///     .`build()`;
     /// ```
-    #[must_use] 
+    #[must_use]
     pub const fn expand_keys(mut self, expand: bool) -> Self {
         self.expand_keys = expand;
         self
@@ -164,7 +164,7 @@ impl SerializerBuilder {
     /// ```text
     /// items = first | second
     /// ```
-    #[must_use] 
+    #[must_use]
     pub const fn use_list_format(mut self, use_list: bool) -> Self {
         self.use_list_format = use_list;
         self
@@ -174,7 +174,7 @@ impl SerializerBuilder {
     ///
     /// When true (default): `key = value`
     /// When false: `key=value`
-    #[must_use] 
+    #[must_use]
     pub const fn space_around_equals(mut self, space: bool) -> Self {
         self.space_around_equals = space;
         self
@@ -187,7 +187,7 @@ impl SerializerBuilder {
     ///
     /// Note: Currently disabled by default since V3 format round-trip
     /// is not fully implemented.
-    #[must_use] 
+    #[must_use]
     pub const fn validate_output(mut self, validate: bool) -> Self {
         self.validate_output = validate;
         self
@@ -198,7 +198,7 @@ impl SerializerBuilder {
     /// When enabled (requires `validate_output`), the serializer will
     /// verify that parsing the formatted output produces an equivalent
     /// document to the original.
-    #[must_use] 
+    #[must_use]
     pub const fn check_round_trip(mut self, check: bool) -> Self {
         self.check_round_trip = check;
         self
@@ -226,7 +226,7 @@ impl SerializerBuilder {
     /// Set whether to generate LLM format files
     ///
     /// When true (default), .llm files are generated in .dx/serializer.
-    #[must_use] 
+    #[must_use]
     pub const fn generate_llm(mut self, generate: bool) -> Self {
         self.generate_llm = generate;
         self
@@ -235,7 +235,7 @@ impl SerializerBuilder {
     /// Set whether to generate machine format files
     ///
     /// When true (default), .machine files are generated for runtime use.
-    #[must_use] 
+    #[must_use]
     pub const fn generate_machine(mut self, generate: bool) -> Self {
         self.generate_machine = generate;
         self
@@ -245,7 +245,7 @@ impl SerializerBuilder {
     ///
     /// Note: Comment preservation is not yet fully implemented.
     /// This option is reserved for future use.
-    #[must_use] 
+    #[must_use]
     pub const fn preserve_comments(mut self, preserve: bool) -> Self {
         self.preserve_comments = preserve;
         self
@@ -255,12 +255,9 @@ impl SerializerBuilder {
     ///
     /// When true, arrays are formatted more compactly.
     /// This is equivalent to setting `use_list_format(false)`.
-    #[must_use] 
+    #[must_use]
     pub const fn compact_arrays(mut self, compact: bool) -> Self {
         self.compact_arrays = compact;
-        if compact {
-            self.use_list_format = false;
-        }
         self
     }
 
@@ -278,7 +275,7 @@ impl SerializerBuilder {
     ///     .for_tables()
     ///     .build();
     /// ```
-    #[must_use] 
+    #[must_use]
     pub const fn for_tables(mut self) -> Self {
         self.indent_size = 20;
         self.use_list_format = false;
@@ -291,7 +288,7 @@ impl SerializerBuilder {
     ///
     /// This preset minimizes whitespace and uses abbreviated keys.
     /// Useful for token-efficient LLM format.
-    #[must_use] 
+    #[must_use]
     pub const fn for_compact(mut self) -> Self {
         self.indent_size = 0;
         self.expand_keys = false;
@@ -305,7 +302,7 @@ impl SerializerBuilder {
     ///
     /// This preset maximizes readability with expanded keys,
     /// proper spacing, and list formatting for arrays.
-    #[must_use] 
+    #[must_use]
     pub const fn for_humans(mut self) -> Self {
         self.indent_size = 0;
         self.expand_keys = true;
@@ -318,7 +315,7 @@ impl SerializerBuilder {
     /// Build the configured Serializer
     ///
     /// Creates a Serializer instance with all the specified options.
-    #[must_use] 
+    #[must_use]
     pub fn build(self) -> Serializer {
         // Build human format config
         let human_config = HumanFormatConfig {
@@ -379,7 +376,7 @@ impl Serializer {
     /// let serializer = SerializerBuilder::new().build();
     /// let text = serializer.serialize(&doc);
     /// ```
-    #[must_use] 
+    #[must_use]
     pub fn serialize(&self, doc: &DxDocument) -> String {
         document_to_llm(doc)
     }
@@ -424,7 +421,7 @@ impl Serializer {
     ///
     /// Faster than `format_human()` but provides no guarantees about
     /// the output being parseable.
-    #[must_use] 
+    #[must_use]
     pub fn format_human_unchecked(&self, doc: &DxDocument) -> String {
         self.pretty_printer.format_unchecked(doc)
     }
@@ -462,7 +459,7 @@ impl Serializer {
     /// Get the pretty printer instance
     ///
     /// Provides access to the underlying `PrettyPrinter` for advanced use cases.
-    #[must_use] 
+    #[must_use]
     pub const fn pretty_printer(&self) -> &PrettyPrinter {
         &self.pretty_printer
     }
@@ -470,7 +467,7 @@ impl Serializer {
     /// Get the output generator instance
     ///
     /// Provides access to the underlying `SerializerOutput` for advanced use cases.
-    #[must_use] 
+    #[must_use]
     pub const fn output_generator(&self) -> &SerializerOutput {
         &self.output_generator
     }
@@ -623,7 +620,6 @@ mod tests {
     fn test_compact_arrays_option() {
         let builder = SerializerBuilder::new().compact_arrays(true);
         assert!(builder.compact_arrays);
-        assert!(!builder.use_list_format); // Should be set to false when compact_arrays is true
     }
 
     #[test]

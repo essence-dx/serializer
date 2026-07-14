@@ -317,9 +317,7 @@ mod property_tests {
             return false;
         }
         for (key_a, val_a) in &a.context {
-            let val_b = b
-                .context
-                .get(key_a);
+            let val_b = b.context.get(key_a);
 
             if let Some(val_b) = val_b {
                 if !values_equal(val_a, val_b) {

@@ -59,7 +59,7 @@ pub struct Parser<'a> {
 
 impl<'a> Parser<'a> {
     /// Create a parser over DX machine-format input bytes.
-    #[must_use] 
+    #[must_use]
     pub fn new(input: &'a [u8]) -> Self {
         Self {
             tokenizer: Tokenizer::new(input),
@@ -886,10 +886,7 @@ _ Bob";
         let result = parse(b"");
         assert!(result.is_ok(), "Empty input should parse successfully");
         if let Ok(DxValue::Object(obj)) = result {
-            assert!(
-                obj.fields.is_empty(),
-                "Empty input should produce empty object"
-            );
+            assert!(obj.is_empty(), "Empty input should produce empty object");
         }
     }
 

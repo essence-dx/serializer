@@ -34,7 +34,7 @@ pub struct InternPool {
 impl InternPool {
     /// Create a new empty intern pool
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             map: HashMap::new(),
@@ -44,7 +44,7 @@ impl InternPool {
 
     /// Create a pool with pre-allocated capacity
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             map: HashMap::with_capacity(capacity),
@@ -69,21 +69,23 @@ impl InternPool {
 
     /// Get a string by its pool index
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn get(&self, idx: u32) -> Option<&str> {
-        self.strings.get(idx as usize).map(std::string::String::as_str)
+        self.strings
+            .get(idx as usize)
+            .map(std::string::String::as_str)
     }
 
     /// Get the number of unique strings in the pool
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn len(&self) -> usize {
         self.strings.len()
     }
 
     /// Check if the pool is empty
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.strings.is_empty()
     }
@@ -95,7 +97,7 @@ impl InternPool {
     /// - String count: u32
     /// - Offsets: [u32; count] (byte offset of each string in data section)
     /// - Data: concatenated UTF-8 strings
-    #[must_use] 
+    #[must_use]
     pub fn serialize(&self) -> Vec<u8> {
         if self.strings.is_empty() {
             // Empty pool: just write zeros
@@ -249,7 +251,7 @@ pub struct InterningSerializer {
 impl InterningSerializer {
     /// Create a new interning serializer
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             pool: InternPool::new(),
@@ -258,7 +260,7 @@ impl InterningSerializer {
 
     /// Create with pre-allocated capacity
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             pool: InternPool::with_capacity(capacity),
@@ -267,7 +269,7 @@ impl InterningSerializer {
 
     /// Get a reference to the intern pool
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn pool(&self) -> &InternPool {
         &self.pool
     }
@@ -286,7 +288,7 @@ impl InterningSerializer {
 
     /// Serialize the intern pool
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn serialize_pool(&self) -> Vec<u8> {
         self.pool.serialize()
     }
@@ -312,14 +314,14 @@ impl InterningDeserializer {
 
     /// Get a string by its pool index
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn get(&self, idx: u32) -> Option<&str> {
         self.pool.get(idx)
     }
 
     /// Get a reference to the intern pool
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn pool(&self) -> &InternPool {
         &self.pool
     }

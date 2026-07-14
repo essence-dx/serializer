@@ -1,24 +1,15 @@
-/// JSON to DX ULTRA converter
+/// JSON to DX converter
 ///
-/// Converts JSON config files to ultra-optimized DX SINGULARITY format.
-/// Automatically applies all optimization rules.
+/// Converts JSON to proper DX format via `DxDocument` → `document_to_llm`.
+use crate::llm::convert::document_to_llm;
 use crate::llm::types::{DxDocument, DxLlmValue, DxSection, EntryRef};
 use indexmap::IndexMap;
 use serde_json::Value;
 
-/// Convert JSON string to DX ULTRA format
+/// Convert JSON string to DX format
 pub fn json_to_dx(json_str: &str) -> Result<String, String> {
-    let value = parse_json_or_jsonc(json_str)?;
-
-    let mut output = String::new();
-
-    if let Value::Object(obj) = value {
-        convert_object(&obj, "", &mut output)?;
-    } else {
-        return Err("JSON root must be an object".to_string());
-    }
-
-    Ok(output)
+    let doc = json_to_document(json_str)?;
+    Ok(document_to_llm(&doc))
 }
 
 /// Convert a JSON object into the shared DX document model.
@@ -35,16 +26,18 @@ pub fn json_to_document(json_str: &str) -> Result<DxDocument, String> {
     };
 
     let mut doc = DxDocument::new();
-    let mut next_section_id = 'a';
+    let mut section_count: usize = 0;
 
     for (key, value) in obj {
         if let Some(section) = array_to_section(&value) {
-            let section_id = next_section_id;
+            let section_id =
+                char::from_u32(u32::from(b'a') + section_count as u32).ok_or_else(|| {
+                    format!("Too many sections (max {})", 'z' as u32 - 'a' as u32 + 1)
+                })?;
             doc.sections.insert(section_id, section);
             doc.section_names.insert(section_id, key.clone());
             doc.entry_order.push(EntryRef::Section(section_id));
-            next_section_id = char::from_u32(next_section_id as u32 + 1)
-                .unwrap_or('z');
+            section_count += 1;
         } else {
             doc.context.insert(key.clone(), json_value_to_dx(value));
             doc.entry_order.push(EntryRef::Context(key));
@@ -65,8 +58,12 @@ pub fn json_to_document(json_str: &str) -> Result<DxDocument, String> {
 /// share the exact same set of keys (uniform schema). Returns `None`
 /// for any other value type.
 fn array_to_section(value: &Value) -> Option<DxSection> {
-    let Value::Array(items) = value else { return None };
-    if items.is_empty() { return None; }
+    let Value::Array(items) = value else {
+        return None;
+    };
+    if items.is_empty() {
+        return None;
+    }
 
     let objects: Vec<&serde_json::Map<String, Value>> = items
         .iter()
@@ -102,9 +99,7 @@ fn parse_json_or_jsonc(json_str: &str) -> Result<Value, String> {
         Err(strict_error) => {
             let sanitized = remove_trailing_commas(&strip_json_comments(json_str));
             serde_json::from_str(&sanitized).map_err(|jsonc_error| {
-                format!(
-                    "JSON parse error: {strict_error}; JSONC fallback error: {jsonc_error}"
-                )
+                format!("JSON parse error: {strict_error}; JSONC fallback error: {jsonc_error}")
             })
         }
     }
@@ -261,159 +256,14 @@ fn remove_trailing_commas(input: &str) -> String {
 }
 
 /// Convert a JSON object to DX format
-fn convert_object(
-    obj: &serde_json::Map<String, Value>,
-    prefix: &str,
-    output: &mut String,
-) -> Result<(), String> {
-    // Group properties by type
-    let mut simple_props = Vec::new();
-    let mut arrays = Vec::new();
-    let mut tables = Vec::new();
-    let mut nested = Vec::new();
-
-    for (key, value) in obj {
-        match value {
-            Value::String(_) | Value::Number(_) | Value::Bool(_) => {
-                simple_props.push((key.clone(), value_to_string(value)));
-            }
-            Value::Array(arr) => {
-                if is_table(arr) {
-                    tables.push((key.clone(), arr.clone()));
-                } else {
-                    arrays.push((key.clone(), arr.clone()));
-                }
-            }
-            Value::Object(nested_obj) => {
-                nested.push((key.clone(), nested_obj.clone()));
-            }
-            Value::Null => {
-                simple_props.push((key.clone(), "null".to_string()));
-            }
-        }
-    }
-
-    // Output simple properties (inline if possible)
-    if !simple_props.is_empty() {
-        let optimized_props: Vec<(String, String)> = simple_props
-            .iter()
-            .map(|(k, v)| (k.clone(), v.clone()))
-            .collect();
-
-        if true {
-            // Inline format: c.n:dx^v:0.0.1^t:Title
-            let prefix_opt = if prefix.is_empty() { "c" } else { prefix };
-            output.push_str(prefix_opt);
-            output.push('.');
-            for (i, (key, val)) in optimized_props.iter().enumerate() {
-                if i > 0 {
-                    output.push('^');
-                }
-                output.push_str(key);
-                output.push(':');
-                output.push_str(val);
-            }
-            output.push('\n');
-        } else {
-            // Multi-line format
-            let prefix_opt = if prefix.is_empty() { "c" } else { prefix };
-            for (key, val) in optimized_props {
-                output.push_str(prefix_opt);
-                output.push('.');
-                output.push_str(&key);
-                output.push(':');
-                output.push_str(&val);
-                output.push('\n');
-            }
-        }
-    }
-
-    // Output arrays with pipe separator
-    for (key, arr) in arrays {
-        let key_opt = key.clone();
-        let items: Vec<String> = arr.iter().map(value_to_string).collect();
-
-        let prefix_opt = if prefix.is_empty() { "" } else { prefix };
-        if !prefix_opt.is_empty() {
-            output.push_str(prefix_opt);
-            output.push('_');
-        }
-        output.push_str(&key_opt);
-        output.push('>');
-        output.push_str(&items.join(" "));
-        output.push('\n');
-    }
-
-    // Output tables
-    for (key, arr) in tables {
-        output.push('\n');
-        let key_opt = key.clone();
-
-        if let Some(Value::Object(first)) = arr.first() {
-            let cols: Vec<String> = first.keys().map(|k| k.clone()).collect();
-
-            output.push_str(&key_opt);
-            output.push('=');
-            output.push_str(&cols.join(" "));
-            output.push('\n');
-
-            for item in &arr {
-                if let Value::Object(row) = item {
-                    let values: Vec<String> = first
-                        .keys()
-                        .map(|k| value_to_string(row.get(k).unwrap_or(&Value::Null)))
-                        .collect();
-                    output.push_str(&values.join(" "));
-                    output.push('\n');
-                }
-            }
-        }
-    }
-
-    // Output nested objects with prefix inheritance
-    for (key, nested_obj) in nested {
-        output.push('\n');
-        let key_opt = key.clone();
-        let new_prefix = if prefix.is_empty() {
-            key_opt.clone()
-        } else {
-            format!("{prefix}.{key_opt}")
-        };
-
-        convert_object(&nested_obj, &new_prefix, output)?;
-    }
-
-    Ok(())
-}
-
-/// Check if array is a table (array of objects with same keys)
-fn is_table(arr: &[Value]) -> bool {
-    if arr.is_empty() {
-        return false;
-    }
-
-    if let Some(Value::Object(first)) = arr.first() {
-        let keys: Vec<&String> = first.keys().collect();
-
-        // Check all items have same structure
-        arr.iter().all(|item| {
-            if let Value::Object(obj) = item {
-                obj.keys().count() == keys.len() && keys.iter().all(|k| obj.contains_key(*k))
-            } else {
-                false
-            }
-        })
-    } else {
-        false
-    }
-}
-
-/// Convert a DxValue to a serde_json::Value
+/// Convert a `DxValue` to a `serde_json::Value`
 fn dx_value_to_json_value(value: &crate::types::DxValue) -> Result<serde_json::Value, String> {
     match value {
         crate::types::DxValue::Null => Ok(serde_json::Value::Null),
         crate::types::DxValue::Bool(b) => Ok(serde_json::Value::Bool(*b)),
-        crate::types::DxValue::Int(i) => Ok(serde_json::Value::Number(serde_json::Number::from(*i))),
+        crate::types::DxValue::Int(i) => {
+            Ok(serde_json::Value::Number(serde_json::Number::from(*i)))
+        }
         crate::types::DxValue::Float(f) => serde_json::Number::from_f64(*f)
             .map(serde_json::Value::Number)
             .ok_or_else(|| "Invalid float value".to_string()),
@@ -446,52 +296,29 @@ fn dx_value_to_json_value(value: &crate::types::DxValue) -> Result<serde_json::V
     }
 }
 
-/// Convert JSON value to string
-fn value_to_string(value: &Value) -> String {
-    match value {
-        Value::String(s) => s.clone(),
-        Value::Number(n) => n.to_string(),
-        Value::Bool(b) => {
-            if *b {
-                "true".to_string()
-            } else {
-                "false".to_string()
-            }
-        }
-        Value::Null => "null".to_string(),
-        Value::Array(_) => "[array]".to_string(),
-        Value::Object(_) => "[object]".to_string(),
-    }
-}
-
-/// Convert DX format string to JSON using the DxDocument model.
+/// Convert DX format string to JSON using the `DxDocument` model.
 ///
 /// Tries the LLM parser first; falls back to the old `DxValue` parser.
 /// Set `pretty` to `false` for compact (single-line) JSON output.
 pub fn dx_to_json_doc(dx_str: &str, pretty: bool) -> Result<String, String> {
-    let doc = match crate::llm::llm_to_document(dx_str) {
-        Ok(doc) => doc,
-        Err(_) => {
-            let parsed = crate::parser::parse(dx_str.as_bytes())
-                .map_err(|e| format!("DX parse error: {e}"))?;
-            return if pretty {
-                let json = dx_value_to_json_value(&parsed)?;
-                serde_json::to_string_pretty(&json)
-                    .map_err(|e| format!("JSON serialization error: {e}"))
-            } else {
-                let json = dx_value_to_json_value(&parsed)?;
-                serde_json::to_string(&json)
-                    .map_err(|e| format!("JSON serialization error: {e}"))
-            };
-        }
+    let doc = if let Ok(doc) = crate::llm::llm_to_document(dx_str) { doc } else {
+        let parsed = crate::parser::parse(dx_str.as_bytes())
+            .map_err(|e| format!("DX parse error: {e}"))?;
+        return if pretty {
+            let json = dx_value_to_json_value(&parsed)?;
+            serde_json::to_string_pretty(&json)
+                .map_err(|e| format!("JSON serialization error: {e}"))
+        } else {
+            let json = dx_value_to_json_value(&parsed)?;
+            serde_json::to_string(&json).map_err(|e| format!("JSON serialization error: {e}"))
+        };
     };
     let json_value = dx_document_to_json_value(&doc);
     if pretty {
         serde_json::to_string_pretty(&json_value)
             .map_err(|e| format!("JSON serialization error: {e}"))
     } else {
-        serde_json::to_string(&json_value)
-            .map_err(|e| format!("JSON serialization error: {e}"))
+        serde_json::to_string(&json_value).map_err(|e| format!("JSON serialization error: {e}"))
     }
 }
 
@@ -502,16 +329,24 @@ fn dx_document_to_json_value(doc: &crate::llm::types::DxDocument) -> serde_json:
         map.insert(k.clone(), dx_llm_value_to_json(v));
     }
     for (id, section) in &doc.sections {
-        let name = doc.section_names.get(id).cloned().unwrap_or_else(|| id.to_string());
-        let rows: Vec<serde_json::Value> = section.rows.iter().map(|row| {
-            let mut obj = serde_json::Map::new();
-            for (i, col) in section.schema.iter().enumerate() {
-                if let Some(val) = row.get(i) {
-                    obj.insert(col.clone(), dx_llm_value_to_json(val));
+        let name = doc
+            .section_names
+            .get(id)
+            .cloned()
+            .unwrap_or_else(|| id.to_string());
+        let rows: Vec<serde_json::Value> = section
+            .rows
+            .iter()
+            .map(|row| {
+                let mut obj = serde_json::Map::new();
+                for (i, col) in section.schema.iter().enumerate() {
+                    if let Some(val) = row.get(i) {
+                        obj.insert(col.clone(), dx_llm_value_to_json(val));
+                    }
                 }
-            }
-            serde_json::Value::Object(obj)
-        }).collect();
+                serde_json::Value::Object(obj)
+            })
+            .collect();
         map.insert(name, serde_json::Value::Array(rows));
     }
     serde_json::Value::Object(map)
@@ -523,6 +358,7 @@ fn dx_llm_value_to_json(value: &crate::llm::types::DxLlmValue) -> serde_json::Va
     match value {
         DxLlmValue::Null => serde_json::Value::Null,
         DxLlmValue::Bool(b) => serde_json::Value::Bool(*b),
+        DxLlmValue::Int(i) => serde_json::Value::Number(serde_json::Number::from(*i)),
         DxLlmValue::Num(n) => serde_json::Number::from_f64(*n)
             .map(serde_json::Value::Number)
             .unwrap_or(serde_json::Value::String(n.to_string())),

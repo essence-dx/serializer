@@ -19,7 +19,7 @@ pub fn to_bytes<T: Serialize>(value: &T) -> Result<Vec<u8>, DxMachineError> {
     // Write header (16 bytes total)
     buffer.extend_from_slice(&[
         0x5A, 0x44, // Magic bytes "ZD"
-        0x01, // Version
+        0x02, // Version (0x02 = serde-compat, 0x01 = standard machine)
         0x01, // Flags: 0x01 = native binary format
     ]);
 

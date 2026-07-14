@@ -22,7 +22,7 @@ pub fn yaml_to_dx(yaml_str: &str) -> Result<String, String> {
 
 /// Convert YAML string into the shared DX document model.
 ///
-/// Strategy: YAML → JSON → DxDocument
+/// Strategy: YAML → JSON → `DxDocument`
 pub fn yaml_to_document(yaml_str: &str) -> Result<DxDocument, String> {
     let value: serde_json::Value =
         serde_yaml::from_str(yaml_str).map_err(|e| format!("YAML parse error: {e}"))?;
@@ -31,27 +31,24 @@ pub fn yaml_to_document(yaml_str: &str) -> Result<DxDocument, String> {
     json_to_document(&json_str)
 }
 
-/// Convert DX format string to YAML using the DxDocument model.
+/// Convert DX format string to YAML using the `DxDocument` model.
 ///
 /// Tries the LLM parser first; falls back to the old `DxValue` parser.
 pub fn dx_to_yaml_doc(dx_str: &str) -> Result<String, String> {
-    match crate::llm::llm_to_document(dx_str) {
-        Ok(doc) => {
-            let mut output = String::new();
-            dx_document_to_yaml_impl(&doc, &mut output, 0)?;
-            Ok(output)
-        }
-        Err(_) => {
-            let value = crate::parser::parse(dx_str.as_bytes())
-                .map_err(|e| format!("DX parse error: {e}"))?;
-            let mut output = String::new();
-            dx_value_to_yaml_impl(&value, &mut output, 0)?;
-            Ok(output)
-        }
+    if let Ok(doc) = crate::llm::llm_to_document(dx_str) {
+        let mut output = String::new();
+        dx_document_to_yaml_impl(&doc, &mut output, 0)?;
+        Ok(output)
+    } else {
+        let value = crate::parser::parse(dx_str.as_bytes())
+            .map_err(|e| format!("DX parse error: {e}"))?;
+        let mut output = String::new();
+        dx_value_to_yaml_impl(&value, &mut output, 0)?;
+        Ok(output)
     }
 }
 
-/// Convert a DxDocument to YAML format.
+/// Convert a `DxDocument` to YAML format.
 fn dx_document_to_yaml_impl(
     doc: &crate::llm::types::DxDocument,
     output: &mut String,
@@ -68,29 +65,114 @@ fn dx_document_to_yaml_impl(
         dx_llm_value_to_yaml(v, output, indent + 1)?;
     }
     for (id, section) in &doc.sections {
-        let name = doc.section_names.get(id).cloned().unwrap_or_else(|| id.to_string());
-        if !doc.context.is_empty() {
-            output.push('\n');
-        }
+        let name = doc
+            .section_names
+            .get(id)
+            .cloned()
+            .unwrap_or_else(|| id.to_string());
+        output.push('\n');
+        output.push_str(&indent_str);
+        output.push_str(&name);
+        output.push_str(":\n");
         for row in &section.rows {
-            output.push_str(&indent_str);
-            output.push_str(&name);
-            output.push_str(":\n");
+            output.push_str(&"  ".repeat(indent + 1));
+            output.push_str("- ");
+            let mut first = true;
             for (j, col) in section.schema.iter().enumerate() {
-                output.push_str(&"  ".repeat(indent + 1));
+                if !first {
+                    output.push('\n');
+                    output.push_str(&"  ".repeat(indent + 2));
+                }
+                first = false;
                 output.push_str(col);
                 output.push_str(": ");
                 if let Some(val) = row.get(j) {
-                    dx_llm_value_to_yaml(val, output, indent + 2)?;
+                    dx_llm_value_to_yaml(val, output, indent + 3)?;
                 }
-                output.push('\n');
             }
+            output.push('\n');
         }
     }
     Ok(())
 }
 
-/// Convert a DxLlmValue to YAML inline.
+/// Check if a YAML string value needs quoting to preserve its type.
+fn needs_yaml_quoting(s: &str) -> bool {
+    if s.is_empty() {
+        return true;
+    }
+    if s.contains(':')
+        || s.contains('#')
+        || s.contains('\n')
+        || s.starts_with(' ')
+        || s.ends_with(' ')
+        || s.starts_with('[')
+        || s.starts_with(']')
+        || s.starts_with('{')
+        || s.starts_with('}')
+        || s.starts_with('>')
+        || s.starts_with('|')
+        || s.starts_with('*')
+        || s.starts_with('&')
+        || s.starts_with('!')
+        || s.starts_with('%')
+        || s.starts_with('`')
+        || s.starts_with('@')
+    {
+        return true;
+    }
+    // YAML booleans
+    if matches!(
+        s,
+        "true"
+            | "false"
+            | "yes"
+            | "no"
+            | "on"
+            | "off"
+            | "True"
+            | "False"
+            | "Yes"
+            | "No"
+            | "ON"
+            | "OFF"
+    ) {
+        return true;
+    }
+    // YAML nulls
+    if matches!(s, "null" | "Null" | "NULL" | "~") {
+        return true;
+    }
+    // YAML special floats
+    if matches!(s, ".inf" | ".Inf" | ".INF" | ".nan" | ".NaN" | ".NAN") {
+        return true;
+    }
+    // YAML numbers (integers, floats)
+    if s.parse::<f64>().is_ok() {
+        return true;
+    }
+    // YAML hex and octal
+    if (s.starts_with("0x") || s.starts_with("0X")) && s[2..].chars().all(|c| c.is_ascii_hexdigit())
+    {
+        return true;
+    }
+    if s.starts_with("0o") && s[2..].chars().all(|c| c.is_ascii_digit() && c < '8') {
+        return true;
+    }
+    false
+}
+
+fn quote_yaml_string(s: &str, output: &mut String) {
+    output.push('"');
+    output.push_str(
+        &s.replace('\\', "\\\\")
+            .replace('"', "\\\"")
+            .replace('\n', "\\n"),
+    );
+    output.push('"');
+}
+
+/// Convert a `DxLlmValue` to YAML inline.
 fn dx_llm_value_to_yaml(
     value: &crate::llm::types::DxLlmValue,
     output: &mut String,
@@ -100,14 +182,11 @@ fn dx_llm_value_to_yaml(
     match value {
         DxLlmValue::Null => output.push_str("null"),
         DxLlmValue::Bool(b) => output.push_str(if *b { "true" } else { "false" }),
+        DxLlmValue::Int(i) => output.push_str(&i.to_string()),
         DxLlmValue::Num(n) => output.push_str(&n.to_string()),
         DxLlmValue::Str(s) => {
-            if s.contains(':') || s.contains('#') || s.contains('\n')
-                || s.starts_with(' ') || s.ends_with(' ')
-            {
-                output.push('"');
-                output.push_str(&s.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n"));
-                output.push('"');
+            if needs_yaml_quoting(s) {
+                quote_yaml_string(s, output);
             } else {
                 output.push_str(s);
             }
@@ -138,7 +217,10 @@ fn dx_llm_value_to_yaml(
             }
         }
         DxLlmValue::Ref(r) => {
-            output.push('"'); output.push('^'); output.push_str(r); output.push('"');
+            output.push('"');
+            output.push('^');
+            output.push_str(r);
+            output.push('"');
         }
     }
     Ok(())
@@ -149,7 +231,11 @@ pub fn dx_to_yaml(dx_str: &str) -> Result<String, String> {
     dx_to_yaml_doc(dx_str)
 }
 
-fn dx_value_to_yaml_impl(value: &DxValue, output: &mut String, indent: usize) -> Result<(), String> {
+fn dx_value_to_yaml_impl(
+    value: &DxValue,
+    output: &mut String,
+    indent: usize,
+) -> Result<(), String> {
     let indent_str = "  ".repeat(indent);
 
     match value {
@@ -158,12 +244,8 @@ fn dx_value_to_yaml_impl(value: &DxValue, output: &mut String, indent: usize) ->
         DxValue::Int(i) => output.push_str(&i.to_string()),
         DxValue::Float(f) => output.push_str(&f.to_string()),
         DxValue::String(s) => {
-            if s.contains(':') || s.contains('#') || s.contains('\n')
-                || s.starts_with(' ') || s.ends_with(' ')
-            {
-                output.push('"');
-                output.push_str(&s.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n"));
-                output.push('"');
+            if needs_yaml_quoting(s) {
+                quote_yaml_string(s, output);
             } else {
                 output.push_str(s);
             }

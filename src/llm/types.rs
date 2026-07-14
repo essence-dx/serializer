@@ -350,8 +350,12 @@ impl DxSection {
         let key_index = self.column_index(key_column)?;
         let value_index = self.column_index(value_column)?;
         self.rows.iter().find_map(|row| {
-            let row_key = row.get(key_index)?.to_string();
-            (row_key == key).then(|| row.get(value_index)).flatten()
+            let row_val = row.get(key_index)?;
+            let matches = match (row_val, self.schema.get(key_index)) {
+                (_, _) if row_val.to_string() == key => true,
+                _ => false,
+            };
+            matches.then(|| row.get(value_index)).flatten()
         })
     }
 
@@ -491,14 +495,15 @@ pub enum DxLlmValue {
     /// In LLM format, strings are represented without quotes when possible,
     /// contributing to token efficiency.
     Str(String),
-    /// Numeric value (integer or float).
+    /// Integer value (exact i64 precision).
     ///
-    /// Unlike [`DxValue`](crate::DxValue) which has separate `Int` and `Float`
-    /// variants, `DxLlmValue` uses a single `Num` variant because LLMs don't
-    /// distinguish between integer and floating-point numbers.
+    /// Separate from `Num` to avoid precision loss when converting from i64.
+    /// i64 values larger than 2^53 (9,007,199,254,740,992) cannot be exactly
+    /// represented as f64.
+    Int(i64),
+    /// Numeric value (floating point).
     ///
-    /// Integers are stored as `f64` but display without decimal points when
-    /// the fractional part is zero (e.g., `42` not `42.0`).
+    /// Used for values with fractional parts or values that originate as f64.
     Num(f64),
     /// Boolean value.
     ///
@@ -544,6 +549,7 @@ impl DxLlmValue {
     pub const fn type_name(&self) -> &'static str {
         match self {
             Self::Str(_) => "string",
+            Self::Int(_) => "int",
             Self::Num(_) => "number",
             Self::Bool(_) => "bool",
             Self::Null => "null",
@@ -612,6 +618,7 @@ impl fmt::Display for DxLlmValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Str(s) => write!(f, "{s}"),
+            Self::Int(i) => write!(f, "{i}"),
             Self::Num(n) => {
                 if n.fract() == 0.0 {
                     write!(f, "{}", *n as i64)
@@ -632,14 +639,14 @@ impl fmt::Display for DxLlmValue {
                 write!(f, "]")
             }
             Self::Obj(obj) => {
-                write!(f, "[")?;
+                write!(f, "{{")?;
                 for (i, (k, v)) in obj.iter().enumerate() {
                     if i > 0 {
                         write!(f, ",")?;
                     }
                     write!(f, "{k}={v}")?;
                 }
-                write!(f, "]")
+                write!(f, "}}")
             }
             Self::Ref(key) => write!(f, "^{key}"),
         }
@@ -666,7 +673,7 @@ impl From<f64> for DxLlmValue {
 
 impl From<i64> for DxLlmValue {
     fn from(n: i64) -> Self {
-        Self::Num(n as f64)
+        Self::Int(n)
     }
 }
 

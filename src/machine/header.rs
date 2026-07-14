@@ -37,7 +37,7 @@ const FLAG_RESERVED_MASK: u8 = 0b1111_0000;
 impl DxMachineHeader {
     /// Create a new header with default flags
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn new() -> Self {
         Self {
             magic: crate::machine::MAGIC,
@@ -48,7 +48,7 @@ impl DxMachineHeader {
 
     /// Create header with specific flags
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn with_flags(flags: u8) -> Self {
         Self {
             magic: crate::machine::MAGIC,
@@ -108,21 +108,21 @@ impl DxMachineHeader {
 
     /// Check if heap section exists
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn has_heap(&self) -> bool {
         self.flags & FLAG_HAS_HEAP != 0
     }
 
     /// Check if intern table exists
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn has_intern_table(&self) -> bool {
         self.flags & FLAG_HAS_INTERN != 0
     }
 
     /// Check if length table exists
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn has_length_table(&self) -> bool {
         self.flags & FLAG_HAS_LENGTH_TABLE != 0
     }
@@ -168,7 +168,7 @@ impl DxMachineHeader {
 
     /// Get header size in bytes
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn size() -> usize {
         4
     }

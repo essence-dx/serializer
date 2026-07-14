@@ -515,14 +515,12 @@ mod property_tests {
                 .current();
 
             // Object should have at least one field
-            assert!(!obj.fields.is_empty(), "Generated empty object");
+            assert!(!obj.is_empty(), "Generated empty object");
 
             // All keys should be valid identifiers
             for (key, _) in obj.iter() {
                 assert!(
-                    key.chars()
-                        .next()
-                        .is_some_and(|c| c.is_ascii_lowercase()),
+                    key.chars().next().is_some_and(|c| c.is_ascii_lowercase()),
                     "Key doesn't start with lowercase letter: {key}"
                 );
             }

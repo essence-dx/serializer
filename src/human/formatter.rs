@@ -47,20 +47,20 @@ impl Default for HumanFormatConfig {
 
 impl HumanFormatConfig {
     /// Create a default human-format configuration.
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Set the padding width used before assignment operators.
-    #[must_use] 
+    #[must_use]
     pub const fn with_key_padding(mut self, padding: usize) -> Self {
         self.key_padding = padding;
         self
     }
 
     /// Create the default configuration used for tabular human output.
-    #[must_use] 
+    #[must_use]
     pub const fn for_tables() -> Self {
         Self { key_padding: 28 }
     }
@@ -73,7 +73,7 @@ pub struct HumanFormatter {
 
 impl HumanFormatter {
     /// Create a formatter with default human-format settings.
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             config: HumanFormatConfig::default(),
@@ -81,13 +81,13 @@ impl HumanFormatter {
     }
 
     /// Create a formatter with explicit human-format settings.
-    #[must_use] 
+    #[must_use]
     pub const fn with_config(config: HumanFormatConfig) -> Self {
         Self { config }
     }
 
     /// Format `DxDocument` to Human Format string
-    #[must_use] 
+    #[must_use]
     pub fn format(&self, doc: &DxDocument) -> String {
         let mut sections: Vec<String> = Vec::new();
 
@@ -199,7 +199,12 @@ impl HumanFormatter {
     /// Format an object from context as a [section]
     /// Known table section names that should not appear as context entries
     const TABLE_SECTION_NAMES: &'static [&'static str] = &[
-        "recipes", "aliases", "vars", "matrix", "steps", "dependencies",
+        "recipes",
+        "aliases",
+        "vars",
+        "matrix",
+        "steps",
+        "dependencies",
     ];
 
     fn format_object_as_section(
@@ -219,24 +224,30 @@ impl HumanFormatter {
             match value {
                 DxLlmValue::Obj(sub_fields) => {
                     let sub = self.format_object_as_section(key, sub_fields);
-                    let sub_lines: Vec<&str> = sub.lines().filter(|l| {
-                        let t = l.trim();
-                        !t.is_empty() && t != &format!("[{key}]")
-                    }).collect();
-                    if !sub_lines.is_empty() {
+                    let sub_lines: Vec<&str> = sub
+                        .lines()
+                        .filter(|l| {
+                            let t = l.trim();
+                            !t.is_empty() && t != format!("[{key}]")
+                        })
+                        .collect();
+                    if sub_lines.is_empty() {
+                        lines.push(self.format_key_value(key, "none"));
+                    } else {
                         lines.push(String::new());
                         for sub_line in sub.lines() {
                             lines.push(sub_line.to_string());
                         }
-                    } else {
-                        lines.push(self.format_key_value(key, "none"));
                     }
                 }
                 DxLlmValue::Arr(items) if items.is_empty() => {}
                 DxLlmValue::Arr(items) => {
-                    let array_items: Vec<String> = items.iter().map(|v| self.format_value(v)).collect();
+                    let array_items: Vec<String> =
+                        items.iter().map(|v| self.format_value(v)).collect();
                     lines.push(format!("{key}:"));
-                    for item in array_items { lines.push(format!("- {item}")); }
+                    for item in array_items {
+                        lines.push(format!("- {item}"));
+                    }
                 }
                 _ => {
                     lines.push(self.format_key_value(key, &self.format_value(value)));
@@ -274,12 +285,17 @@ impl HumanFormatter {
             lines.push(format!("[{section_id}]"));
             let row = &section.rows[0];
             for (i, field) in section.schema.iter().enumerate() {
-                if i >= row.len() { break; }
+                if i >= row.len() {
+                    break;
+                }
                 let value = &row[i];
                 if let DxLlmValue::Arr(items) = value {
-                    let array_items: Vec<String> = items.iter().map(|v| self.format_value(v)).collect();
+                    let array_items: Vec<String> =
+                        items.iter().map(|v| self.format_value(v)).collect();
                     lines.push(format!("{field}:"));
-                    for item in array_items { lines.push(format!("- {item}")); }
+                    for item in array_items {
+                        lines.push(format!("- {item}"));
+                    }
                 } else {
                     lines.push(self.format_key_value(field, &self.format_value(value)));
                 }
@@ -288,12 +304,17 @@ impl HumanFormatter {
             for (row_idx, row) in section.rows.iter().enumerate() {
                 lines.push(format!("[{section_id}:{}]", row_idx + 1));
                 for (i, field) in section.schema.iter().enumerate() {
-                    if i >= row.len() { break; }
+                    if i >= row.len() {
+                        break;
+                    }
                     let value = &row[i];
                     if let DxLlmValue::Arr(items) = value {
-                        let array_items: Vec<String> = items.iter().map(|v| self.format_value(v)).collect();
+                        let array_items: Vec<String> =
+                            items.iter().map(|v| self.format_value(v)).collect();
                         lines.push(format!("{field}:"));
-                        for item in array_items { lines.push(format!("- {item}")); }
+                        for item in array_items {
+                            lines.push(format!("- {item}"));
+                        }
                     } else {
                         lines.push(self.format_key_value(field, &self.format_value(value)));
                     }
@@ -379,6 +400,7 @@ impl HumanFormatter {
                 // Replace underscores with spaces for human readability
                 s.replace('_', " ")
             }
+            DxLlmValue::Int(i) => format!("{i}"),
             DxLlmValue::Num(n) => {
                 if n.fract() == 0.0 {
                     format!("{}", *n as i64)

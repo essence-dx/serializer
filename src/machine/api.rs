@@ -65,7 +65,7 @@ where
 /// of the archived value.
 #[inline(always)]
 #[allow(unsafe_code)]
-#[must_use] 
+#[must_use]
 pub unsafe fn deserialize<T>(bytes: &[u8]) -> &T::Archived
 where
     T: rkyv::Archive,

@@ -89,16 +89,14 @@ pub enum HumanParseError {
 }
 
 /// Parse human-readable format back to `DxDocument`
-pub struct HumanParser {
-}
+pub struct HumanParser {}
 
 impl HumanParser {
     #[allow(dead_code)] // Methods reserved for future table parsing features
     /// Create a new parser
     #[must_use]
-    pub fn new() -> Self {
-        Self {
-        }
+    pub const fn new() -> Self {
+        Self {}
     }
 
     /// Parse human format string into `DxDocument`
@@ -140,9 +138,16 @@ impl HumanParser {
             // Check for table with schema: name[col1,col2,...](...)
             if let Some((table_name, schema_str, remainder)) = self.parse_table_header(line) {
                 let schema: Vec<String> = if schema_str.contains(',') {
-                    schema_str.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect()
+                    schema_str
+                        .split(',')
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect()
                 } else {
-                    schema_str.split_whitespace().map(|s| s.to_string()).collect()
+                    schema_str
+                        .split_whitespace()
+                        .map(std::string::ToString::to_string)
+                        .collect()
                 };
 
                 let _lines_after = if remainder.is_empty() {
@@ -155,8 +160,10 @@ impl HumanParser {
                 if remainder == ")" && !schema.is_empty() {
                     // Single-line table: name[headers]() - empty table
                     let section = DxSection::new(schema);
-                    doc.section_names.insert(table_name.chars().next().unwrap_or('t'), table_name.clone());
-                    doc.sections.insert(table_name.chars().next().unwrap_or('t'), section);
+                    doc.section_names
+                        .insert(table_name.chars().next().unwrap_or('t'), table_name.clone());
+                    doc.sections
+                        .insert(table_name.chars().next().unwrap_or('t'), section);
                     self.track_new_entries(&mut doc, &context_keys_before, &section_ids_before);
                     i += 1;
                     continue;
@@ -170,27 +177,32 @@ impl HumanParser {
                 if remainder.starts_with('(') {
                     paren_depth = 1;
                     for ch in remainder[1..].chars() {
-                        if ch == '(' { paren_depth += 1; }
-                        else if ch == ')' { paren_depth -= 1; }
+                        if ch == '(' {
+                            paren_depth += 1;
+                        } else if ch == ')' {
+                            paren_depth -= 1;
+                        }
                     }
                 }
 
                 if paren_depth == 0 && !remainder.is_empty() {
                     if remainder.ends_with(')') {
-                        let inner = remainder[remainder.find('(').map(|p| p + 1).unwrap_or(0)..remainder.len() - 1].trim();
+                        let inner = remainder
+                            [remainder.find('(').map_or(0, |p| p + 1)..remainder.len() - 1]
+                            .trim();
                         if !inner.is_empty() {
                             row_lines.push(inner.to_string());
                         }
                     }
                 } else if paren_depth > 0 {
                     if !remainder.is_empty() {
-                        let paren_start = remainder.find('(').map(|p| p + 1).unwrap_or(0);
+                        let paren_start = remainder.find('(').map_or(0, |p| p + 1);
                         let rest_inner = remainder[paren_start..].trim();
-                            if !rest_inner.is_empty() {
-                                row_lines.push(rest_inner.to_string());
-                            }
+                        if !rest_inner.is_empty() {
+                            row_lines.push(rest_inner.to_string());
+                        }
                     }
-                    let line_offset = if remainder.is_empty() { 0 } else { 1 }; // skip header line if already on same line
+                    let line_offset = usize::from(!remainder.is_empty()); // skip header line if already on same line
                     let mut in_quoted_string = false;
                     while consumed < lines.len().saturating_sub(i + line_offset) {
                         let rline = lines[i + line_offset + consumed].trim();
@@ -199,8 +211,11 @@ impl HumanParser {
                             continue;
                         }
                         for ch in rline.chars() {
-                            if ch == '(' { paren_depth += 1; }
-                            else if ch == ')' { paren_depth -= 1; }
+                            if ch == '(' {
+                                paren_depth += 1;
+                            } else if ch == ')' {
+                                paren_depth -= 1;
+                            }
                         }
                         // Count quotes to detect multi-line quoted strings
                         let quote_count = rline.chars().filter(|&c| c == '"').count();
@@ -230,7 +245,9 @@ impl HumanParser {
 
                 for row_str in &row_lines {
                     let row_str = row_str.trim().trim_end_matches(')').trim();
-                    if row_str.is_empty() { continue; }
+                    if row_str.is_empty() {
+                        continue;
+                    }
 
                     let cells: Vec<DxLlmValue> = self.parse_row_cells(row_str, &schema);
                     if !cells.is_empty() {
@@ -246,21 +263,28 @@ impl HumanParser {
                     doc.sections.insert(section_id, section);
                 }
 
-                i += if remainder.is_empty() { 1 } else { 0 } + consumed;
+                i += usize::from(remainder.is_empty()) + consumed;
                 self.track_new_entries(&mut doc, &context_keys_before, &section_ids_before);
                 continue;
             }
 
             // Check for parenthesized group: name(key = value ...)
-            if let Some((ref group_name, inner_content)) = self.parse_parenthesized_group(line, &lines[i..]) {
+            if let Some((ref group_name, inner_content)) =
+                self.parse_parenthesized_group(line, &lines[i..])
+            {
                 let inner_doc = self.parse(&inner_content)?;
                 let has_context = !inner_doc.context.is_empty();
                 let has_sections = !inner_doc.sections.is_empty();
                 if has_context {
-                    doc.context.insert(group_name.clone(), DxLlmValue::Obj(inner_doc.context));
+                    doc.context
+                        .insert(group_name.clone(), DxLlmValue::Obj(inner_doc.context));
                 }
                 for (id, section) in inner_doc.sections {
-                    let full_name = inner_doc.section_names.get(&id).cloned().unwrap_or_else(|| id.to_string());
+                    let full_name = inner_doc
+                        .section_names
+                        .get(&id)
+                        .cloned()
+                        .unwrap_or_else(|| id.to_string());
                     doc.section_names.insert(id, full_name);
                     doc.sections.insert(id, section);
                     // Ensure sections appear in entry_order for formatters
@@ -270,7 +294,8 @@ impl HumanParser {
                     }
                 }
                 if !has_context && !has_sections {
-                    doc.context.insert(group_name.clone(), DxLlmValue::Obj(IndexMap::new()));
+                    doc.context
+                        .insert(group_name.clone(), DxLlmValue::Obj(IndexMap::new()));
                 }
                 i += 1;
                 self.track_new_entries(&mut doc, &context_keys_before, &section_ids_before);
@@ -673,7 +698,10 @@ impl HumanParser {
                     match ch {
                         '"' => unescaped.push('"'),
                         '\\' => unescaped.push('\\'),
-                        _ => { unescaped.push('\\'); unescaped.push(ch); }
+                        _ => {
+                            unescaped.push('\\');
+                            unescaped.push(ch);
+                        }
                     }
                     escape = false;
                 } else if ch == '\\' {
@@ -705,11 +733,13 @@ impl HumanParser {
                 return Ok(DxLlmValue::Arr(vec![]));
             }
             let items: Vec<DxLlmValue> = if inner.contains(',') {
-                inner.split(',')
+                inner
+                    .split(',')
                     .map(|item| self.parse_config_value(item.trim()))
                     .collect::<Result<Vec<_>, _>>()?
             } else {
-                inner.split_whitespace()
+                inner
+                    .split_whitespace()
                     .map(|item| self.parse_config_value(item))
                     .collect::<Result<Vec<_>, _>>()?
             };
@@ -857,10 +887,7 @@ impl HumanParser {
 
             // Parse row with │ separators
             if line.starts_with('│') && line.ends_with('│') {
-                let cells: Vec<&str> = line[3..line.len() - 3]
-                    .split('│')
-                    .map(str::trim)
-                    .collect();
+                let cells: Vec<&str> = line[3..line.len() - 3].split('│').map(str::trim).collect();
 
                 if !header_found {
                     // This is the header row - keep column names as-is
@@ -894,7 +921,8 @@ impl HumanParser {
                             rows.push(row);
                         }
                         // Start new row
-                        current_row_cells = Some(cells.iter().map(std::string::ToString::to_string).collect());
+                        current_row_cells =
+                            Some(cells.iter().map(std::string::ToString::to_string).collect());
                     }
                 }
             }
@@ -935,10 +963,7 @@ impl HumanParser {
 
             // Parse row with | separators
             if line.starts_with('|') && line.ends_with('|') {
-                let cells: Vec<&str> = line[1..line.len() - 1]
-                    .split('|')
-                    .map(str::trim)
-                    .collect();
+                let cells: Vec<&str> = line[1..line.len() - 1].split('|').map(str::trim).collect();
 
                 if !header_found {
                     schema = cells.iter().map(std::string::ToString::to_string).collect();
@@ -979,10 +1004,7 @@ impl HumanParser {
 
             // Parse row with | separators
             if line.starts_with('|') && line.ends_with('|') {
-                let cells: Vec<&str> = line[1..line.len() - 1]
-                    .split('|')
-                    .map(str::trim)
-                    .collect();
+                let cells: Vec<&str> = line[1..line.len() - 1].split('|').map(str::trim).collect();
 
                 if !header_found {
                     schema = cells.iter().map(std::string::ToString::to_string).collect();
@@ -1085,42 +1107,68 @@ impl HumanParser {
     }
 
     /// Parse a table header: name[col1,col2,...](...) or name[col1 col2 ...](...)
-    /// Returns (table_name, schema_string, remainder_after_bracket_parent)
+    /// Returns (`table_name`, `schema_string`, `remainder_after_bracket_parent`)
     fn parse_table_header(&self, line: &str) -> Option<(String, String, String)> {
         let trimmed = line.trim();
         let name_end = trimmed.find('[')?;
-        if name_end == 0 { return None; }
+        if name_end == 0 {
+            return None;
+        }
         let name = trimmed[..name_end].trim().to_string();
-        if name.is_empty() { return None; }
+        if name.is_empty() {
+            return None;
+        }
         let bracket_end = trimmed[name_end..].find(']')?;
-        let schema_str = trimmed[name_end + 1..name_end + bracket_end].trim().to_string();
-        if schema_str.is_empty() { return None; }
+        let schema_str = trimmed[name_end + 1..name_end + bracket_end]
+            .trim()
+            .to_string();
+        if schema_str.is_empty() {
+            return None;
+        }
         let after_bracket = trimmed[name_end + bracket_end + 1..].trim();
 
         // Must be followed by '(' to distinguish from array syntax key[n]:
-        if !after_bracket.starts_with('(') { return None; }
+        if !after_bracket.starts_with('(') {
+            return None;
+        }
 
         Some((name, schema_str, after_bracket.to_string()))
     }
 
     /// Parse a parenthesized group: name(key = value ...) or name (key = value ...)
     /// Handles multi-line content inside matching parentheses.
-    fn parse_parenthesized_group(&self, line: &str, remaining_lines: &[&str]) -> Option<(String, String)> {
+    fn parse_parenthesized_group(
+        &self,
+        line: &str,
+        remaining_lines: &[&str],
+    ) -> Option<(String, String)> {
         let trimmed = line.trim();
         let paren_open = trimmed.find('(')?;
-        if paren_open == 0 { return None; }
+        if paren_open == 0 {
+            return None;
+        }
         // Skip if this is a table (has [...] before (...))
-        if trimmed[..paren_open].contains('[') { return None; }
+        if trimmed[..paren_open].contains('[') {
+            return None;
+        }
         let name = trimmed[..paren_open].trim().to_string();
-        if name.is_empty() { return None; }
+        if name.is_empty() {
+            return None;
+        }
 
         let after_open = trimmed[paren_open + 1..].trim();
         let mut depth = 1;
         let mut inner = String::new();
 
         for ch in after_open.chars() {
-            if ch == '(' { depth += 1; }
-            else if ch == ')' { depth -= 1; if depth == 0 { break; } }
+            if ch == '(' {
+                depth += 1;
+            } else if ch == ')' {
+                depth -= 1;
+                if depth == 0 {
+                    break;
+                }
+            }
             inner.push(ch);
         }
 
@@ -1136,11 +1184,19 @@ impl HumanParser {
         for rline in remaining_lines.iter().skip(1) {
             let rline = rline.trim();
             for ch in rline.chars() {
-                if ch == '(' { depth += 1; }
-                else if ch == ')' { depth -= 1; if depth == 0 { break; } }
+                if ch == '(' {
+                    depth += 1;
+                } else if ch == ')' {
+                    depth -= 1;
+                    if depth == 0 {
+                        break;
+                    }
+                }
                 inner.push(ch);
             }
-            if depth == 0 { break; }
+            if depth == 0 {
+                break;
+            }
             inner.push('\n');
         }
 
@@ -1154,7 +1210,9 @@ impl HumanParser {
     /// Parse row cells with auto-detected space vs comma separator
     fn parse_row_cells(&self, row_str: &str, schema: &[String]) -> Vec<DxLlmValue> {
         let row_str = row_str.trim();
-        if row_str.is_empty() { return vec![]; }
+        if row_str.is_empty() {
+            return vec![];
+        }
 
         // Auto-detect separator: comma if the row contains commas with quoted strings or structured patterns
         let has_commas = row_str.contains(',');
@@ -1164,8 +1222,11 @@ impl HumanParser {
             let comma_count = row_str.matches(',').count();
             let space_count = row_str.split_whitespace().count();
             // If comma count is close to schema length, use commas
-            if comma_count + 1 == schema.len() || schema.len() > 1 { true }
-            else { comma_count > space_count / 2 }
+            if comma_count + 1 == schema.len() || schema.len() > 1 {
+                true
+            } else {
+                comma_count > space_count / 2
+            }
         } else {
             false
         };
@@ -1185,14 +1246,19 @@ impl HumanParser {
 
         for ch in row_str.chars() {
             match ch {
-                '"' => { in_quotes = !in_quotes; current.push(ch); }
+                '"' => {
+                    in_quotes = !in_quotes;
+                    current.push(ch);
+                }
                 ',' if !in_quotes => {
                     if let Ok(val) = self.parse_config_value(current.trim()) {
                         cells.push(val);
                     }
                     current.clear();
                 }
-                _ => { current.push(ch); }
+                _ => {
+                    current.push(ch);
+                }
             }
         }
         if !current.is_empty() || cells.len() < schema.len() {
@@ -1216,7 +1282,10 @@ impl HumanParser {
 
         for ch in row_str.chars() {
             match ch {
-                '"' => { in_quotes = !in_quotes; current.push(ch); }
+                '"' => {
+                    in_quotes = !in_quotes;
+                    current.push(ch);
+                }
                 ' ' | '\t' if !in_quotes => {
                     if !current.is_empty() {
                         if let Ok(val) = self.parse_config_value(current.trim()) {
@@ -1225,7 +1294,9 @@ impl HumanParser {
                         current.clear();
                     }
                 }
-                _ => { current.push(ch); }
+                _ => {
+                    current.push(ch);
+                }
             }
         }
         if !current.is_empty() {

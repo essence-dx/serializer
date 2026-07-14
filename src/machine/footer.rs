@@ -39,7 +39,7 @@ pub const FOOTER_SIZE: usize = 8;
 impl DxFooter {
     /// Create a new footer with checksum
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn new(checksum: u16) -> Self {
         Self {
             magic: FOOTER_MAGIC,
@@ -51,7 +51,7 @@ impl DxFooter {
 
     /// Create footer with specific flags
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn with_flags(checksum: u16, flags: u8) -> Self {
         Self {
             magic: FOOTER_MAGIC,
@@ -139,7 +139,7 @@ impl DxFooter {
 
     /// Get footer size in bytes
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn size() -> usize {
         FOOTER_SIZE
     }
@@ -172,7 +172,7 @@ impl fmt::Debug for DxFooter {
 
 /// Compute CRC-16 checksum (CCITT variant)
 #[inline]
-#[must_use] 
+#[must_use]
 pub fn compute_crc16(data: &[u8]) -> u16 {
     let mut crc: u16 = 0xFFFF;
 

@@ -3,7 +3,7 @@
 //! Produces consistently spaced LLM-format output (`--format` mode).
 //! Adaptive separators, no brackets for arrays, indented sections.
 
-use crate::llm::types::{EntryRef, DxDocument, DxLlmValue, DxSection};
+use crate::llm::types::{DxDocument, DxLlmValue, DxSection, EntryRef};
 use indexmap::IndexMap;
 
 /// Produces consistently spaced LLM-format output.
@@ -20,13 +20,11 @@ impl LlmFormatter {
                 self.format_context_entry(&mut output, key, value);
                 output.push_str("\n\n");
             }
-            for (_id, section) in &doc.sections {
+            for (id, section) in &doc.sections {
                 let section_name = doc
                     .section_names
-                    .iter()
-                    .next()
-                    .map(|(_, n)| n.as_str())
-                    .unwrap_or("section");
+                    .get(id)
+                    .map_or("section", std::string::String::as_str);
                 self.format_section(&mut output, section_name, section);
                 output.push('\n');
             }
@@ -44,8 +42,7 @@ impl LlmFormatter {
                             let section_name = doc
                                 .section_names
                                 .get(id)
-                                .map(|s| s.as_str())
-                                .unwrap_or("section");
+                                .map_or("section", std::string::String::as_str);
                             self.format_section(&mut output, section_name, section);
                             output.push('\n');
                         }
@@ -64,20 +61,27 @@ impl LlmFormatter {
         })
     }
 
-    fn smart_join(&self, values: &[DxLlmValue], quote_fn: impl Fn(&DxLlmValue) -> String) -> String {
+    fn smart_join(
+        &self,
+        values: &[DxLlmValue],
+        quote_fn: impl Fn(&DxLlmValue) -> String,
+    ) -> String {
         let use_commas = Self::has_any_with_spaces(values);
         let sep = if use_commas { ", " } else { " " };
-        let items: Vec<String> = values.iter().map(|v| {
-            let s = quote_fn(v);
-            let is_str = matches!(v, DxLlmValue::Str(_));
-            if use_commas && is_str && s.contains(',') {
-                format!("\"{}\"", s.replace('"', "\\\""))
-            } else if !use_commas && is_str && s.contains(' ') {
-                format!("\"{}\"", s.replace('"', "\\\""))
-            } else {
-                s
-            }
-        }).collect();
+        let items: Vec<String> = values
+            .iter()
+            .map(|v| {
+                let s = quote_fn(v);
+                let is_str = matches!(v, DxLlmValue::Str(_));
+                if use_commas && is_str && s.contains(',') {
+                    format!("\"{}\"", s.replace('"', "\\\""))
+                } else if !use_commas && is_str && s.contains(' ') {
+                    format!("\"{}\"", s.replace('"', "\\\""))
+                } else {
+                    s
+                }
+            })
+            .collect();
         items.join(sep)
     }
 
@@ -119,9 +123,9 @@ impl LlmFormatter {
             if let DxLlmValue::Arr(items) = v {
                 let serialized = self.smart_join(items, |v| self.serialize_value(v));
                 if items.len() == 1 {
-                    output.push_str(&format!("{} = [{}]", k, serialized));
+                    output.push_str(&format!("{k} = [{serialized}]"));
                 } else {
-                    output.push_str(&format!("{} = {}", k, serialized));
+                    output.push_str(&format!("{k} = {serialized}"));
                 }
             } else {
                 output.push_str(&format!("{} = {}", k, self.serialize_value(v)));
@@ -133,13 +137,15 @@ impl LlmFormatter {
 
     fn format_section(&self, output: &mut String, name: &str, section: &DxSection) {
         output.push_str(name);
-        output.push_str("[");
+        output.push('[');
         output.push_str(&section.schema.join(" "));
         output.push_str("](\n");
 
         for row in &section.rows {
-            let values: Vec<String> =
-                row.iter().map(|v| self.serialize_table_value(v, false)).collect();
+            let values: Vec<String> = row
+                .iter()
+                .map(|v| self.serialize_table_value(v, false))
+                .collect();
             output.push_str(&values.join(" "));
             output.push('\n');
         }
@@ -152,6 +158,7 @@ impl LlmFormatter {
             DxLlmValue::Bool(true) => "true".to_string(),
             DxLlmValue::Bool(false) => "false".to_string(),
             DxLlmValue::Null => "null".to_string(),
+            DxLlmValue::Int(i) => format!("{i}"),
             DxLlmValue::Num(n) => {
                 if n.fract() == 0.0 {
                     format!("{}", *n as i64)
@@ -161,8 +168,10 @@ impl LlmFormatter {
             }
             DxLlmValue::Str(s) => s.replace('\n', " "),
             DxLlmValue::Arr(items) => {
-                let serialized: Vec<String> =
-                    items.iter().map(|item| self.serialize_value(item)).collect();
+                let serialized: Vec<String> = items
+                    .iter()
+                    .map(|item| self.serialize_value(item))
+                    .collect();
                 serialized.join(", ")
             }
             DxLlmValue::Obj(fields) => {
@@ -181,6 +190,7 @@ impl LlmFormatter {
             DxLlmValue::Bool(true) => "true".to_string(),
             DxLlmValue::Bool(false) => "false".to_string(),
             DxLlmValue::Null => "null".to_string(),
+            DxLlmValue::Int(i) => format!("{i}"),
             DxLlmValue::Num(n) => {
                 if n.fract() == 0.0 {
                     format!("{}", *n as i64)
@@ -266,10 +276,7 @@ mod tests {
         doc.entry_order.push(EntryRef::Context("tags".to_string()));
 
         let output = formatter.format(&doc);
-        assert!(
-            output.contains("tags = rust fast"),
-            "Output: {output}"
-        );
+        assert!(output.contains("tags = rust fast"), "Output: {output}");
     }
 
     #[test]
@@ -281,7 +288,8 @@ mod tests {
         fields.insert("port".to_string(), DxLlmValue::Num(8080.0));
         doc.context
             .insert("config".to_string(), DxLlmValue::Obj(fields));
-        doc.entry_order.push(EntryRef::Context("config".to_string()));
+        doc.entry_order
+            .push(EntryRef::Context("config".to_string()));
 
         let output = formatter.format(&doc);
         assert!(output.contains("config("), "Output: {output}");
@@ -307,7 +315,10 @@ mod tests {
         doc.entry_order.push(EntryRef::Section('d'));
 
         let output = formatter.format(&doc);
-        assert!(output.contains("users[id name active]("), "Output: {output}");
+        assert!(
+            output.contains("users[id name active]("),
+            "Output: {output}"
+        );
         assert!(output.contains("1 Alpha true"), "Output: {output}");
     }
 
@@ -326,14 +337,8 @@ mod tests {
         doc.entry_order.push(EntryRef::Section('e'));
 
         let output = formatter.format(&doc);
-        assert!(
-            output.contains("employees[id name]("),
-            "Output: {output}"
-        );
-        assert!(
-            output.contains("1 \"James Smith\""),
-            "Output: {output}"
-        );
+        assert!(output.contains("employees[id name]("), "Output: {output}");
+        assert!(output.contains("1 \"James Smith\""), "Output: {output}");
     }
 
     #[test]
@@ -345,9 +350,13 @@ mod tests {
         doc.context
             .insert("version".to_string(), DxLlmValue::Str("1.0".to_string()));
         doc.entry_order.push(EntryRef::Context("name".to_string()));
-        doc.entry_order.push(EntryRef::Context("version".to_string()));
+        doc.entry_order
+            .push(EntryRef::Context("version".to_string()));
 
         let output = formatter.format(&doc);
-        assert!(output.contains("name = MyApp\n\nversion = 1.0"), "Output: {output}");
+        assert!(
+            output.contains("name = MyApp\n\nversion = 1.0"),
+            "Output: {output}"
+        );
     }
 }

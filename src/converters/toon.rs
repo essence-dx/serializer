@@ -5,84 +5,97 @@
 use crate::parser::parse;
 use crate::types::{DxArray, DxTable, DxValue};
 
-/// Convert TOON string to DX ULTRA format
+fn unquote_toun(s: &str) -> &str {
+    let s = s.trim();
+    if s.len() >= 2 && s.starts_with('"') && s.ends_with('"') {
+        &s[1..s.len() - 1]
+    } else {
+        s
+    }
+}
+
+/// Convert TOON string to DX format
+///
+/// Uses indentation-aware parsing that supports multi-level nesting.
 pub fn toon_to_dx(toon_str: &str) -> Result<String, String> {
     let mut output = String::new();
     let lines: Vec<&str> = toon_str.lines().collect();
+    parse_toon_block(&lines, 0, 0, &mut output)?;
+    Ok(output)
+}
 
-    let mut i = 0;
+/// Parse a block of TOON lines at a given indentation level.
+/// Returns the index after the last consumed line.
+fn parse_toon_block(
+    lines: &[&str],
+    start: usize,
+    parent_indent: usize,
+    output: &mut String,
+) -> Result<usize, String> {
+    let mut i = start;
     while i < lines.len() {
-        let line = lines[i].trim();
+        let line_raw = lines[i];
+        let trimmed = line_raw.trim();
 
-        if line.is_empty() {
+        if trimmed.is_empty() {
             i += 1;
             continue;
         }
 
-        // Detect if it's a simple key-value
-        if let Some(space_pos) = line.find(' ') {
-            let key = &line[..space_pos];
-            let value = line[space_pos + 1..].trim_matches('"');
+        let leading = line_raw.len() - line_raw.trim_start().len();
+        let indent = leading / 2;
+        if indent < parent_indent && i > start {
+            break;
+        }
 
-            // Check if next lines are indented (nested object)
-            if i + 1 < lines.len() && lines[i + 1].starts_with("  ") {
-                // It's a parent key, process nested
-                let key_opt = key.to_string();
+        if let Some(space_pos) = trimmed.find(' ') {
+            let key = &trimmed[..space_pos];
+            let value = unquote_toun(&trimmed[space_pos + 1..]);
 
-                // Collect nested items
-                let mut nested_props = Vec::new();
-                let mut j = i + 1;
-
-                while j < lines.len() && lines[j].starts_with("  ") {
-                    let nested_line = lines[j].trim();
-                    if let Some(nested_space) = nested_line.find(' ') {
-                        let nested_key = &nested_line[..nested_space];
-                        let nested_val = nested_line[nested_space + 1..].trim_matches('"');
-                        nested_props.push((nested_key.to_string(), nested_val.to_string()));
-                    }
-                    j += 1;
-                }
-
-                // Output as inline or multi-line
-                if nested_props.len() <= 4 {
-                    output.push_str(&key_opt);
-                    output.push('.');
-                    for (idx, (k, v)) in nested_props.iter().enumerate() {
-                        if idx > 0 {
-                            output.push('^');
-                        }
-                        output.push_str(k);
-                        output.push(':');
-                        output.push_str(v);
-                    }
+            // Check if next lines are at a deeper indentation
+            let mut j = i + 1;
+            while j < lines.len() && lines[j].trim().is_empty() {
+                j += 1;
+            }
+            if j < lines.len() {
+                let next_leading = lines[j].len() - lines[j].trim_start().len();
+                let next_indent = next_leading / 2;
+                if next_indent > indent {
+                    output.push_str(key);
                     output.push('\n');
-                } else {
-                    for (k, v) in nested_props {
-                        output.push_str(&key_opt);
-                        output.push('.');
-                        output.push_str(&k);
-                        output.push(':');
-                        output.push_str(&v);
-                        output.push('\n');
-                    }
+                    j = parse_toon_block(lines, j, indent, output)?;
+                    i = j;
+                    continue;
                 }
+            }
 
-                i = j;
-                continue;
-            } else {
-                // Simple key-value
-                let key_opt = key.to_string();
-                output.push_str(&key_opt);
-                output.push(':');
-                output.push_str(value);
-                output.push('\n');
+            // Simple key-value
+            output.push_str(key);
+            output.push(':');
+            output.push_str(value);
+            output.push('\n');
+        } else {
+            // Key with no value at this level — may have children at deeper indent
+            let mut j = i + 1;
+            while j < lines.len() && lines[j].trim().is_empty() {
+                j += 1;
+            }
+            if j < lines.len() {
+                let next_leading = lines[j].len() - lines[j].trim_start().len();
+                let next_indent = next_leading / 2;
+                if next_indent > indent {
+                    output.push_str(trimmed);
+                    output.push('\n');
+                    j = parse_toon_block(lines, j, indent, output)?;
+                    i = j;
+                    continue;
+                }
             }
         }
 
         i += 1;
     }
-
-    Ok(output)
+    Ok(i)
 }
 
 /// Convert DX format string to TOON format

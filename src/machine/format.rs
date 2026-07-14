@@ -17,7 +17,7 @@ pub enum DxFormat {
 
 /// Detect format from magic bytes
 #[inline]
-#[must_use] 
+#[must_use]
 pub fn detect_format(bytes: &[u8]) -> DxFormat {
     if bytes.len() < 2 {
         return DxFormat::Unknown;
@@ -34,14 +34,22 @@ pub fn detect_format(bytes: &[u8]) -> DxFormat {
 ///
 /// This function automatically detects whether the input is DX-Machine binary
 /// or DX Serializer text format and parses accordingly.
+///
+/// Note: For binary machine format, use `crate::machine::deserialize::from_bytes`
+/// or `crate::llm::convert::machine_to_document` for structured access.
 pub fn parse_auto(bytes: &[u8]) -> Result<DxValue, String> {
     match detect_format(bytes) {
         DxFormat::Zero => {
-            // Parse as DX-Machine binary
-            Err(
-                "DX-Machine to DxValue conversion not yet implemented (use direct struct access)"
-                    .to_string(),
-            )
+            // Validate the header to provide a better error
+            if bytes.len() < 4 {
+                return Err(
+                    "DX-Machine binary format: input too short (need at least 4 bytes)".to_string(),
+                );
+            }
+            let version = bytes[2];
+            Err(format!(
+                "DX-Machine binary format (v{version}) detected. Use `machine_to_document()` or `from_bytes::<T>()` for structured access. Text conversion via `parse_auto` is not supported for binary format."
+            ))
         }
         DxFormat::Text | DxFormat::Unknown => {
             // Parse as DX Serializer text (fallback)
@@ -64,7 +72,7 @@ pub enum FormatMode {
 
 impl FormatMode {
     /// Parse from string
-    #[must_use] 
+    #[must_use]
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "zero" | "binary" => Some(Self::Zero),
@@ -75,7 +83,7 @@ impl FormatMode {
     }
 
     /// Get format name
-    #[must_use] 
+    #[must_use]
     pub const fn name(&self) -> &'static str {
         match self {
             Self::Zero => "zero",

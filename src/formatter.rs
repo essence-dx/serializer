@@ -7,7 +7,7 @@
 // so unwrap() on write!/writeln! to String is safe and idiomatic.
 #![allow(clippy::unwrap_used)]
 
-use crate::error::Result;
+use crate::error::{DxError, MAX_RECURSION_DEPTH, Result};
 use crate::types::{DxArray, DxObject, DxTable, DxValue};
 use std::fmt::Write as FmtWrite;
 
@@ -44,7 +44,7 @@ pub struct HumanFormatter {
 
 impl HumanFormatter {
     /// Create a formatter with an explicit configuration.
-    #[must_use] 
+    #[must_use]
     pub const fn new(config: FormatterConfig) -> Self {
         Self {
             config,
@@ -54,7 +54,7 @@ impl HumanFormatter {
     }
 
     /// Create a formatter with default human-readable settings.
-    #[must_use] 
+    #[must_use]
     pub fn with_defaults() -> Self {
         Self::new(FormatterConfig::default())
     }
@@ -68,7 +68,7 @@ impl HumanFormatter {
             self.write_header();
         }
 
-        self.format_value(value)?;
+        self.format_value(value, 0)?;
 
         Ok(self.output.clone())
     }
@@ -88,10 +88,16 @@ impl HumanFormatter {
     }
 
     /// Format a value
-    fn format_value(&mut self, value: &DxValue) -> Result<()> {
+    fn format_value(&mut self, value: &DxValue, depth: usize) -> Result<()> {
+        if depth > MAX_RECURSION_DEPTH {
+            return Err(DxError::RecursionLimitExceeded {
+                depth,
+                max: MAX_RECURSION_DEPTH,
+            });
+        }
         match value {
-            DxValue::Object(obj) => self.format_object(obj),
-            DxValue::Table(table) => self.format_table(table),
+            DxValue::Object(obj) => self.format_object(obj, depth),
+            DxValue::Table(table) => self.format_table(table, depth),
             DxValue::Array(arr) => self.format_array(arr),
             _ => {
                 self.write_indent();
@@ -103,7 +109,7 @@ impl HumanFormatter {
     }
 
     /// Format an object
-    fn format_object(&mut self, obj: &DxObject) -> Result<()> {
+    fn format_object(&mut self, obj: &DxObject, depth: usize) -> Result<()> {
         // Calculate max key length for alignment
         let max_key_len = obj.iter().map(|(k, _)| k.len()).max().unwrap_or(0);
 
@@ -123,7 +129,7 @@ impl HumanFormatter {
                         writeln!(self.output, "┌─ {} TABLE ─┐", key.to_uppercase()).unwrap();
                     }
                     self.indent += 1;
-                    self.format_table(table)?;
+                    self.format_table(table, depth + 1)?;
                     self.indent -= 1;
                     if self.config.add_dividers {
                         self.write_indent();
@@ -143,7 +149,7 @@ impl HumanFormatter {
                 DxValue::Object(nested) => {
                     writeln!(self.output).unwrap();
                     self.indent += 1;
-                    self.format_object(nested)?;
+                    self.format_object(nested, depth + 1)?;
                     self.indent -= 1;
                 }
                 _ => {
@@ -158,7 +164,7 @@ impl HumanFormatter {
     }
 
     /// Format a table with aligned columns
-    fn format_table(&mut self, table: &DxTable) -> Result<()> {
+    fn format_table(&mut self, table: &DxTable, _depth: usize) -> Result<()> {
         if table.rows.is_empty() {
             self.write_indent();
             writeln!(self.output, "(empty table)").unwrap();

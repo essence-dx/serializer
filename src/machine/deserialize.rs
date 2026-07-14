@@ -5,8 +5,8 @@ use super::types::{DxMachineError, Result};
 
 /// Deserialize DX-Machine format from bytes (zero-copy, ~2ns)
 ///
-/// This is a generic function that validates the header and casts
-/// the buffer to the target type. Type-specific accessors handle
+/// This is a generic function that validates the header, checks alignment,
+/// and casts the buffer to the target type. Type-specific accessors handle
 /// field extraction.
 ///
 /// # Safety
@@ -14,12 +14,14 @@ use super::types::{DxMachineError, Result};
 /// This function performs an unsafe pointer cast. The caller must ensure:
 /// - Buffer remains valid during struct lifetime
 /// - Buffer is not modified during access
-/// - Alignment is correct for target type
 #[inline]
 pub fn from_bytes<T>(bytes: &[u8]) -> Result<&T> {
     // Validate header
     let header = DxMachineHeader::from_bytes(bytes)?;
     header.validate()?;
+
+    // Validate alignment
+    check_alignment::<T>(bytes)?;
 
     // Check minimum size
     let min_size = std::mem::size_of::<T>();
@@ -30,8 +32,7 @@ pub fn from_bytes<T>(bytes: &[u8]) -> Result<&T> {
         });
     }
 
-    // SAFETY: We verified that bytes.len() >= size_of::<T>(), so there are enough bytes.
-    // The caller is responsible for ensuring proper alignment (checked separately via check_alignment).
+    // SAFETY: We verified that bytes.len() >= size_of::<T>() and alignment is correct.
     // Zero-copy cast (the magic happens here)
     Ok(unsafe { &*(bytes.as_ptr() as *const T) })
 }

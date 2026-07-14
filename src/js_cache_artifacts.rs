@@ -606,7 +606,9 @@ fn add_package_json_read_value(
             }
             PackageJsonReadMachineValue::Obj(indexes)
         }
-        serializer::DxLlmValue::Num(_) | serializer::DxLlmValue::Ref(_) => {
+        serializer::DxLlmValue::Num(_)
+        | serializer::DxLlmValue::Int(_)
+        | serializer::DxLlmValue::Ref(_) => {
             arena.truncate(index);
             return None;
         }

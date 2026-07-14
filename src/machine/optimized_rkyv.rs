@@ -50,7 +50,7 @@ impl Default for OptimizedRkyv {
 
 impl OptimizedRkyv {
     /// Create a new optimized RKYV serializer
-    #[must_use] 
+    #[must_use]
     pub const fn new() -> Self {
         Self {
             io: BlockingIO::new(),
@@ -140,9 +140,8 @@ impl OptimizedRkyv {
             let mut results = Vec::with_capacity(items.len());
             for item in items {
                 results.push(
-                    rkyv::to_bytes::<rkyv::rancor::Error>(item).map_err(|e| {
-                        std::io::Error::other(e.to_string())
-                    })?,
+                    rkyv::to_bytes::<rkyv::rancor::Error>(item)
+                        .map_err(|e| std::io::Error::other(e.to_string()))?,
                 );
             }
             return Ok(results);
@@ -166,9 +165,8 @@ impl OptimizedRkyv {
             let mut results = Vec::with_capacity(items.len());
             for item in items {
                 results.push(
-                    rkyv::to_bytes::<rkyv::rancor::Error>(item).map_err(|e| {
-                        std::io::Error::other(e.to_string())
-                    })?,
+                    rkyv::to_bytes::<rkyv::rancor::Error>(item)
+                        .map_err(|e| std::io::Error::other(e.to_string()))?,
                 );
             }
             Ok(results)
@@ -230,7 +228,7 @@ impl OptimizedRkyv {
     }
 
     /// Get the I/O backend name
-    #[must_use] 
+    #[must_use]
     pub fn backend_name(&self) -> &'static str {
         self.io.backend_name()
     }
@@ -314,7 +312,7 @@ pub struct CompressedRkyv {
 #[cfg(feature = "compression")]
 impl CompressedRkyv {
     /// Create a new compressed RKYV serializer
-    #[must_use] 
+    #[must_use]
     pub const fn new(level: crate::machine::compress::CompressionLevel) -> Self {
         Self { level }
     }
@@ -353,12 +351,10 @@ impl CompressedRkyv {
     {
         // Decompress using DxCompressed
         let mut dx_compressed = crate::machine::compress::DxCompressed::from_wire(compressed)
-            .map_err(|e| {
-                std::io::Error::new(std::io::ErrorKind::InvalidData, format!("{e:?}"))
-            })?;
-        let bytes = dx_compressed.decompress().map_err(|e| {
-            std::io::Error::new(std::io::ErrorKind::InvalidData, format!("{e:?}"))
-        })?;
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, format!("{e:?}")))?;
+        let bytes = dx_compressed
+            .decompress()
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, format!("{e:?}")))?;
 
         deserialize_checked::<T>(bytes)
     }

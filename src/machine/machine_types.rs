@@ -128,6 +128,7 @@ fn add_value_to_arena(v: &crate::llm::types::DxLlmValue, arena: &mut Vec<Machine
     arena.push(MachineValue::Null);
     let machine_value = match v {
         DxLlmValue::Str(s) => MachineValue::Str(s.clone()),
+        DxLlmValue::Int(i) => MachineValue::Num(*i as f64),
         DxLlmValue::Num(n) => MachineValue::Num(*n),
         DxLlmValue::Bool(b) => MachineValue::Bool(*b),
         DxLlmValue::Null => MachineValue::Null,

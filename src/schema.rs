@@ -39,7 +39,7 @@ impl TypeHint {
     }
 
     /// Convert to byte for encoding
-    #[must_use] 
+    #[must_use]
     pub const fn to_byte(self) -> u8 {
         match self {
             Self::Int => b'i',
@@ -53,7 +53,7 @@ impl TypeHint {
     }
 
     /// Get type name for display
-    #[must_use] 
+    #[must_use]
     pub const fn name(self) -> &'static str {
         match self {
             Self::Int => "int",
@@ -78,13 +78,13 @@ pub struct Column {
 
 impl Column {
     /// Create a column definition with an explicit type hint.
-    #[must_use] 
+    #[must_use]
     pub const fn new(name: String, type_hint: TypeHint) -> Self {
         Self { name, type_hint }
     }
 
     /// Check if this is an anonymous auto-increment column (#)
-    #[must_use] 
+    #[must_use]
     pub fn is_anonymous_auto_increment(&self) -> bool {
         self.name == "#" && self.type_hint == TypeHint::AutoIncrement
     }
@@ -101,7 +101,7 @@ pub struct Schema {
 
 impl Schema {
     /// Create an empty schema with the provided name.
-    #[must_use] 
+    #[must_use]
     pub const fn new(name: String) -> Self {
         Self {
             name,
@@ -110,7 +110,7 @@ impl Schema {
     }
 
     /// Create a schema from a prebuilt ordered column list.
-    #[must_use] 
+    #[must_use]
     pub const fn with_columns(name: String, columns: Vec<Column>) -> Self {
         Self { name, columns }
     }
@@ -166,25 +166,25 @@ impl Schema {
     }
 
     /// Get column index by name
-    #[must_use] 
+    #[must_use]
     pub fn column_index(&self, name: &str) -> Option<usize> {
         self.columns.iter().position(|c| c.name == name)
     }
 
     /// Get column by index
-    #[must_use] 
+    #[must_use]
     pub fn column(&self, idx: usize) -> Option<&Column> {
         self.columns.get(idx)
     }
 
     /// Number of columns
-    #[must_use] 
+    #[must_use]
     pub fn len(&self) -> usize {
         self.columns.len()
     }
 
     /// Check if schema is empty
-    #[must_use] 
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.columns.is_empty()
     }

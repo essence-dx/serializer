@@ -82,11 +82,10 @@ pub mod x86_64 {
             // _mm_loadu_si128 handles unaligned loads.
             // SIMD comparison for longer strings
             let slot_vec = _mm_loadu_si128(self.data.as_ptr().add(1) as *const __m128i);
-            // SAFETY: needle is a valid slice with len bytes. We verified len <= 14,
-            // so needle.as_ptr() points to valid memory. _mm_loadu_si128 will read 16 bytes,
-            // which may go past the end of needle, but this is safe for unaligned loads
-            // as long as the pointer is valid (which it is).
-            let needle_vec = _mm_loadu_si128(needle.as_ptr() as *const __m128i);
+            // Copy needle into a 16-byte zero-padded buffer to avoid OOB SIMD load
+            let mut needle_buf = [0u8; 16];
+            needle_buf[..len].copy_from_slice(needle);
+            let needle_vec = _mm_loadu_si128(needle_buf.as_ptr() as *const __m128i);
 
             let cmp = _mm_cmpeq_epi8(slot_vec, needle_vec);
             let mask = _mm_movemask_epi8(cmp);

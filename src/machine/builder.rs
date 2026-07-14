@@ -13,6 +13,8 @@ pub struct DxMachineBuilder<'a> {
     buffer: &'a mut Vec<u8>,
     /// Current write position for heap data
     heap_cursor: usize,
+    /// Start of the heap region (after header + fixed + slots)
+    heap_base: usize,
     /// Header (written at position 0)
     header: DxMachineHeader,
 }
@@ -43,6 +45,7 @@ impl<'a> DxMachineBuilder<'a> {
         Self {
             buffer,
             heap_cursor: heap_offset,
+            heap_base: heap_offset,
             header,
         }
     }
@@ -155,8 +158,7 @@ impl<'a> DxMachineBuilder<'a> {
             self.buffer[slot_pos..slot_pos + 16].copy_from_slice(&slot.data);
         } else {
             // Heap: write to heap section
-            let heap_start = self.heap_cursor - (DxMachineHeader::size() + slot_offset);
-            let offset = (self.heap_cursor - heap_start) as u32;
+            let offset = (self.heap_cursor - self.heap_base) as u32;
 
             let slot = DxMachineSlot::heap_reference(offset, bytes.len() as u32);
             self.buffer[slot_pos..slot_pos + 16].copy_from_slice(&slot.data);
@@ -182,7 +184,7 @@ impl<'a> DxMachineBuilder<'a> {
 
     /// Finalize and return the serialized length
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn finish(self) -> usize {
         // Write header at beginning
         self.header.write_to(&mut self.buffer[0..4]);
@@ -195,7 +197,7 @@ impl<'a> DxMachineBuilder<'a> {
 
     /// Get current heap cursor position
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn heap_position(&self) -> usize {
         self.heap_cursor
     }

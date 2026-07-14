@@ -658,11 +658,11 @@ fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), MachineCacheError> {
         file.sync_all()?;
     }
 
-    if path.exists() {
-        fs::remove_file(path)?;
+    if let Ok(()) = fs::rename(&tmp, path) { Ok(()) } else {
+        fs::copy(&tmp, path)?;
+        fs::remove_file(&tmp)?;
+        Ok(())
     }
-    fs::rename(&tmp, path)?;
-    Ok(())
 }
 
 #[cfg(feature = "converters")]

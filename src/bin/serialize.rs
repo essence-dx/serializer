@@ -17,10 +17,10 @@
 #[allow(dead_code)]
 mod js_cache_artifacts;
 
+use serializer::human::parser::HumanParser;
 use serializer::llm::convert::{CompressionAlgorithm, document_to_human};
 use serializer::llm::serializer::{LlmSerializer, SerializerConfig};
 use serializer::llm::types::OptimizationLevel;
-use serializer::human::parser::HumanParser;
 use serializer::{SerializerOutput, SerializerOutputConfig};
 use std::env;
 use std::fs;
@@ -43,7 +43,9 @@ fn main() {
     // Route subcommands
     match args[1].as_str() {
         "format" | "fmt" => {
-            let file = if args.len() > 2 { &args[2] } else {
+            let file = if args.len() > 2 {
+                &args[2]
+            } else {
                 eprintln!("Error: No file specified for 'format'");
                 eprintln!("Usage: {app_name} format <file>");
                 std::process::exit(1);
@@ -51,8 +53,16 @@ fn main() {
             cmd_format(file, &parse_extra_flags(&args[3..]));
         }
         "watch" => {
-            let dir = if args.len() > 2 { args[2].clone() } else { ".".to_string() };
-            let interval: u64 = if args.len() > 3 { args[3].parse().unwrap_or(2) } else { 2 };
+            let dir = if args.len() > 2 {
+                args[2].clone()
+            } else {
+                ".".to_string()
+            };
+            let interval: u64 = if args.len() > 3 {
+                args[3].parse().unwrap_or(2)
+            } else {
+                2
+            };
             cmd_watch(&dir, interval);
         }
         "human" | "llm" | "machine" => {
@@ -96,7 +106,10 @@ fn main() {
 }
 
 fn print_help(bin: &str) {
-    let name = Path::new(bin).file_stem().unwrap_or(std::ffi::OsStr::new("dx-serializer")).to_string_lossy();
+    let name = Path::new(bin)
+        .file_stem()
+        .unwrap_or(std::ffi::OsStr::new("dx-serializer"))
+        .to_string_lossy();
     eprintln!("DX Serializer — token-efficient LLM serialization");
     eprintln!();
     eprintln!("Usage:");
@@ -139,12 +152,21 @@ fn parse_extra_flags(args: &[String]) -> ExtraFlags {
     while i < args.len() {
         match args[i].as_str() {
             "--output-dir" => {
-                if i + 1 < args.len() { flags.output_dir = Some(args[i + 1].clone()); i += 1; }
+                if i + 1 < args.len() {
+                    flags.output_dir = Some(args[i + 1].clone());
+                    i += 1;
+                }
             }
             "--js-cache" | "--javascript-cache" => flags.js_cache = true,
-            "--machine-only" => { flags.generate_llm = false; flags.generate_machine = true; }
+            "--machine-only" => {
+                flags.generate_llm = false;
+                flags.generate_machine = true;
+            }
             "--metadata" => flags.generate_metadata = true,
-            "--llm-only" => { flags.generate_llm = true; flags.generate_machine = false; }
+            "--llm-only" => {
+                flags.generate_llm = true;
+                flags.generate_machine = false;
+            }
             "--lz4" | "--speed" => flags.compression = CompressionAlgorithm::Lz4,
             "--zstd" | "--size" => flags.compression = CompressionAlgorithm::Zstd,
             "--no-compression" => flags.compression = CompressionAlgorithm::None,
@@ -191,7 +213,11 @@ impl ExtraFlags {
     #[allow(dead_code)]
     fn output_dir_or_default(&self) -> String {
         self.output_dir.clone().unwrap_or_else(|| {
-            if self.js_cache { ".dx/js".to_string() } else { ".dx/serializer".to_string() }
+            if self.js_cache {
+                ".dx/js".to_string()
+            } else {
+                ".dx/serializer".to_string()
+            }
         })
     }
 }
@@ -207,10 +233,26 @@ fn run_serialize_with_format(file: &str, format: &str, flags: &ExtraFlags) {
         }
     });
 
-    let compact = if format == "machine" { true } else { flags.compact };
+    let compact = if format == "machine" {
+        true
+    } else {
+        flags.compact
+    };
     let level = match format {
-        "human" => if compact { OptimizationLevel::Low } else { OptimizationLevel::Medium },
-        "llm" => if compact { OptimizationLevel::Low } else { OptimizationLevel::Medium },
+        "human" => {
+            if compact {
+                OptimizationLevel::Low
+            } else {
+                OptimizationLevel::Medium
+            }
+        }
+        "llm" => {
+            if compact {
+                OptimizationLevel::Low
+            } else {
+                OptimizationLevel::Medium
+            }
+        }
         "machine" => OptimizationLevel::Low,
         _ => OptimizationLevel::Medium,
     };
@@ -249,7 +291,10 @@ fn run_serialize_with_format(file: &str, format: &str, flags: &ExtraFlags) {
                         {
                             Ok(dx) => dx,
                             Err(_) => {
-                                eprintln!("Error: Could not parse or convert '{}': {e}", source.display());
+                                eprintln!(
+                                    "Error: Could not parse or convert '{}': {e}",
+                                    source.display()
+                                );
                                 std::process::exit(1);
                             }
                         };
@@ -257,7 +302,8 @@ fn run_serialize_with_format(file: &str, format: &str, flags: &ExtraFlags) {
                         return;
                     }
                 };
-                let ser = serializer::llm::serializer::LlmSerializer::with_config(serializer_config);
+                let ser =
+                    serializer::llm::serializer::LlmSerializer::with_config(serializer_config);
                 println!("{}", ser.serialize(&doc));
             }
             Err(e) => {
@@ -272,9 +318,10 @@ fn run_serialize_with_format(file: &str, format: &str, flags: &ExtraFlags) {
     let source_content = fs::read_to_string(source).ok();
     let doc = source_content.as_ref().and_then(|c| {
         let parser = HumanParser::new();
-        parser.parse(c).ok().or_else(|| {
-            serializer::llm::parser::LlmParser::parse(c).ok()
-        })
+        parser
+            .parse(c)
+            .ok()
+            .or_else(|| serializer::llm::parser::LlmParser::parse(c).ok())
     });
 
     let loose_path = Path::new(&output_dir).join("dx.loose");
@@ -289,27 +336,46 @@ fn run_serialize_with_format(file: &str, format: &str, flags: &ExtraFlags) {
             };
             println!("Generated outputs (compression: {compression_name}, format: {format}):");
             if result.llm_generated {
-                println!("  LLM:       {} ({} bytes)", result.paths.llm.display(), result.llm_size);
+                println!(
+                    "  LLM:       {} ({} bytes)",
+                    result.paths.llm.display(),
+                    result.llm_size
+                );
             }
             if result.machine_generated {
-                println!("  Machine:   {} ({} bytes)", result.paths.machine.display(), result.machine_size);
+                println!(
+                    "  Machine:   {} ({} bytes)",
+                    result.paths.machine.display(),
+                    result.machine_size
+                );
             }
 
             // Generate human loose (TOML-like) format
             if let Some(ref d) = doc {
                 let loose = serializer::llm::document_to_human(d);
                 if fs::write(&loose_path, &loose).is_ok() {
-                    println!("  Loose:     {} ({} bytes)", loose_path.display(), loose.len());
+                    println!(
+                        "  Loose:     {} ({} bytes)",
+                        loose_path.display(),
+                        loose.len()
+                    );
                 }
             }
 
             // Generate compact LLM if not already
             if let Some(ref d) = doc {
-                let compact_config = SerializerConfig { compact: true, level: OptimizationLevel::Low };
+                let compact_config = SerializerConfig {
+                    compact: true,
+                    level: OptimizationLevel::Low,
+                };
                 let compact_ser = LlmSerializer::with_config(compact_config);
                 let compact = compact_ser.serialize(d);
                 if fs::write(&compact_llm_path, &compact).is_ok() {
-                    println!("  Compact:   {} ({} bytes)", compact_llm_path.display(), compact.len());
+                    println!(
+                        "  Compact:   {} ({} bytes)",
+                        compact_llm_path.display(),
+                        compact.len()
+                    );
                 }
             }
         }
@@ -365,7 +431,11 @@ fn run_convert(file: &str, format: &str, flags: &ExtraFlags) {
     let output_path = source.with_extension("llm");
     match fs::write(&output_path, &dx_output) {
         Ok(()) => {
-            println!("Converted {} to DX LLM format: {}", source.display(), output_path.display());
+            println!(
+                "Converted {} to DX LLM format: {}",
+                source.display(),
+                output_path.display()
+            );
             println!("  {} bytes", dx_output.len());
         }
         Err(e) => {
@@ -429,7 +499,11 @@ fn cmd_watch(dir: &str, interval: u64) {
         std::process::exit(1);
     }
 
-    println!("Watching {} for .sr / .dx files (refresh: {}s)  Press Ctrl+C to stop", watch_path.display(), interval);
+    println!(
+        "Watching {} for .sr / .dx files (refresh: {}s)  Press Ctrl+C to stop",
+        watch_path.display(),
+        interval
+    );
 
     let mut last_mtimes: HashMap<std::path::PathBuf, SystemTime> = HashMap::new();
     let mut processed: HashMap<std::path::PathBuf, bool> = HashMap::new();
@@ -449,7 +523,10 @@ fn cmd_watch(dir: &str, interval: u64) {
         }
 
         for path in &entries {
-            let changed = match (last_mtimes.get(path), path.metadata().ok().and_then(|m| m.modified().ok())) {
+            let changed = match (
+                last_mtimes.get(path),
+                path.metadata().ok().and_then(|m| m.modified().ok()),
+            ) {
                 (Some(old), Some(new)) => *old != new,
                 (None, Some(_)) => true,
                 _ => false,
@@ -472,7 +549,8 @@ fn cmd_watch(dir: &str, interval: u64) {
                             // Generate .machine
                             let machine = serializer::llm::document_to_machine(&doc);
                             if let Ok(()) = std::fs::create_dir_all(&output_dir) {
-                                let _ = std::fs::write(output_dir.join("dx.machine"), &machine.data);
+                                let _ =
+                                    std::fs::write(output_dir.join("dx.machine"), &machine.data);
                             }
 
                             // Generate .loose
@@ -480,7 +558,10 @@ fn cmd_watch(dir: &str, interval: u64) {
                             let _ = std::fs::write(output_dir.join("dx.loose"), &loose);
 
                             // Generate .compact
-                            let compact_config = SerializerConfig { compact: true, level: OptimizationLevel::Low };
+                            let compact_config = SerializerConfig {
+                                compact: true,
+                                level: OptimizationLevel::Low,
+                            };
                             let compact_ser = LlmSerializer::with_config(compact_config);
                             let compact = compact_ser.serialize(&doc);
                             let _ = std::fs::write(output_dir.join("dx.compact"), &compact);
@@ -500,6 +581,11 @@ fn cmd_watch(dir: &str, interval: u64) {
             }
         }
 
+        // Trim processed/last_mtimes to prevent unbounded growth
+        let current: std::collections::HashSet<PathBuf> = entries.into_iter().collect();
+        processed.retain(|p, _| current.contains(p));
+        last_mtimes.retain(|p, _| current.contains(p));
+
         std::thread::sleep(std::time::Duration::from_secs(interval));
     }
 }
@@ -510,14 +596,20 @@ fn cmd_format(file: &str, _flags: &ExtraFlags) {
     let path = Path::new(file);
     let content = match std::fs::read_to_string(path) {
         Ok(c) => c,
-        Err(e) => { eprintln!("Error reading '{}': {e}", path.display()); std::process::exit(1); }
+        Err(e) => {
+            eprintln!("Error reading '{}': {e}", path.display());
+            std::process::exit(1);
+        }
     };
 
     // Parse with HumanParser
     let parser = HumanParser::new();
     let doc = match parser.parse(&content) {
         Ok(d) => d,
-        Err(e) => { eprintln!("Parse error in '{}': {e}", path.display()); std::process::exit(1); }
+        Err(e) => {
+            eprintln!("Parse error in '{}': {e}", path.display());
+            std::process::exit(1);
+        }
     };
 
     // Rebuild source in human normal format (() parens with aligned tables)
@@ -528,7 +620,14 @@ fn cmd_format(file: &str, _flags: &ExtraFlags) {
         use serializer::llm::types::DxLlmValue;
         match v {
             DxLlmValue::Str(s) => s.replace('\n', " "),
-            DxLlmValue::Num(n) => { if n.fract() == 0.0 { format!("{}", *n as i64) } else { format!("{}", n) } }
+            DxLlmValue::Int(i) => format!("{i}"),
+            DxLlmValue::Num(n) => {
+                if n.fract() == 0.0 {
+                    format!("{}", *n as i64)
+                } else {
+                    format!("{}", n)
+                }
+            }
             DxLlmValue::Bool(true) => "true".to_string(),
             DxLlmValue::Bool(false) => "false".to_string(),
             DxLlmValue::Null => "null".to_string(),
@@ -537,7 +636,12 @@ fn cmd_format(file: &str, _flags: &ExtraFlags) {
     }
 
     // Helper: write a parenthesized group with blank lines between children
-    fn write_group(buf: &mut String, name: &str, fields: &indexmap::IndexMap<String, serializer::llm::types::DxLlmValue>, indent: usize) {
+    fn write_group(
+        buf: &mut String,
+        name: &str,
+        fields: &indexmap::IndexMap<String, serializer::llm::types::DxLlmValue>,
+        indent: usize,
+    ) {
         use serializer::llm::types::DxLlmValue;
         let pad = "  ".repeat(indent);
         let _ = writeln!(buf);
@@ -560,11 +664,30 @@ fn cmd_format(file: &str, _flags: &ExtraFlags) {
                 }
                 _ => {
                     let raw = fmt_val(val);
-                    let needs_quoting = raw.contains('=') || raw.contains('(') || raw.contains(')') || raw.contains('"') || raw.starts_with(' ') || raw.ends_with(' ');
+                    let needs_quoting = raw.contains('=')
+                        || raw.contains('(')
+                        || raw.contains(')')
+                        || raw.contains('"')
+                        || raw.starts_with(' ')
+                        || raw.ends_with(' ');
                     if needs_quoting {
-                        let _ = writeln!(buf, "{}  {:<width$} = \"{}\"", pad, key, raw.replace('\\', "\\\\").replace('"', "\\\""), width = max_key_len);
+                        let _ = writeln!(
+                            buf,
+                            "{}  {:<width$} = \"{}\"",
+                            pad,
+                            key,
+                            raw.replace('\\', "\\\\").replace('"', "\\\""),
+                            width = max_key_len
+                        );
                     } else {
-                        let _ = writeln!(buf, "{}  {:<width$} = {}", pad, key, raw, width = max_key_len);
+                        let _ = writeln!(
+                            buf,
+                            "{}  {:<width$} = {}",
+                            pad,
+                            key,
+                            raw,
+                            width = max_key_len
+                        );
                     }
                 }
             }
@@ -573,7 +696,12 @@ fn cmd_format(file: &str, _flags: &ExtraFlags) {
     }
 
     // Helper: write a table with aligned columns — auto-detect separator
-    fn write_table(buf: &mut String, name: &str, section: &serializer::llm::types::DxSection, indent: usize) {
+    fn write_table(
+        buf: &mut String,
+        name: &str,
+        section: &serializer::llm::types::DxSection,
+        indent: usize,
+    ) {
         let pad = "  ".repeat(indent);
         let schema = &section.schema;
         let header = schema.join(" ");
@@ -582,7 +710,11 @@ fn cmd_format(file: &str, _flags: &ExtraFlags) {
         // Auto-detect: use comma if any value contains a space
         let use_comma = section.rows.iter().any(|row| {
             row.iter().any(|v| {
-                if let serializer::llm::types::DxLlmValue::Str(s) = v { s.contains(' ') } else { false }
+                if let serializer::llm::types::DxLlmValue::Str(s) = v {
+                    s.contains(' ')
+                } else {
+                    false
+                }
             })
         });
 
@@ -592,7 +724,9 @@ fn cmd_format(file: &str, _flags: &ExtraFlags) {
             for (i, val) in row.iter().enumerate() {
                 if i < col_widths.len() {
                     let s = fmt_val(val);
-                    if s.len() > col_widths[i] { col_widths[i] = s.len(); }
+                    if s.len() > col_widths[i] {
+                        col_widths[i] = s.len();
+                    }
                 }
             }
         }
@@ -614,7 +748,12 @@ fn cmd_format(file: &str, _flags: &ExtraFlags) {
                     let min_gap = col_widths.get(i).unwrap_or(&0) + 2;
                     let _ = write!(line, "  {:<width$}", cell, width = min_gap);
                 } else {
-                    let _ = write!(line, "  {:<width$}", s_str, width = col_widths.get(i).unwrap_or(&0));
+                    let _ = write!(
+                        line,
+                        "  {:<width$}",
+                        s_str,
+                        width = col_widths.get(i).unwrap_or(&0)
+                    );
                 }
             }
             let _ = writeln!(buf, "{}", line);
@@ -636,7 +775,9 @@ fn cmd_format(file: &str, _flags: &ExtraFlags) {
     // Process context entries (skip duplicates of nested groups)
     let mut first = true;
     for (key, val) in &doc.context {
-        if nested_keys.contains(key) { continue; }
+        if nested_keys.contains(key) {
+            continue;
+        }
         if !first {
             let _ = writeln!(out);
         }
@@ -653,8 +794,14 @@ fn cmd_format(file: &str, _flags: &ExtraFlags) {
 
     // Process sections (tables) with gaps
     for (id, section) in &doc.sections {
-        let name = doc.section_names.get(id).cloned().unwrap_or_else(|| id.to_string());
-        if !first { let _ = writeln!(out); }
+        let name = doc
+            .section_names
+            .get(id)
+            .cloned()
+            .unwrap_or_else(|| id.to_string());
+        if !first {
+            let _ = writeln!(out);
+        }
         first = false;
         write_table(&mut out, &name, section, 0);
     }
@@ -663,7 +810,10 @@ fn cmd_format(file: &str, _flags: &ExtraFlags) {
     let formatted = out.trim().to_string() + "\n";
     match std::fs::write(path, &formatted) {
         Ok(_) => println!("✓ Formatted {} ({} bytes)", path.display(), formatted.len()),
-        Err(e) => { eprintln!("Error writing '{}': {e}", path.display()); std::process::exit(1); }
+        Err(e) => {
+            eprintln!("Error writing '{}': {e}", path.display());
+            std::process::exit(1);
+        }
     }
 
     // Generate all output formats
@@ -680,7 +830,10 @@ fn cmd_format(file: &str, _flags: &ExtraFlags) {
     let loose = document_to_human(&doc);
     let _ = std::fs::write(output_dir.join("dx.loose"), &loose);
 
-    let compact_config = SerializerConfig { compact: true, level: OptimizationLevel::Low };
+    let compact_config = SerializerConfig {
+        compact: true,
+        level: OptimizationLevel::Low,
+    };
     let compact_ser = LlmSerializer::with_config(compact_config);
     let compact = compact_ser.serialize(&doc);
     let _ = std::fs::write(output_dir.join("dx.compact"), &compact);

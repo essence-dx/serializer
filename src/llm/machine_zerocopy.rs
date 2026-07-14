@@ -33,7 +33,7 @@ pub struct ZeroCopyMachine {
 
 impl ZeroCopyMachine {
     /// Encode a document into the zero-copy machine format.
-    #[must_use] 
+    #[must_use]
     pub fn from_document(doc: &DxDocument) -> Self {
         let mut data = Vec::new();
 
@@ -107,7 +107,7 @@ impl ZeroCopyMachine {
     }
 
     /// Borrow the encoded machine-format bytes.
-    #[must_use] 
+    #[must_use]
     pub fn as_bytes(&self) -> &[u8] {
         &self.data
     }
@@ -270,8 +270,12 @@ fn write_value(data: &mut Vec<u8>, value: &DxLlmValue, string_table: &HashMap<&s
             let id = string_table[s.as_str()];
             data.extend_from_slice(&id.to_le_bytes());
         }
-        DxLlmValue::Num(n) => {
+        DxLlmValue::Int(i) => {
             data.push(1);
+            data.extend_from_slice(&i.to_le_bytes());
+        }
+        DxLlmValue::Num(n) => {
+            data.push(7);
             data.extend_from_slice(&n.to_le_bytes());
         }
         DxLlmValue::Bool(b) => {
@@ -281,8 +285,26 @@ fn write_value(data: &mut Vec<u8>, value: &DxLlmValue, string_table: &HashMap<&s
         DxLlmValue::Null => {
             data.push(3);
         }
-        _ => {
-            data.push(3); // Treat complex types as null for now
+        DxLlmValue::Arr(items) => {
+            data.push(4);
+            data.extend_from_slice(&(items.len() as u32).to_le_bytes());
+            for item in items {
+                write_value(data, item, string_table);
+            }
+        }
+        DxLlmValue::Obj(fields) => {
+            data.push(5);
+            data.extend_from_slice(&(fields.len() as u32).to_le_bytes());
+            for (k, v) in fields {
+                let kid = string_table[k.as_str()];
+                data.extend_from_slice(&kid.to_le_bytes());
+                write_value(data, v, string_table);
+            }
+        }
+        DxLlmValue::Ref(r) => {
+            data.push(6);
+            let id = string_table[r.as_str()];
+            data.extend_from_slice(&id.to_le_bytes());
         }
     }
 }
@@ -323,7 +345,8 @@ fn read_value(
             let mut bytes = [0u8; 8];
             bytes.copy_from_slice(&data[*pos..*pos + 8]);
             *pos += 8;
-            Ok(DxLlmValue::Num(f64::from_le_bytes(bytes)))
+            let i = i64::from_le_bytes(bytes);
+            Ok(DxLlmValue::Int(i))
         }
         2 => {
             if *pos >= data.len() {
@@ -334,6 +357,44 @@ fn read_value(
             Ok(DxLlmValue::Bool(b))
         }
         3 => Ok(DxLlmValue::Null),
+        4 => {
+            let count = read_u32(data, pos)? as usize;
+            let mut items = Vec::with_capacity(count);
+            for _ in 0..count {
+                items.push(read_value(data, pos, strings)?);
+            }
+            Ok(DxLlmValue::Arr(items))
+        }
+        5 => {
+            let count = read_u32(data, pos)? as usize;
+            let mut fields = indexmap::IndexMap::new();
+            for _ in 0..count {
+                let kid = read_u32(data, pos)? as usize;
+                if kid >= strings.len() {
+                    return Err(ZeroCopyError::OutOfBounds);
+                }
+                let key = strings[kid].clone();
+                let val = read_value(data, pos, strings)?;
+                fields.insert(key, val);
+            }
+            Ok(DxLlmValue::Obj(fields))
+        }
+        6 => {
+            let id = read_u32(data, pos)? as usize;
+            if id >= strings.len() {
+                return Err(ZeroCopyError::OutOfBounds);
+            }
+            Ok(DxLlmValue::Ref(strings[id].clone()))
+        }
+        7 => {
+            if *pos + 8 > data.len() {
+                return Err(ZeroCopyError::OutOfBounds);
+            }
+            let mut bytes = [0u8; 8];
+            bytes.copy_from_slice(&data[*pos..*pos + 8]);
+            *pos += 8;
+            Ok(DxLlmValue::Num(f64::from_le_bytes(bytes)))
+        }
         _ => Err(ZeroCopyError::InvalidData(format!(
             "Unknown type tag: {type_tag}"
         ))),

@@ -81,10 +81,7 @@ impl fmt::Display for SafetyError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::BufferTooSmall { needed, actual } => {
-                write!(
-                    f,
-                    "buffer too small: needed {needed} bytes, got {actual}"
-                )
+                write!(f, "buffer too small: needed {needed} bytes, got {actual}")
             }
             Self::Misaligned { needed, actual } => {
                 write!(

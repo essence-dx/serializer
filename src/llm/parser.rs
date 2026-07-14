@@ -157,7 +157,7 @@ impl LlmParser {
     }
 
     /// Parse a single value string preserving natural spaces
-    #[must_use] 
+    #[must_use]
     pub fn parse_value(s: &str) -> DxLlmValue {
         let s = s.trim();
 
@@ -489,7 +489,8 @@ impl<'a> DsrParser<'a> {
                     let value_str = self.parse_until_delimiter(&['\n', '\r', ']'])?;
                     let trimmed = value_str.trim();
                     if trimmed.is_empty() {
-                        doc.context.insert(name.clone(), DxLlmValue::Str(String::new()));
+                        doc.context
+                            .insert(name.clone(), DxLlmValue::Str(String::new()));
                     } else if trimmed.contains(',') {
                         // Comma-separated array
                         let items: Vec<DxLlmValue> = trimmed
@@ -507,7 +508,8 @@ impl<'a> DsrParser<'a> {
                         doc.context.insert(name.clone(), DxLlmValue::Arr(items));
                     } else {
                         // Single value
-                        doc.context.insert(name.clone(), LlmParser::parse_value(trimmed));
+                        doc.context
+                            .insert(name.clone(), LlmParser::parse_value(trimmed));
                     }
                 }
             }
@@ -525,7 +527,9 @@ impl<'a> DsrParser<'a> {
                     // Consume the newline (handle both \n and \r\n)
                     let first = self.current_char();
                     self.advance();
-                    if first == '\r' && self.peek_char() == Some('\n') { self.advance(); }
+                    if first == '\r' && self.peek_char() == Some('\n') {
+                        self.advance();
+                    }
 
                     // Check if next line is indented
                     if let Some(indent) = self.peek_indentation() {
@@ -536,7 +540,8 @@ impl<'a> DsrParser<'a> {
                         }
                     }
                     // No indentation — empty value
-                    doc.context.insert(name.clone(), DxLlmValue::Str(String::new()));
+                    doc.context
+                        .insert(name.clone(), DxLlmValue::Str(String::new()));
                     return Ok(());
                 }
 
@@ -1293,7 +1298,6 @@ impl<'a> DsrParser<'a> {
         let mut in_parens: i32 = 0;
 
         // Detect separator: space or comma, respecting quoted strings
-        let _line_start = self.pos;
         let mut has_comma = false;
         let mut temp_pos = self.pos;
         let mut in_quotes = false;
@@ -1635,7 +1639,7 @@ impl<'a> DsrParser<'a> {
     fn has_newline_before_close(&self) -> bool {
         let mut depth = 0;
         let mut chars = self.input[self.pos..].chars();
-        while let Some(ch) = chars.next() {
+        for ch in chars {
             match ch {
                 '(' => depth += 1,
                 ')' if depth == 0 => return false,
@@ -1726,9 +1730,15 @@ impl<'a> DsrParser<'a> {
                 let mut indent = 0;
                 while temp < self.input.len() {
                     let c = self.input[temp..].chars().next()?;
-                    if c == ' ' { indent += 1; temp += 1; }
-                    else if c == '\t' { indent += 4; temp += 1; }
-                    else { break; }
+                    if c == ' ' {
+                        indent += 1;
+                        temp += 1;
+                    } else if c == '\t' {
+                        indent += 4;
+                        temp += 1;
+                    } else {
+                        break;
+                    }
                 }
                 // If we hit a newline before content, skip and continue
                 if temp < self.input.len() {
@@ -1883,14 +1893,23 @@ impl<'a> DsrParser<'a> {
             }
             let ch = self.current_char();
             match ch {
-                ' ' => { indent += 1; self.advance(); }
-                '\t' => { indent += 4; self.advance(); }
+                ' ' => {
+                    indent += 1;
+                    self.advance();
+                }
+                '\t' => {
+                    indent += 4;
+                    self.advance();
+                }
                 '\n' | '\r' => {
                     indent = 0;
                     self.advance();
                     // Reset indent on newline
                 }
-                '#' | '/' if self.input[self.pos..].starts_with('#') || self.input[self.pos..].starts_with("//") => {
+                '#' | '/'
+                    if self.input[self.pos..].starts_with('#')
+                        || self.input[self.pos..].starts_with("//") =>
+                {
                     self.skip_line_comment();
                     indent = 0;
                 }
@@ -1929,7 +1948,9 @@ impl<'a> DsrParser<'a> {
         self.skip_yaml_inline_whitespace();
         if self.peek_char() == Some('\n') || self.peek_char() == Some('\r') {
             self.advance();
-            if self.current_char() == '\n' { self.advance(); }
+            if self.current_char() == '\n' {
+                self.advance();
+            }
         }
     }
 
@@ -1943,17 +1964,23 @@ impl<'a> DsrParser<'a> {
         loop {
             // Skip whitespace (newlines)
             let indent = self.skip_yaml_whitespace();
-            if indent.is_none() { break; }
+            if indent.is_none() {
+                break;
+            }
             let _indent = indent.unwrap();
 
-            if self.pos >= self.input.len() { break; }
+            if self.pos >= self.input.len() {
+                break;
+            }
 
             // Check for end (empty line or less indentation)
             if self.peek_char() == Some('\n') || self.peek_char() == Some('\r') {
                 self.advance();
                 continue;
             }
-            if self.peek_char() == Some(' ') { continue; }
+            if self.peek_char() == Some(' ') {
+                continue;
+            }
 
             // Parse a row
             let row = self.parse_yaml_table_row(schema.len(), separator)?;
@@ -1976,15 +2003,23 @@ impl<'a> DsrParser<'a> {
         let mut temp = self.pos;
         while temp < self.input.len() {
             let ch = self.input[temp..].chars().next().unwrap_or('\0');
-            if ch == ',' { return ','; }
-            if ch == '\n' || ch == '\r' { return ' '; }
+            if ch == ',' {
+                return ',';
+            }
+            if ch == '\n' || ch == '\r' {
+                return ' ';
+            }
             temp += ch.len_utf8();
         }
         ' '
     }
 
     /// Parse a single YAML table row with space or comma-separated values
-    fn parse_yaml_table_row(&mut self, expected_cols: usize, separator: char) -> Result<Vec<DxLlmValue>, ParseError> {
+    fn parse_yaml_table_row(
+        &mut self,
+        expected_cols: usize,
+        separator: char,
+    ) -> Result<Vec<DxLlmValue>, ParseError> {
         let mut values = Vec::with_capacity(expected_cols);
         let mut current = String::new();
         let mut in_quotes = false;
@@ -2260,6 +2295,7 @@ impl<'a> DsrParser<'a> {
     fn value_to_string(v: &DxLlmValue) -> String {
         match v {
             DxLlmValue::Str(s) => s.clone(),
+            DxLlmValue::Int(i) => format!("{i}"),
             DxLlmValue::Num(n) => {
                 if n.fract() == 0.0 {
                     format!("{}", *n as i64)

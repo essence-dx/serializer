@@ -62,27 +62,27 @@ impl Default for PrettyPrinterConfig {
 
 impl PrettyPrinterConfig {
     /// Create a new config with default settings
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Set the key padding
-    #[must_use] 
+    #[must_use]
     pub const fn with_key_padding(mut self, padding: usize) -> Self {
         self.formatter_config.key_padding = padding;
         self
     }
 
     /// Set whether to validate output
-    #[must_use] 
+    #[must_use]
     pub const fn with_validation(mut self, validate: bool) -> Self {
         self.validate_output = validate;
         self
     }
 
     /// Set whether to check round-trip consistency
-    #[must_use] 
+    #[must_use]
     pub const fn with_round_trip_check(mut self, check: bool) -> Self {
         self.check_round_trip = check;
         self
@@ -102,7 +102,7 @@ pub struct PrettyPrinter {
 
 impl PrettyPrinter {
     /// Create a new `PrettyPrinter` with default config
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         let config = PrettyPrinterConfig::default();
         Self {
@@ -113,7 +113,7 @@ impl PrettyPrinter {
     }
 
     /// Create a `PrettyPrinter` with custom config
-    #[must_use] 
+    #[must_use]
     pub fn with_config(config: PrettyPrinterConfig) -> Self {
         Self {
             formatter: HumanFormatter::with_config(config.formatter_config.clone()),
@@ -140,7 +140,7 @@ impl PrettyPrinter {
     }
 
     /// Format a `DxDocument` without validation (faster but no guarantees)
-    #[must_use] 
+    #[must_use]
     pub fn format_unchecked(&self, doc: &DxDocument) -> String {
         self.formatter.format(doc)
     }
@@ -274,7 +274,7 @@ impl PrettyPrinter {
     }
 
     /// Get the config
-    #[must_use] 
+    #[must_use]
     pub const fn config(&self) -> &PrettyPrinterConfig {
         &self.config
     }

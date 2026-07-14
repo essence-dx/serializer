@@ -1,7 +1,10 @@
-use serializer::llm::{document_to_llm, human_to_llm, llm_to_human, llm_to_document, document_to_machine, machine_to_document};
-use serializer::llm::types::{DxDocument, DxLlmValue, DxSection};
-use serializer::llm::serializer::{LlmSerializer, SerializerConfig};
 use serializer::human::parser::HumanParser;
+use serializer::llm::serializer::{LlmSerializer, SerializerConfig};
+use serializer::llm::types::{DxDocument, DxLlmValue, DxSection};
+use serializer::llm::{
+    document_to_llm, document_to_machine, human_to_llm, llm_to_document, llm_to_human,
+    machine_to_document,
+};
 
 // ============================================================================
 // Human Format Parsing
@@ -17,7 +20,10 @@ project(
 ";
     let llm = human_to_llm(input).unwrap();
     let doc = llm_to_document(&llm).unwrap();
-    assert!(doc.context.contains_key("project"), "Should parse project group");
+    assert!(
+        doc.context.contains_key("project"),
+        "Should parse project group"
+    );
 }
 
 #[test]
@@ -44,7 +50,10 @@ script(
 ";
     let llm = human_to_llm(input).unwrap();
     let doc = llm_to_document(&llm).unwrap();
-    assert!(doc.context.contains_key("script"), "Should parse script group");
+    assert!(
+        doc.context.contains_key("script"),
+        "Should parse script group"
+    );
 }
 
 #[test]
@@ -71,7 +80,10 @@ aliases[name target](
 ";
     let llm = human_to_llm(input).unwrap();
     let doc = llm_to_document(&llm).unwrap();
-    assert!(!doc.sections.is_empty(), "Should parse space-separated table");
+    assert!(
+        !doc.sections.is_empty(),
+        "Should parse space-separated table"
+    );
 }
 
 #[test]
@@ -215,8 +227,10 @@ users[id name email](
 #[test]
 fn test_machine_roundtrip() {
     let mut doc = DxDocument::new();
-    doc.context.insert("name".into(), DxLlmValue::Str("dx-os".into()));
-    doc.context.insert("version".into(), DxLlmValue::Str("1.0.0".into()));
+    doc.context
+        .insert("name".into(), DxLlmValue::Str("dx-os".into()));
+    doc.context
+        .insert("version".into(), DxLlmValue::Str("1.0.0".into()));
 
     let machine = document_to_machine(&doc);
     let parsed = machine_to_document(&machine).unwrap();
@@ -228,7 +242,8 @@ fn test_machine_roundtrip() {
 #[test]
 fn test_machine_all_value_types() {
     let mut doc = DxDocument::new();
-    doc.context.insert("str".into(), DxLlmValue::Str("hello".into()));
+    doc.context
+        .insert("str".into(), DxLlmValue::Str("hello".into()));
     doc.context.insert("num".into(), DxLlmValue::Num(42.0));
     doc.context.insert("bool".into(), DxLlmValue::Bool(true));
     doc.context.insert("null".into(), DxLlmValue::Null);
@@ -246,13 +261,18 @@ fn test_machine_all_value_types() {
 #[test]
 fn test_machine_unicode() {
     let mut doc = DxDocument::new();
-    doc.context.insert("cjk".into(), DxLlmValue::Str("你好世界".into()));
-    doc.context.insert("emoji".into(), DxLlmValue::Str("🚀🎉".into()));
+    doc.context
+        .insert("cjk".into(), DxLlmValue::Str("你好世界".into()));
+    doc.context
+        .insert("emoji".into(), DxLlmValue::Str("🚀🎉".into()));
 
     let machine = document_to_machine(&doc);
     let parsed = machine_to_document(&machine).unwrap();
 
-    assert_eq!(parsed.context.get("cjk").unwrap().as_str(), Some("你好世界"));
+    assert_eq!(
+        parsed.context.get("cjk").unwrap().as_str(),
+        Some("你好世界")
+    );
     assert_eq!(parsed.context.get("emoji").unwrap().as_str(), Some("🚀🎉"));
 }
 
@@ -260,14 +280,12 @@ fn test_machine_unicode() {
 fn test_machine_table_section() {
     let mut doc = DxDocument::new();
     let mut section = DxSection::new(vec!["id".into(), "name".into()]);
-    section.rows.push(vec![
-        DxLlmValue::Num(1.0),
-        DxLlmValue::Str("Alice".into()),
-    ]);
-    section.rows.push(vec![
-        DxLlmValue::Num(2.0),
-        DxLlmValue::Str("Bob".into()),
-    ]);
+    section
+        .rows
+        .push(vec![DxLlmValue::Num(1.0), DxLlmValue::Str("Alice".into())]);
+    section
+        .rows
+        .push(vec![DxLlmValue::Num(2.0), DxLlmValue::Str("Bob".into())]);
     doc.sections.insert('u', section);
 
     let machine = document_to_machine(&doc);
@@ -479,7 +497,7 @@ fn test_big_example_pipeline() {
 
     // LLM → Machine (skip re-parsing, go direct)
     let doc = llm_to_document(&llm).unwrap_or_else(|_| {
-        // If LLM re-parse fails (known SchemaMismatch with multi-table), 
+        // If LLM re-parse fails (known SchemaMismatch with multi-table),
         // fall back to human → document directly
         let parser = serializer::human::parser::HumanParser::new();
         parser.parse(BIG_EXAMPLE).unwrap()
@@ -489,9 +507,10 @@ fn test_big_example_pipeline() {
     assert!(machine.data.len() > 0, "Machine output should have data");
 
     let parsed_doc = machine_to_document(&machine).unwrap();
-    assert!(parsed_doc.context.contains_key("project")
-        || parsed_doc.context.contains_key("build"),
-        "Machine roundtrip should preserve top-level groups");
+    assert!(
+        parsed_doc.context.contains_key("project") || parsed_doc.context.contains_key("build"),
+        "Machine roundtrip should preserve top-level groups"
+    );
 }
 
 #[test]
@@ -512,7 +531,10 @@ fn test_big_example_human_output() {
     assert!(!doc.sections.is_empty(), "Should have tables");
     // Verify we get tables with rows
     let total_rows: usize = doc.sections.values().map(|s| s.rows.len()).sum();
-    assert!(total_rows > 10, "Should have many table rows across all tables");
+    assert!(
+        total_rows > 10,
+        "Should have many table rows across all tables"
+    );
 }
 
 #[test]
