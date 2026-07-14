@@ -204,6 +204,33 @@ pub fn document_to_human(doc: &DxDocument) -> String {
     formatter.format(doc)
 }
 
+/// Convert `DxDocument` to Loose format (`[section]` TOML-like style).
+///
+/// Loose format uses `[section]` headers and `key = value` pairs,
+/// making it readable like TOML while preserving DX semantics.
+/// This is an alias for [`document_to_human`].
+#[must_use]
+pub fn document_to_loose(doc: &DxDocument) -> String {
+    let formatter = HumanFormatter::new();
+    formatter.format(doc)
+}
+
+/// Convert `DxDocument` to Compact format (single-line minified `()`).
+///
+/// Compact format places everything on a single line with no spaces around `=`,
+/// minimal separators, and quoted values only when necessary.
+/// This is the most token-efficient text representation.
+#[must_use]
+pub fn document_to_compact(doc: &DxDocument) -> String {
+    use crate::llm::types::OptimizationLevel;
+    let config = SerializerConfig {
+        level: OptimizationLevel::Low,
+        compact: false,
+    };
+    let serializer = LlmSerializer::with_config(config);
+    serializer.serialize(doc)
+}
+
 /// Convert `DxDocument` to Human format string with custom config
 #[must_use] 
 pub fn document_to_human_with_config(doc: &DxDocument, config: HumanFormatConfig) -> String {
@@ -916,5 +943,27 @@ mod tests {
             round_trip_doc.context.get("name").unwrap().as_str(),
             Some("mmap")
         );
+    }
+
+    #[test]
+    fn test_document_to_loose() {
+        let mut doc = DxDocument::new();
+        doc.context.insert("name".to_string(), DxLlmValue::Str("dx-os".to_string()));
+        doc.context.insert("version".to_string(), DxLlmValue::Str("1.0.0".to_string()));
+
+        let loose = document_to_loose(&doc);
+        assert!(!loose.is_empty());
+        assert!(loose.contains("name") || loose.contains("dx-os"));
+    }
+
+    #[test]
+    fn test_document_to_compact() {
+        let mut doc = DxDocument::new();
+        doc.context.insert("name".to_string(), DxLlmValue::Str("dx-os".to_string()));
+        doc.context.insert("version".to_string(), DxLlmValue::Str("1.0.0".to_string()));
+
+        let compact = document_to_compact(&doc);
+        assert!(!compact.is_empty());
+        assert!(compact.contains("name") || compact.contains("dx-os"));
     }
 }

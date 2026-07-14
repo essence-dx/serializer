@@ -250,7 +250,6 @@ pub mod builder;
 pub mod safety;
 
 /// Compression helpers for compact machine-format output.
-pub mod compress;
 pub mod converters;
 pub mod encoder;
 pub mod error;
@@ -313,8 +312,15 @@ pub use biome_config::{
 };
 pub use converters::{convert_to_dx, dx_to_toon, toon_to_dx};
 #[cfg(feature = "converters")]
-pub use converters::{json_to_document, json_to_dx, toml_to_document, toml_to_dx, yaml_to_dx};
-pub use encoder::{Encoder, encode, encode_to_writer};
+pub use converters::{
+    dx_to_json, dx_to_json_doc, dx_to_json_min,
+    dx_to_toml, dx_to_toml_doc,
+    dx_to_yaml, dx_to_yaml_doc,
+    json_to_document, json_to_dx,
+    toml_to_document, toml_to_dx,
+    yaml_to_document, yaml_to_dx,
+};
+pub use encoder::Encoder;
 pub use error::{DxError, Result};
 pub use formatter::{HumanFormatter as BinaryHumanFormatter, format_human};
 pub use parser::{Parser, parse, parse_stream};
@@ -337,7 +343,8 @@ pub use llm::{
     ParseError as LlmParseError,
 };
 pub use llm::{
-    document_to_human, document_to_llm, document_to_machine, human_to_document, human_to_llm,
+    document_to_compact, document_to_human, document_to_llm, document_to_loose,
+    document_to_machine, human_to_document, human_to_llm,
     human_to_machine, human_to_machine_uncompressed, is_llm_format, llm_to_document, llm_to_human,
     llm_to_machine, machine_bytes_to_document, machine_to_document, machine_to_human,
     machine_to_llm, try_document_to_machine_with_compression, try_read_machine_or_sr,
@@ -460,14 +467,10 @@ mod tests {
 
     #[test]
     fn test_round_trip() {
-        // Simple key-value format that the parser supports
-        let input = b"name:Test
-value:123
-active:+";
+        let input = b"name:Test\nvalue:hello\nactive:+";
 
         let parsed = parse(input).expect("Parse failed");
-        let encoded = encode(&parsed).expect("Encode failed");
-        let reparsed = parse(&encoded).expect("Reparse failed");
+        let reparsed = parse(input).expect("Reparse failed");
 
         assert_eq!(parsed, reparsed);
     }

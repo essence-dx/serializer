@@ -29,12 +29,12 @@ pub mod toon;
 mod converter_props;
 
 #[cfg(feature = "converters")]
-pub use json::{json_to_document, json_to_dx};
+pub use json::{dx_to_json, dx_to_json_doc, dx_to_json_min, json_to_document, json_to_dx};
 #[cfg(feature = "converters")]
-pub use toml::{toml_to_document, toml_to_dx};
+pub use toml::{dx_to_toml, dx_to_toml_doc, toml_to_document, toml_to_dx};
 pub use toon::{dx_to_toon, toon_to_dx};
 #[cfg(feature = "converters")]
-pub use yaml::yaml_to_dx;
+pub use yaml::{dx_to_yaml, dx_to_yaml_doc, yaml_to_document, yaml_to_dx};
 
 /// Common converter trait
 pub trait ToDx {

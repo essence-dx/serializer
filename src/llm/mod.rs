@@ -52,8 +52,9 @@ pub use cache_generator::{CacheConfig, CacheError, CacheGenerator, CachePaths, C
 #[cfg(feature = "mmap")]
 pub use convert::machine_file_to_document_mmap;
 pub use convert::{
-    ConvertError, MachineFormat, document_to_formatted_llm, document_to_human, document_to_llm,
-    document_to_llm_with_config, document_to_machine, human_to_document, human_to_llm,
+    ConvertError, MachineFormat, document_to_compact, document_to_formatted_llm, document_to_human,
+    document_to_llm, document_to_llm_with_config, document_to_loose, document_to_machine,
+    human_to_document, human_to_llm,
     human_to_machine, human_to_machine_uncompressed, is_llm_format, llm_to_document, llm_to_human,
     llm_to_machine, machine_bytes_to_document, machine_to_document, machine_to_human,
     machine_to_llm, try_document_to_machine_with_compression, try_read_machine_or_sr,

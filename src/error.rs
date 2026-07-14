@@ -159,6 +159,9 @@ pub enum DxError {
     },
 
     // === Reference Errors ===
+    /// Unknown alias reference
+    #[error("Unknown alias: {0}")]
+    UnknownAlias(String),
     /// Unknown anchor reference
     #[error("Unknown anchor: {0}")]
     UnknownAnchor(String),
@@ -299,6 +302,11 @@ impl DxError {
             message: message.into(),
             snippet: snippet.into(),
         }
+    }
+
+    /// Create an unknown alias error
+    pub fn unknown_alias(alias: impl Into<String>) -> Self {
+        Self::UnknownAlias(alias.into())
     }
 
     /// Create a type mismatch error

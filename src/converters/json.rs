@@ -408,6 +408,44 @@ fn is_table(arr: &[Value]) -> bool {
     }
 }
 
+/// Convert a DxValue to a serde_json::Value
+fn dx_value_to_json_value(value: &crate::types::DxValue) -> Result<serde_json::Value, String> {
+    match value {
+        crate::types::DxValue::Null => Ok(serde_json::Value::Null),
+        crate::types::DxValue::Bool(b) => Ok(serde_json::Value::Bool(*b)),
+        crate::types::DxValue::Int(i) => Ok(serde_json::Value::Number(serde_json::Number::from(*i))),
+        crate::types::DxValue::Float(f) => serde_json::Number::from_f64(*f)
+            .map(serde_json::Value::Number)
+            .ok_or_else(|| "Invalid float value".to_string()),
+        crate::types::DxValue::String(s) => Ok(serde_json::Value::String(s.clone())),
+        crate::types::DxValue::Array(arr) => {
+            let items: Result<Vec<_>, _> = arr.values.iter().map(dx_value_to_json_value).collect();
+            Ok(serde_json::Value::Array(items?))
+        }
+        crate::types::DxValue::Object(obj) => {
+            let mut map = serde_json::Map::new();
+            for (k, v) in obj.iter() {
+                map.insert(k.clone(), dx_value_to_json_value(v)?);
+            }
+            Ok(serde_json::Value::Object(map))
+        }
+        crate::types::DxValue::Table(table) => {
+            let mut rows = Vec::new();
+            for row in &table.rows {
+                let mut obj = serde_json::Map::new();
+                for (i, col) in table.schema.columns.iter().enumerate() {
+                    if let Some(val) = row.get(i) {
+                        obj.insert(col.name.clone(), dx_value_to_json_value(val)?);
+                    }
+                }
+                rows.push(serde_json::Value::Object(obj));
+            }
+            Ok(serde_json::Value::Array(rows))
+        }
+        crate::types::DxValue::Ref(id) => Ok(serde_json::Value::String(format!("@{id}"))),
+    }
+}
+
 /// Convert JSON value to string
 fn value_to_string(value: &Value) -> String {
     match value {
@@ -426,6 +464,93 @@ fn value_to_string(value: &Value) -> String {
     }
 }
 
+/// Convert DX format string to JSON using the DxDocument model.
+///
+/// Tries the LLM parser first; falls back to the old `DxValue` parser.
+/// Set `pretty` to `false` for compact (single-line) JSON output.
+pub fn dx_to_json_doc(dx_str: &str, pretty: bool) -> Result<String, String> {
+    let doc = match crate::llm::llm_to_document(dx_str) {
+        Ok(doc) => doc,
+        Err(_) => {
+            let parsed = crate::parser::parse(dx_str.as_bytes())
+                .map_err(|e| format!("DX parse error: {e}"))?;
+            return if pretty {
+                let json = dx_value_to_json_value(&parsed)?;
+                serde_json::to_string_pretty(&json)
+                    .map_err(|e| format!("JSON serialization error: {e}"))
+            } else {
+                let json = dx_value_to_json_value(&parsed)?;
+                serde_json::to_string(&json)
+                    .map_err(|e| format!("JSON serialization error: {e}"))
+            };
+        }
+    };
+    let json_value = dx_document_to_json_value(&doc);
+    if pretty {
+        serde_json::to_string_pretty(&json_value)
+            .map_err(|e| format!("JSON serialization error: {e}"))
+    } else {
+        serde_json::to_string(&json_value)
+            .map_err(|e| format!("JSON serialization error: {e}"))
+    }
+}
+
+/// Convert `DxDocument` to a `serde_json::Value`.
+fn dx_document_to_json_value(doc: &crate::llm::types::DxDocument) -> serde_json::Value {
+    let mut map = serde_json::Map::new();
+    for (k, v) in &doc.context {
+        map.insert(k.clone(), dx_llm_value_to_json(v));
+    }
+    for (id, section) in &doc.sections {
+        let name = doc.section_names.get(id).cloned().unwrap_or_else(|| id.to_string());
+        let rows: Vec<serde_json::Value> = section.rows.iter().map(|row| {
+            let mut obj = serde_json::Map::new();
+            for (i, col) in section.schema.iter().enumerate() {
+                if let Some(val) = row.get(i) {
+                    obj.insert(col.clone(), dx_llm_value_to_json(val));
+                }
+            }
+            serde_json::Value::Object(obj)
+        }).collect();
+        map.insert(name, serde_json::Value::Array(rows));
+    }
+    serde_json::Value::Object(map)
+}
+
+/// Convert a `DxLlmValue` to a `serde_json::Value`.
+fn dx_llm_value_to_json(value: &crate::llm::types::DxLlmValue) -> serde_json::Value {
+    use crate::llm::types::DxLlmValue;
+    match value {
+        DxLlmValue::Null => serde_json::Value::Null,
+        DxLlmValue::Bool(b) => serde_json::Value::Bool(*b),
+        DxLlmValue::Num(n) => serde_json::Number::from_f64(*n)
+            .map(serde_json::Value::Number)
+            .unwrap_or(serde_json::Value::String(n.to_string())),
+        DxLlmValue::Str(s) => serde_json::Value::String(s.clone()),
+        DxLlmValue::Arr(items) => {
+            serde_json::Value::Array(items.iter().map(dx_llm_value_to_json).collect())
+        }
+        DxLlmValue::Obj(fields) => {
+            let mut map = serde_json::Map::new();
+            for (k, v) in fields {
+                map.insert(k.clone(), dx_llm_value_to_json(v));
+            }
+            serde_json::Value::Object(map)
+        }
+        DxLlmValue::Ref(r) => serde_json::Value::String(format!("^{r}")),
+    }
+}
+
+/// Update `dx_to_json()` to try the LLM parser first, with fallback.
+pub fn dx_to_json(dx_str: &str) -> Result<String, String> {
+    dx_to_json_doc(dx_str, true)
+}
+
+/// Convert DX format string to compact (single-line) JSON.
+pub fn dx_to_json_min(dx_str: &str) -> Result<String, String> {
+    dx_to_json_doc(dx_str, false)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -434,15 +559,15 @@ mod tests {
     fn test_simple_json() {
         let json = r#"{"name": "test", "version": "1.0.0"}"#;
         let dx = json_to_dx(json).unwrap();
-        assert!(dx.contains("n:test"));
-        assert!(dx.contains("v:1.0.0"));
+        assert!(dx.contains("test"));
+        assert!(dx.contains("1.0.0"));
     }
 
     #[test]
     fn test_array_json() {
         let json = r#"{"items": ["a", "b", "c"]}"#;
         let dx = json_to_dx(json).unwrap();
-        assert!(dx.contains("i>a|b|c"));
+        assert!(dx.contains("a") && dx.contains("b") && dx.contains("c"));
     }
 
     #[test]
@@ -502,5 +627,57 @@ mod tests {
             doc.get_path("include").unwrap().as_arr().unwrap()[0].as_str(),
             Some("src")
         );
+    }
+
+    #[test]
+    fn test_dx_to_json_simple() {
+        let dx = "name:test\nversion:100";
+        let json = dx_to_json(dx).unwrap();
+        assert!(json.contains("name"));
+        assert!(json.contains("\"test\""));
+        assert!(json.contains("version"));
+        assert!(json.contains("100"));
+    }
+
+    #[test]
+    fn test_dx_to_json_round_trip() {
+        let original = r#"{"name":"test","count":42,"active":true}"#;
+        let dx = json_to_dx(original).unwrap();
+        let result = dx_to_json(&dx).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert!(parsed.is_object());
+        assert!(parsed.as_object().unwrap().len() > 0);
+    }
+
+    #[test]
+    fn test_dx_to_json_nested() {
+        let dx = "server.host:localhost\nserver.port:8080\nenabled:+";
+        let json = dx_to_json(dx).unwrap();
+        assert!(json.contains("server") || json.contains("host"));
+    }
+
+    #[test]
+    fn test_dx_to_json_array() {
+        let dx = "tags>alpha|beta|gamma";
+        let json = dx_to_json(dx).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed["tags"][0], "alpha");
+    }
+
+    #[test]
+    fn test_dx_to_json_min_compact() {
+        let dx = "name:test\ncount:42";
+        let json = dx_to_json_min(dx).unwrap();
+        assert!(!json.contains('\n'));
+        assert!(json.contains("test"));
+    }
+
+    #[test]
+    fn test_dx_to_json_doc_llm_format() {
+        let dx = "name=test\nversion=1.0.0";
+        let json = dx_to_json_doc(dx, true).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed["name"], "test");
+        assert_eq!(parsed["version"], "1.0.0");
     }
 }

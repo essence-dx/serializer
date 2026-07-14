@@ -47,19 +47,20 @@ impl Encoder {
         match value {
             DxValue::Null => write!(writer, "null")?,
             DxValue::Bool(b) => write!(writer, "{b}")?,
-            DxValue::Int(i) => write!(writer, "{}", encode_base62(*i))?,
+            DxValue::Int(i) => write!(writer, "{}", encode_base62((*i) as u64))?,
             DxValue::Float(f) => write!(writer, "{f}")?,
             DxValue::String(s) => write!(writer, "{s}")?,
             DxValue::Array(arr) => self.encode_array(arr, writer)?,
             DxValue::Object(obj) => self.encode_object(obj, writer)?,
             DxValue::Table(table) => self.encode_table(table, writer)?,
+            DxValue::Ref(id) => write!(writer, "@{id}")?,
         }
         Ok(())
     }
 
     fn encode_array<W: Write>(&mut self, arr: &DxArray, writer: &mut W) -> Result<()> {
         write!(writer, "[")?;
-        for (i, val) in arr.iter().enumerate() {
+        for (i, val) in arr.values.iter().enumerate() {
             if i > 0 {
                 write!(writer, " ")?;
             }
@@ -79,22 +80,20 @@ impl Encoder {
     }
 
     fn encode_table<W: Write>(&mut self, table: &DxTable, writer: &mut W) -> Result<()> {
-        if let Some(first) = table.first() {
-            let cols: Vec<&str> = first.keys().map(|k| k.as_str()).collect();
-            write!(writer, "[{}](", cols.join(" "))?;
-            for row in table.iter() {
-                for (i, col) in cols.iter().enumerate() {
-                    if i > 0 {
-                        write!(writer, " ")?;
-                    }
-                    if let Some(val) = row.get(*col) {
-                        self.encode_value(val, writer)?;
-                    }
-                }
-                writeln!(writer)?;
-            }
-            writeln!(writer, ")")?;
+        let col_names: Vec<&str> = table.schema.columns.iter().map(|c| c.name.as_str()).collect();
+        if col_names.is_empty() {
+            write!(writer, "[]")?;
+            return Ok(());
         }
+        write!(writer, "[{}](", col_names.join(" "))?;
+        for row in &table.rows {
+            for (i, val) in row.iter().enumerate() {
+                if i > 0 { write!(writer, " ")?; }
+                self.encode_value(val, writer)?;
+            }
+            writeln!(writer)?;
+        }
+        writeln!(writer, ")")?;
         Ok(())
     }
 }

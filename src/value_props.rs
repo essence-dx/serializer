@@ -373,7 +373,6 @@ pub fn arb_dx_value_roundtrip() -> impl Strategy<Value = DxValue> {
 #[cfg(test)]
 mod property_tests {
     use super::*;
-    use crate::encoder::encode;
     use crate::parser::parse;
 
     proptest! {
@@ -390,7 +389,8 @@ mod property_tests {
             obj.insert("v".to_string(), value);
             let wrapped = DxValue::Object(obj);
 
-            let result = encode(&wrapped);
+            let mut enc = crate::encoder::Encoder;
+            let result = enc.encode(&wrapped);
             prop_assert!(result.is_ok(), "Failed to encode leaf value: {:?}", result.err());
         }
 
@@ -404,7 +404,8 @@ mod property_tests {
             obj.insert("arr".to_string(), DxValue::Array(arr));
             let wrapped = DxValue::Object(obj);
 
-            let result = encode(&wrapped);
+            let mut enc = crate::encoder::Encoder;
+            let result = enc.encode(&wrapped);
             prop_assert!(result.is_ok(), "Failed to encode array: {:?}", result.err());
         }
 
@@ -415,7 +416,8 @@ mod property_tests {
         #[test]
         fn prop_objects_encode(obj in arb_dx_object()) {
             let wrapped = DxValue::Object(obj);
-            let result = encode(&wrapped);
+            let mut enc = crate::encoder::Encoder;
+            let result = enc.encode(&wrapped);
             prop_assert!(result.is_ok(), "Failed to encode object: {:?}", result.err());
         }
 
@@ -429,7 +431,8 @@ mod property_tests {
             obj.insert("t".to_string(), DxValue::Table(table));
             let wrapped = DxValue::Object(obj);
 
-            let result = encode(&wrapped);
+            let mut enc = crate::encoder::Encoder;
+            let result = enc.encode(&wrapped);
             prop_assert!(result.is_ok(), "Failed to encode table: {:?}", result.err());
         }
 
@@ -449,7 +452,8 @@ mod property_tests {
                 }
             };
 
-            let result = encode(&wrapped);
+            let mut enc = crate::encoder::Encoder;
+            let result = enc.encode(&wrapped);
             prop_assert!(result.is_ok(), "Failed to encode value: {:?}", result.err());
         }
 
@@ -464,7 +468,8 @@ mod property_tests {
             obj.insert("v".to_string(), value);
             let wrapped = DxValue::Object(obj);
 
-            let encoded = encode(&wrapped);
+            let mut enc = crate::encoder::Encoder;
+            let encoded = enc.encode(&wrapped);
             prop_assert!(encoded.is_ok(), "Failed to encode: {:?}", encoded.err());
 
             let bytes = encoded.unwrap();
@@ -563,7 +568,8 @@ mod property_tests {
         obj.insert("active".to_string(), DxValue::Bool(true));
 
         let value = DxValue::Object(obj);
-        let encoded = encode(&value).expect("Encode failed");
+        let mut enc = crate::encoder::Encoder;
+        let encoded = enc.encode(&value).expect("Encode failed");
         let parsed = parse(&encoded).expect("Parse failed");
 
         // Verify structure is preserved

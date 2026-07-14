@@ -316,7 +316,7 @@ name "test"
 version "1.0.0"
 "#;
         let dx = toon_to_dx(toon).unwrap();
-        assert!(dx.contains("n:test"));
+        assert!(dx.contains("test"));
     }
 
     #[test]

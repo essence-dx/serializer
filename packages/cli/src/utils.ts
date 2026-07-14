@@ -13,8 +13,8 @@ export function detectMode(
   if (decodeFlag) return "decode"
 
   if (input.type === "file") {
-    if (input.path.endsWith(".json")) return "encode"
-    if (input.path.endsWith(".dx")) return "decode"
+    if (input.path.endsWith(".json") || input.path.endsWith(".jsonc") || input.path.endsWith(".yml") || input.path.endsWith(".yaml")) return "encode"
+    if (input.path.endsWith(".dx") || input.path.endsWith(".toon") || input.path.endsWith(".llm")) return "decode"
   }
 
   return "encode"

@@ -683,11 +683,7 @@ pub fn count_tokens_all(text: &str) -> AllTokenCountsResult {
 #[cfg(feature = "wasm")]
 #[wasm_bindgen]
 pub fn dx_to_json(dx: &str) -> Result<String, JsValue> {
-    use crate::parser::parse;
-
-    let value =
-        parse(dx.as_bytes()).map_err(|e| JsValue::from_str(&format!("Parse error: {}", e)))?;
-    dx_value_to_json(&value).map_err(|e| JsValue::from_str(&e))
+    crate::converters::dx_to_json(dx).map_err(|e| JsValue::from_str(&e))
 }
 
 /// Convert DX format to YAML
@@ -697,11 +693,7 @@ pub fn dx_to_json(dx: &str) -> Result<String, JsValue> {
 #[cfg(feature = "wasm")]
 #[wasm_bindgen]
 pub fn dx_to_yaml(dx: &str) -> Result<String, JsValue> {
-    use crate::parser::parse;
-
-    let value =
-        parse(dx.as_bytes()).map_err(|e| JsValue::from_str(&format!("Parse error: {}", e)))?;
-    dx_value_to_yaml(&value).map_err(|e| JsValue::from_str(&e))
+    crate::converters::dx_to_yaml(dx).map_err(|e| JsValue::from_str(&e))
 }
 
 /// Convert DX format to TOML
@@ -711,11 +703,7 @@ pub fn dx_to_yaml(dx: &str) -> Result<String, JsValue> {
 #[cfg(feature = "wasm")]
 #[wasm_bindgen]
 pub fn dx_to_toml(dx: &str) -> Result<String, JsValue> {
-    use crate::parser::parse;
-
-    let value =
-        parse(dx.as_bytes()).map_err(|e| JsValue::from_str(&format!("Parse error: {}", e)))?;
-    dx_value_to_toml(&value).map_err(|e| JsValue::from_str(&e))
+    crate::converters::dx_to_toml(dx).map_err(|e| JsValue::from_str(&e))
 }
 
 /// Convert DX format to TOON

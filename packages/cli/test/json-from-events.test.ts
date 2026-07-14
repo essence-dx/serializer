@@ -347,9 +347,9 @@ describe('jsonStreamFromEvents', () => {
         { type: 'endObject' as const }, // Wrong closing event
       ]
 
-      await expect(async () => {
+      await expect((async () => {
         await join(jsonStreamFromEvents(asyncEvents(events), 0))
-      }).rejects.toThrow('Mismatched endObject event')
+      })()).rejects.toThrow('Mismatched endObject event')
     })
 
     it('throws on mismatched endArray event', async () => {
@@ -358,9 +358,9 @@ describe('jsonStreamFromEvents', () => {
         { type: 'endArray' as const }, // Wrong closing event
       ]
 
-      await expect(async () => {
+      await expect((async () => {
         await join(jsonStreamFromEvents(asyncEvents(events), 0))
-      }).rejects.toThrow('Mismatched endArray event')
+      })()).rejects.toThrow('Mismatched endArray event')
     })
 
     it('throws on key event outside object context', async () => {
@@ -369,9 +369,9 @@ describe('jsonStreamFromEvents', () => {
         { type: 'primitive' as const, value: 1 },
       ]
 
-      await expect(async () => {
+      await expect((async () => {
         await join(jsonStreamFromEvents(asyncEvents(events), 0))
-      }).rejects.toThrow('Key event outside of object context')
+      })()).rejects.toThrow('Key event outside of object context')
     })
 
     it('throws on primitive in object without preceding key', async () => {
@@ -381,9 +381,9 @@ describe('jsonStreamFromEvents', () => {
         { type: 'endObject' as const },
       ]
 
-      await expect(async () => {
+      await expect((async () => {
         await join(jsonStreamFromEvents(asyncEvents(events), 0))
-      }).rejects.toThrow('Primitive event in object without preceding key')
+      })()).rejects.toThrow('Primitive event in object without preceding key')
     })
 
     it('throws on incomplete event stream', async () => {
@@ -394,9 +394,9 @@ describe('jsonStreamFromEvents', () => {
         // Missing `endObject`
       ]
 
-      await expect(async () => {
+      await expect((async () => {
         await join(jsonStreamFromEvents(asyncEvents(events), 0))
-      }).rejects.toThrow('Incomplete event stream: unclosed objects or arrays')
+      })()).rejects.toThrow('Incomplete event stream: unclosed objects or arrays')
     })
   })
 })
