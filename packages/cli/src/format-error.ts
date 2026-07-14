@@ -1,4 +1,4 @@
-import { ToonDecodeError } from '../../toon/src/index.ts'
+import { DxDecodeError } from '../../core/src/index.ts'
 
 export interface FormatErrorOptions {
   isVerbose: boolean
@@ -9,7 +9,7 @@ export interface FormatErrorOptions {
 export function formatError(error: unknown, options: FormatErrorOptions): string {
   const sections: string[] = []
 
-  if (error instanceof ToonDecodeError && error.line !== undefined) {
+  if (error instanceof DxDecodeError && error.line !== undefined) {
     sections.push(formatDecodeError(error))
   }
   else {
@@ -34,7 +34,7 @@ export function formatError(error: unknown, options: FormatErrorOptions): string
 
 // #region Internal renderers
 
-function formatDecodeError(error: ToonDecodeError): string {
+function formatDecodeError(error: DxDecodeError): string {
   const linePrefix = `Line ${error.line}: `
   const messageWithoutPrefix = error.message.startsWith(linePrefix)
     ? error.message.slice(linePrefix.length)

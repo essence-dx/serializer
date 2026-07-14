@@ -1,32 +1,17 @@
 {
-  "name": "@toon-format/monorepo",
+  "name": "dx-serializer",
   "type": "module",
-  "version": "2.3.0",
+  "version": "1.0.0",
   "private": true,
-  "packageManager": "pnpm@10.33.4",
+  "workspaces": [
+    "packages/core",
+    "packages/cli"
+  ],
   "scripts": {
-    "build": "pnpm -r --filter=./packages/** run build",
-    "automd": "automd",
-    "docs:dev": "vitepress dev docs",
-    "docs:build": "vitepress build docs",
-    "docs:preview": "vitepress preview docs",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "test": "pnpm -r test",
-    "test:types": "tsc --noEmit",
-    "release": "bumpp -r"
+    "test": "bun test --filter @dx-serializer/*"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^8.3.0",
-    "@commitlint/types": "^21.0.1",
-    "@types/node": "^25.9.1",
-    "automd": "^0.4.3",
-    "bumpp": "^11.1.0",
-    "eslint": "^10.4.0",
-    "eslint-flat-config-utils": "^3.2.0",
-    "tsdown": "^0.22.0",
-    "typescript": "^6.0.3",
-    "vite": "^8.0.13",
-    "vitest": "^4.1.7"
+    "@types/bun": "^1.2.0",
+    "typescript": "^6.0.3"
   }
 }

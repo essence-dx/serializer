@@ -8,23 +8,16 @@ export function detectMode(
   input: InputSource,
   encodeFlag?: boolean,
   decodeFlag?: boolean,
-): 'encode' | 'decode' {
-  // Explicit flags take precedence
-  if (encodeFlag)
-    return 'encode'
-  if (decodeFlag)
-    return 'decode'
+): "encode" | "decode" {
+  if (encodeFlag) return "encode"
+  if (decodeFlag) return "decode"
 
-  // Auto-detect based on file extension
-  if (input.type === 'file') {
-    if (input.path.endsWith('.json'))
-      return 'encode'
-    if (input.path.endsWith('.toon'))
-      return 'decode'
+  if (input.type === "file") {
+    if (input.path.endsWith(".json")) return "encode"
+    if (input.path.endsWith(".dx")) return "decode"
   }
 
-  // Default to encode
-  return 'encode'
+  return "encode"
 }
 
 export async function readInput(source: InputSource): Promise<string> {

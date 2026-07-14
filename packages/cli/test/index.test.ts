@@ -1,7 +1,7 @@
 import process from 'node:process'
 import { consola } from 'consola'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { DEFAULT_DELIMITER, encode } from '../../toon/src'
+import { encode } from '../../core/src'
 import { version } from '../package.json' with { type: 'json' }
 import { createCliTestContext, mockStdin, runCli } from './utils'
 
@@ -68,7 +68,7 @@ describe('toon CLI', () => {
 
         const output = await context.read('output.toon')
         const expected = encode(data, {
-          delimiter: DEFAULT_DELIMITER,
+          delimiter: 
           indent: 2,
         })
 
@@ -547,7 +547,7 @@ describe('toon CLI', () => {
         const output = await context.read('output.toon')
         // Verify streaming produces identical output to `encode()`
         const expected = encode(data, {
-          delimiter: DEFAULT_DELIMITER,
+          delimiter: 
           indent: 2,
         })
 
@@ -569,7 +569,7 @@ describe('toon CLI', () => {
       }
 
       const toonContent = encode(data, {
-        delimiter: DEFAULT_DELIMITER,
+        delimiter: 
         indent: 2,
       })
 

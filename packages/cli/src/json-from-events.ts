@@ -1,4 +1,4 @@
-import type { JsonStreamEvent } from '../../toon/src/types.ts'
+import type { JsonStreamEvent } from '../../core/src/types.ts'
 
 /**
  * Context for tracking JSON structure state during event streaming.

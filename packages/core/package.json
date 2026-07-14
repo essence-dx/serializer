@@ -1,0 +1,17 @@
+{
+  "name": "@dx-serializer/core",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "DX Compact — Ultra-compact serialization format optimized for LLM token efficiency",
+  "license": "MIT",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "test": "bun test"
+  }
+}

@@ -1,0 +1,18 @@
+export const EQUALS = "="
+export const OPEN_PAREN = "("
+export const CLOSE_PAREN = ")"
+export const OPEN_BRACKET = "["
+export const CLOSE_BRACKET = "]"
+export const SPACE = " "
+export const COMMA = ","
+export const DOT = "."
+
+export const NULL_LITERAL = "null"
+export const TRUE_LITERAL = "true"
+export const FALSE_LITERAL = "false"
+
+export const BACKSLASH = "\\"
+export const DOUBLE_QUOTE = "\""
+export const NEWLINE = "\n"
+export const CARRIAGE_RETURN = "\r"
+export const TAB = "\t"

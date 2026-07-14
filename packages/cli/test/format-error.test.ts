@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { ToonDecodeError } from '../../toon/src/index'
+import { DxDecodeError } from '../../core/src/index'
 import { formatError } from '../src/format-error'
 
 describe('formatError', () => {
   it('renders a decode error with line and source as a header, source line, and caret', () => {
-    const error = new ToonDecodeError(
+    const error = new DxDecodeError(
       'Tabs are not allowed in indentation in strict mode',
       { line: 2, source: '\tb: 1' },
     )
@@ -20,7 +20,7 @@ describe('formatError', () => {
   })
 
   it('renders a decode error without source as a header only', () => {
-    const error = new ToonDecodeError('Something went wrong', { line: 5 })
+    const error = new DxDecodeError('Something went wrong', { line: 5 })
 
     const output = formatError(error, { isVerbose: false })
 
@@ -29,7 +29,7 @@ describe('formatError', () => {
 
   it('appends the cause chain under verbose mode', () => {
     const cause = new SyntaxError('Unterminated string: missing closing quote')
-    const error = new ToonDecodeError(
+    const error = new DxDecodeError(
       'Unterminated string: missing closing quote',
       { line: 2, source: 'greeting: "hello', cause },
     )
@@ -42,8 +42,8 @@ describe('formatError', () => {
   })
 
   it('appends the stack trace under verbose mode and omits it otherwise', () => {
-    const error = new ToonDecodeError('Boom', { line: 1, source: 'x' })
-    error.stack = 'ToonDecodeError: Line 1: Boom\n    at fakeFrame (file.ts:1:1)'
+    const error = new DxDecodeError('Boom', { line: 1, source: 'x' })
+    error.stack = 'DxDecodeError: Line 1: Boom\n    at fakeFrame (file.ts:1:1)'
 
     const verbose = formatError(error, { isVerbose: true })
     const quiet = formatError(error, { isVerbose: false })
@@ -61,7 +61,7 @@ describe('formatError', () => {
   })
 
   it('places the caret under the first non-whitespace character of the source line', () => {
-    const error = new ToonDecodeError(
+    const error = new DxDecodeError(
       'Indentation must be exact multiple of 2, but found 3 spaces',
       { line: 2, source: '   b: 1' },
     )

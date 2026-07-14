@@ -1,8 +1,0 @@
-packages:
-  - docs
-  - benchmarks
-  - packages/*
-
-onlyBuiltDependencies:
-  - '@parcel/watcher'
-  - esbuild

@@ -1,4 +1,4 @@
-import type { JsonStreamEvent } from '../../toon/src/types'
+import type { JsonStreamEvent } from '../../core/src/types'
 import { describe, expect, it } from 'vitest'
 import { jsonStreamFromEvents } from '../src/json-from-events'
 
