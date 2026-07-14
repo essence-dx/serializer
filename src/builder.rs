@@ -140,18 +140,9 @@ impl SerializerBuilder {
         self
     }
 
-    /// Set whether to expand abbreviated keys to full names
+    /// Set whether to expand compact keys
     ///
-    /// When true (default), keys like "nm" become "name" in human format.
-    /// When false, abbreviated keys are preserved.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use serializer::SerializerBuilder;
-    ///
-    /// let serializer = SerializerBuilder::new()
-    ///     .expand_keys(false)  // Keep "nm" instead of expanding to "name"
+    /// When false, keys are preserved as-is.
     ///     .build();
     /// ```
     #[must_use] 

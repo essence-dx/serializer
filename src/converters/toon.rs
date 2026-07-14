@@ -2,7 +2,6 @@
 ///
 /// Converts TOON format to ultra-optimized DX SINGULARITY format.
 /// Also provides DX to TOON conversion for format comparison.
-use crate::optimizer::optimize_key;
 use crate::parser::parse;
 use crate::types::{DxArray, DxTable, DxValue};
 
@@ -28,7 +27,7 @@ pub fn toon_to_dx(toon_str: &str) -> Result<String, String> {
             // Check if next lines are indented (nested object)
             if i + 1 < lines.len() && lines[i + 1].starts_with("  ") {
                 // It's a parent key, process nested
-                let key_opt = optimize_key(key);
+                let key_opt = key.to_string();
 
                 // Collect nested items
                 let mut nested_props = Vec::new();
@@ -39,7 +38,7 @@ pub fn toon_to_dx(toon_str: &str) -> Result<String, String> {
                     if let Some(nested_space) = nested_line.find(' ') {
                         let nested_key = &nested_line[..nested_space];
                         let nested_val = nested_line[nested_space + 1..].trim_matches('"');
-                        nested_props.push((optimize_key(nested_key), nested_val.to_string()));
+                        nested_props.push((nested_key.to_string(), nested_val.to_string()));
                     }
                     j += 1;
                 }
@@ -72,7 +71,7 @@ pub fn toon_to_dx(toon_str: &str) -> Result<String, String> {
                 continue;
             } else {
                 // Simple key-value
-                let key_opt = optimize_key(key);
+                let key_opt = key.to_string();
                 output.push_str(&key_opt);
                 output.push(':');
                 output.push_str(value);

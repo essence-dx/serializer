@@ -1,29 +1,29 @@
 ---
-description: Prompting strategies for sending TOON to LLMs and validating TOON they generate, with examples.
+description: Prompting strategies for sending DX Serializer to LLMs and validating DX Serializer they generate, with examples.
 ---
 
-# Using TOON with LLMs
+# Using DX Serializer with LLMs
 
-TOON is designed for passing structured data to Large Language Models with reduced token costs and improved reliability. This guide shows how to use TOON effectively in prompts, both for input (sending data to models) and output (getting models to generate TOON).
+DX Serializer is designed for passing structured data to Large Language Models with reduced token costs and improved reliability. This guide shows how to use DX Serializer effectively in prompts, both for input (sending data to models) and output (getting models to generate DX Serializer).
 
-This guide is about the TOON format itself. Code examples use the TypeScript library for demonstration, but the same patterns and techniques apply regardless of which programming language you're using.
+This guide is about the DX Serializer format itself. Code examples use the TypeScript library for demonstration, but the same patterns and techniques apply regardless of which programming language you're using.
 
-## Why TOON for LLMs
+## Why DX Serializer for LLMs
 
-LLM tokens cost money, and JSON is verbose – repeating every field name for every record in an array. TOON minimizes tokens especially for uniform arrays by declaring fields once and streaming data as rows, typically saving 30–60% compared to formatted JSON.
+LLM tokens cost money, and JSON is verbose – repeating every field name for every record in an array. DX Serializer minimizes tokens especially for uniform arrays by declaring fields once and streaming data as rows, typically saving 30–60% compared to formatted JSON.
 
-TOON adds structure guardrails: explicit `[N]` lengths and `{fields}` headers make it easier for models to track rows and for you to validate output. Strict mode helps detect truncation and malformed TOON when decoding model responses.
+DX Serializer adds structure guardrails: explicit `[N]` lengths and `{fields}` headers make it easier for models to track rows and for you to validate output. Strict mode helps detect truncation and malformed DX Serializer when decoding model responses.
 
-## Sending TOON as Input
+## Sending DX Serializer as Input
 
-TOON works best when you show the format instead of describing it. The structure is self-documenting – models parse it naturally once they see the pattern.
+DX Serializer works best when you show the format instead of describing it. The structure is self-documenting – models parse it naturally once they see the pattern.
 
-Wrap your encoded data in a fenced code block (label it ` ```toon` for clarity):
+Wrap your encoded data in a fenced code block (label it ` ```dx` for clarity):
 
 ````md
-Data is in TOON format (2-space indent, arrays show length and fields).
+Data is in DX Serializer format (2-space indent, arrays show length and fields).
 
-```toon
+```dx
 users[3]{id,name,role,lastLogin}:
   1,Alice,admin,"2025-01-15T10:30:00Z"
   2,Bob,user,"2025-01-14T15:22:00Z"
@@ -33,14 +33,14 @@ users[3]{id,name,role,lastLogin}:
 Task: Summarize the user roles and their last activity.
 ````
 
-The indentation and headers are usually enough – models treat TOON like familiar YAML or CSV. The explicit array lengths (`[N]`) and field headers (`{fields}`) help the model track structure, especially for large tables.
+The indentation and headers are usually enough – models treat DX Serializer like familiar YAML or CSV. The explicit array lengths (`[N]`) and field headers (`{fields}`) help the model track structure, especially for large tables.
 
 > [!NOTE]
-> Most models don't have built-in TOON syntax highlighting, so ` ```toon` or ` ```yaml` both work fine. The structure is what matters.
+> Most models don't have built-in DX Serializer syntax highlighting, so ` ```dx` or ` ```yaml` both work fine. The structure is what matters.
 
-## Generating TOON from LLMs
+## Generating DX Serializer from LLMs
 
-For output, be more explicit. When you want the model to **generate** TOON:
+For output, be more explicit. When you want the model to **generate** DX Serializer:
 
 - **Show the expected header** (e.g., `users[N]{id,name,role}:`). The model fills rows instead of repeating keys, reducing generation errors.
 - **State the rules**: 2-space indent, no trailing spaces, `[N]` matches row count.
@@ -48,9 +48,9 @@ For output, be more explicit. When you want the model to **generate** TOON:
 Here's a prompt that works for both reading and generating:
 
 ````md
-Data is in TOON format (2-space indent, arrays show length and fields).
+Data is in DX Serializer format (2-space indent, arrays show length and fields).
 
-```toon
+```dx
 users[3]{id,name,role,lastLogin}:
   1,Alice,admin,"2025-01-15T10:30:00Z"
   2,Bob,user,"2025-01-14T15:22:00Z"
@@ -62,7 +62,7 @@ Task: Return only users with role "user" as TOON. Use the same header format. Se
 
 **Expected output:**
 
-```toon
+```dx
 users[2]{id,name,role,lastLogin}:
   2,Bob,user,"2025-01-14T15:22:00Z"
   3,Charlie,user,"2025-01-13T09:45:00Z"
@@ -72,10 +72,10 @@ The model adjusts `[N]` to `2` and generates two rows.
 
 ### Validation with Strict Mode
 
-When decoding model-generated TOON, use strict mode (default) to catch errors:
+When decoding model-generated DX Serializer, use strict mode (default) to catch errors:
 
 ```ts
-import { decode } from '@toon-format/toon'
+import { decode } from '@dx-serializer/core'
 
 try {
   const data = decode(modelOutput, { strict: true })
@@ -94,17 +94,17 @@ Strict mode checks counts, indentation, and escaping so you can detect truncatio
 Use `delimiter: '\t'` for tab-separated tables if you want even fewer tokens. Tabs are single characters, often tokenize more efficiently than commas, and rarely appear in natural text (reducing quote-escaping).
 
 ```ts
-const toon = encode(data, { delimiter: '\t' })
+const dx = encode(data, { delimiter: '\t' })
 ```
 
 Tell the model "fields are tab-separated" when using tabs. For more on delimiters, see the [Format Overview](/guide/format-overview#delimiter-options).
 
 ## Streaming Large Outputs
 
-When working with large datasets (thousands of records or deeply nested structures), use `encodeLines()` to stream TOON output line-by-line instead of building the full string in memory.
+When working with large datasets (thousands of records or deeply nested structures), use `encodeLines()` to stream DX Serializer output line-by-line instead of building the full string in memory.
 
 ```ts
-import { encodeLines } from '@toon-format/toon'
+import { encodeLines } from '@dx-serializer/core'
 
 const largeData = await fetchThousandsOfRecords()
 
@@ -114,18 +114,18 @@ for (const line of encodeLines(largeData, { delimiter: '\t' })) {
 }
 ```
 
-The CLI also supports streaming for memory-efficient JSON-to-TOON conversion:
+The CLI also supports streaming for memory-efficient JSON-to-DX Serializer conversion:
 
 ```bash
-toon large-dataset.json -o output.toon
+dx large-dataset.json -o output.dx
 ```
 
 This streaming approach prevents out-of-memory errors when preparing large context windows for LLMs. For complete details on `encodeLines()`, see the [API Reference](/reference/api#encodelines-input-options).
 
-**Consuming streaming LLM outputs:** If your LLM client exposes streaming text and you buffer by lines, you can decode TOON incrementally:
+**Consuming streaming LLM outputs:** If your LLM client exposes streaming text and you buffer by lines, you can decode DX Serializer incrementally:
 
 ```ts
-import { decodeFromLines } from '@toon-format/toon'
+import { decodeFromLines } from '@dx-serializer/core'
 
 // Buffer streaming response into lines
 const lines: string[] = []
@@ -149,22 +149,22 @@ For streaming decode APIs, see [`decodeFromLines()`](/reference/api#decodefromli
 
 ## Tips and Pitfalls
 
-**Show, don't describe.** Don't explain TOON syntax in detail – just show an example. Models learn the pattern from context. A simple code block with 2–5 rows is more effective than paragraphs of explanation.
+**Show, don't describe.** Don't explain DX Serializer syntax in detail – just show an example. Models learn the pattern from context. A simple code block with 2–5 rows is more effective than paragraphs of explanation.
 
 **Keep examples small.** Use 2–5 rows in your examples, not hundreds. The model generalizes from the pattern. Large examples waste tokens without improving accuracy.
 
-**Always validate output.** Decode generated TOON with `strict: true` (default) to catch errors early. Don't assume model output is valid TOON without checking.
+**Always validate output.** Decode generated DX Serializer with `strict: true` (default) to catch errors early. Don't assume model output is valid DX Serializer without checking.
 
 ## Real-World Example
 
-Here's a complete workflow: send data to a model and validate its TOON response.
+Here's a complete workflow: send data to a model and validate its DX Serializer response.
 
-**Prompt with TOON input:**
+**Prompt with DX Serializer input:**
 
 ````md
-System logs in TOON format (tab-separated):
+System logs in DX Serializer format (tab-separated):
 
-```toon
+```dx
 events[4	]{id	level	message	timestamp}:
   1	error	Connection timeout	"2025-01-15T10:00:00Z"
   2	warn	Slow query	"2025-01-15T10:05:00Z"
@@ -178,7 +178,7 @@ Task: Return only error-level events as TOON. Use the same format.
 **Validate the response:**
 
 ```ts
-import { decode } from '@toon-format/toon'
+import { decode } from '@dx-serializer/core'
 
 const modelResponse = `
 events[2	]{id	level	message	timestamp}:

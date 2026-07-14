@@ -1,12 +1,12 @@
 ---
-description: Convert JSON to TOON and back from the command line, with token statistics, streaming, and delimiter options.
+description: Convert JSON to DX Serializer and back from the command line, with token statistics, streaming, and delimiter options.
 ---
 
 # Command Line Interface
 
-The `@toon-format/cli` package converts JSON to TOON and TOON to JSON. Use it to measure token savings before integrating TOON into your application, or to pipe JSON through TOON in shell workflows alongside tools like `curl` and `jq`. The CLI supports stdin/stdout, token statistics, streaming for large datasets, and every encoding option in the library.
+The `@dx-serializer/cli` package converts JSON to DX Serializer and DX Serializer to JSON. Use it to measure token savings before integrating DX Serializer into your application, or to pipe JSON through DX Serializer in shell workflows alongside tools like `curl` and `jq`. The CLI supports stdin/stdout, token statistics, streaming for large datasets, and every encoding option in the library.
 
-The CLI is built on the `@toon-format/toon` TypeScript implementation and follows the [latest specification](/reference/spec).
+The CLI is built on the `@dx-serializer/core` TypeScript implementation and follows the [latest specification](/reference/spec).
 
 ## Usage
 
@@ -17,15 +17,15 @@ Use `npx` to run the CLI without installing:
 ::: code-group
 
 ```bash [Encode]
-npx @toon-format/cli input.json -o output.toon
+npx @dx-serializer/cli input.json -o output.dx
 ```
 
 ```bash [Decode]
-npx @toon-format/cli data.toon -o output.json
+npx @dx-serializer/cli data.dx -o output.json
 ```
 
 ```bash [Stdin]
-echo '{"name": "Ada"}' | npx @toon-format/cli
+echo '{"name": "Ada"}' | npx @dx-serializer/cli
 ```
 
 :::
@@ -37,23 +37,23 @@ Or install globally for repeated use:
 ::: code-group
 
 ```bash [npm]
-npm install -g @toon-format/cli
+npm install -g @dx-serializer/cli
 ```
 
 ```bash [pnpm]
-pnpm add -g @toon-format/cli
+pnpm add -g @dx-serializer/cli
 ```
 
 ```bash [yarn]
-yarn global add @toon-format/cli
+yarn global add @dx-serializer/cli
 ```
 
 :::
 
-After global installation, use the `toon` command:
+After global installation, use the `dx` command:
 
 ```bash
-toon input.json -o output.toon
+dx input.json -o output.dx
 ```
 
 ## Basic Usage
@@ -61,37 +61,37 @@ toon input.json -o output.toon
 ### Auto-Detection
 
 The CLI automatically detects the operation based on file extension:
-- `.json` files → encode (JSON to TOON)
-- `.toon` files → decode (TOON to JSON)
+- `.json` files → encode (JSON to DX Serializer)
+- `.dx` files → decode (DX Serializer to JSON)
 
 When reading from stdin, use `--encode` or `--decode` flags to specify the operation (defaults to encode).
 
 ::: code-group
 
-```bash [Encode JSON to TOON]
-toon input.json -o output.toon
+```bash [Encode JSON to DX Serializer]
+dx input.json -o output.dx
 ```
 
-```bash [Decode TOON to JSON]
-toon data.toon -o output.json
+```bash [Decode DX Serializer to JSON]
+dx data.dx -o output.json
 ```
 
 ```bash [Output to stdout]
-toon input.json
+dx input.json
 ```
 
 ```bash [Pipe from stdin]
-cat data.json | toon
-echo '{"name": "Ada"}' | toon
+cat data.json | dx
+echo '{"name": "Ada"}' | dx
 ```
 
 ```bash [Decode from stdin]
-cat data.toon | toon --decode
+cat data.dx | dx --decode
 ```
 
 :::
 
-By convention, TOON files use the `.toon` extension and the provisional media type `text/toon` (see [spec §17](https://github.com/toon-format/spec/blob/main/SPEC.md#17-iana-considerations)).
+By convention, DX Serializer files use the `.dx` extension and the provisional media type `text/dx` (see [spec §17](https://github.com/dx-www/spec/blob/main/SPEC.md#17-iana-considerations)).
 
 ### Standard Input
 
@@ -99,13 +99,13 @@ Omit the input argument or use `-` to read from stdin. This enables piping data 
 
 ```bash
 # No argument needed
-cat data.json | toon
+cat data.json | dx
 
 # Explicit stdin with hyphen (equivalent)
-cat data.json | toon -
+cat data.json | dx -
 
 # Decode from stdin
-cat data.toon | toon --decode
+cat data.dx | dx --decode
 ```
 
 ## Performance
@@ -114,14 +114,14 @@ cat data.toon | toon --decode
 
 Both encoding and decoding operations use streaming output, writing incrementally without building the full output string in memory. This makes the CLI efficient for large datasets without requiring additional configuration.
 
-**JSON → TOON (Encode)**:
+**JSON → DX Serializer (Encode)**:
 
-- Streams TOON lines to output.
-- No full TOON string in memory.
+- Streams DX Serializer lines to output.
+- No full DX Serializer string in memory.
 
-**TOON → JSON (Decode)**:
+**DX Serializer → JSON (Decode)**:
 
-- Uses the same event-based streaming decoder as the `decodeStream` API in `@toon-format/toon`.
+- Uses the same event-based streaming decoder as the `decodeStream` API in `@dx-serializer/core`.
 - Streams JSON tokens to output.
 - No full JSON string in memory.
 - When `--expandPaths safe` is enabled, falls back to non-streaming decode internally to apply deep-merge expansion before writing JSON.
@@ -130,20 +130,20 @@ Process large files with minimal memory usage:
 
 ```bash
 # Encode large JSON file
-toon huge-dataset.json -o output.toon
+dx huge-dataset.json -o output.dx
 
-# Decode large TOON file
-toon huge-dataset.toon -o output.json
+# Decode large DX Serializer file
+dx huge-dataset.dx -o output.json
 
 # Process millions of records efficiently via stdin
-cat million-records.json | toon > output.toon
-cat million-records.toon | toon --decode > output.json
+cat million-records.json | dx > output.dx
+cat million-records.dx | dx --decode > output.json
 ```
 
 Peak memory usage scales with data depth, not total size. This allows processing arbitrarily large files as long as individual nested structures fit in memory.
 
 ::: tip Token Statistics
-When using the `--stats` flag with encode, the CLI builds the full TOON string once to compute accurate token counts. For maximum memory efficiency on very large files, omit `--stats`.
+When using the `--stats` flag with encode, the CLI builds the full DX Serializer string once to compute accurate token counts. For maximum memory efficiency on very large files, omit `--stats`.
 :::
 
 ## Options
@@ -169,7 +169,7 @@ When using the `--stats` flag with encode, the CLI builds the full TOON string o
 Show token savings when encoding:
 
 ```bash
-toon data.json --stats -o output.toon
+dx data.json --stats -o output.dx
 ```
 
 This helps you estimate token cost savings before sending data to LLMs.
@@ -177,24 +177,24 @@ This helps you estimate token cost savings before sending data to LLMs.
 Example output:
 
 ```
-✔ Encoded data.json → output.toon
+✔ Encoded data.json → output.dx
 
-ℹ Token estimates: ~15,145 (JSON) → ~8,745 (TOON)
+ℹ Token estimates: ~15,145 (JSON) → ~8,745 (DX Serializer)
 ✔ Saved ~6,400 tokens (-42.3%)
 ```
 
 ### Alternative Delimiters
 
-TOON supports three delimiters: comma (default), tab, and pipe. Alternative delimiters can save additional tokens depending on the data.
+DX Serializer supports three delimiters: comma (default), tab, and pipe. Alternative delimiters can save additional tokens depending on the data.
 
 ::: code-group
 
 ```bash [Tab-separated (bash/zsh)]
-toon data.json --delimiter $'\t' -o output.toon
+dx data.json --delimiter $'\t' -o output.dx
 ```
 
 ```bash [Pipe-separated]
-toon data.json --delimiter "|" -o output.toon
+dx data.json --delimiter "|" -o output.dx
 ```
 
 :::
@@ -228,14 +228,14 @@ Tab delimiters often tokenize more efficiently than commas and reduce the need f
 Skip validation for faster, more forgiving decoding:
 
 ```bash
-toon data.toon --no-strict -o output.json
+dx data.dx --no-strict -o output.json
 ```
 
 With `--no-strict`, the decoder stops enforcing array count matches, indentation multiples, and header delimiter mismatches. Duplicate sibling keys no longer throw – the last value wins. Malformed array headers fall back to plain `key: value` lines instead of erroring.
 
 ### Decode Error Output
 
-When a TOON document fails to parse, the CLI renders the offending line with a caret pointing at the first non-whitespace character. Tabs are shown as `→` so the caret column reflects what the decoder actually saw.
+When a DX Serializer document fails to parse, the CLI renders the offending line with a caret pointing at the first non-whitespace character. Tabs are shown as `→` so the caret column reflects what the decoder actually saw.
 
 For an input file that uses a tab to indent the second line (rendered here with `→`):
 
@@ -247,7 +247,7 @@ a:
 The CLI prints:
 
 ```
- ERROR  Failed to decode TOON at line 2: Tabs are not allowed in indentation in strict mode
+ ERROR  Failed to decode DX Serializer at line 2: Tabs are not allowed in indentation in strict mode
 
   2 | →b: 1
       ^
@@ -256,7 +256,7 @@ The CLI prints:
 The exit code is `1` on any error. Stack traces are suppressed by default. Pass `--verbose` to include the full stack and the underlying cause chain – useful when filing a bug report or diagnosing an unexpected error path:
 
 ```bash
-cat broken.toon | toon --decode --verbose
+cat broken.dx | dx --decode --verbose
 ```
 
 ::: tip Programmatic Access
@@ -268,14 +268,14 @@ Decode errors are thrown as `ToonDecodeError` instances by the library. The CLI'
 The CLI integrates seamlessly with Unix pipes and other command-line tools:
 
 ```bash
-# Convert API response to TOON
-curl https://api.example.com/data | toon --stats
+# Convert API response to DX Serializer
+curl https://api.example.com/data | dx --stats
 
 # Process large dataset
-cat large-dataset.json | toon --delimiter $'\t' > output.toon
+cat large-dataset.json | dx --delimiter $'\t' > output.dx
 
 # Chain with jq
-jq '.results' data.json | toon > filtered.toon
+jq '.results' data.json | dx > filtered.dx
 ```
 
 ### Key Folding
@@ -285,11 +285,11 @@ Collapse nested wrapper chains to reduce tokens (since spec v1.5):
 ::: code-group
 
 ```bash [Basic key folding]
-toon input.json --keyFolding safe -o output.toon
+dx input.json --keyFolding safe -o output.dx
 ```
 
 ```bash [Limit folding depth]
-toon input.json --keyFolding safe --flattenDepth 2 -o output.toon
+dx input.json --keyFolding safe --flattenDepth 2 -o output.dx
 ```
 
 :::
@@ -327,7 +327,7 @@ data:
 Reconstruct nested structure from folded keys when decoding:
 
 ```bash
-toon data.toon --expandPaths safe -o output.json
+dx data.dx --expandPaths safe -o output.json
 ```
 
 This pairs with `--keyFolding safe` for lossless round-trips.
@@ -336,10 +336,10 @@ This pairs with `--keyFolding safe` for lossless round-trips.
 
 ```bash
 # Encode with folding
-toon input.json --keyFolding safe -o compressed.toon
+dx input.json --keyFolding safe -o compressed.dx
 
 # Decode with expansion (restores original structure)
-toon compressed.toon --expandPaths safe -o output.json
+dx compressed.dx --expandPaths safe -o output.json
 
 # Verify round-trip
 diff input.json output.json
@@ -351,5 +351,5 @@ Combine multiple options for maximum efficiency:
 
 ```bash
 # Key folding + tab delimiter + stats
-toon data.json --keyFolding safe --delimiter $'\t' --stats -o output.toon
+dx data.json --keyFolding safe --delimiter $'\t' --stats -o output.dx
 ```

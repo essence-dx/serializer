@@ -42,7 +42,7 @@ export default defineConfig({
         items: [
           { text: 'Getting Started', link: '/guide/getting-started' },
           { text: 'Format Overview', link: '/guide/format-overview' },
-          { text: 'Using TOON with LLMs', link: '/guide/llm-prompts' },
+          { text: 'Using DX Serializer with LLMs', link: '/guide/llm-prompts' },
           { text: 'Benchmarks', link: '/guide/benchmarks' },
         ],
       },
@@ -114,7 +114,7 @@ function sidebarPrimary(): DefaultTheme.SidebarItem[] {
       items: [
         { text: 'Getting Started', link: '/guide/getting-started' },
         { text: 'Format Overview', link: '/guide/format-overview' },
-        { text: 'Using TOON with LLMs', link: '/guide/llm-prompts' },
+        { text: 'Using DX Serializer with LLMs', link: '/guide/llm-prompts' },
         { text: 'Benchmarks', link: '/guide/benchmarks' },
       ],
     },

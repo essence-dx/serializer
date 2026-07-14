@@ -285,10 +285,6 @@ pub mod zero {
         MAGIC, VERSION, detect_format,
     };
 }
-/// Key and path abbreviation mappings used by text and machine encoders.
-pub mod mappings;
-/// Key and path optimization helpers for compact DX output.
-pub mod optimizer;
 pub mod parser;
 #[cfg(test)]
 mod parser_security_props;
@@ -315,15 +311,12 @@ pub use biome_config::{
     DxBiomeConfig, DxBiomeConfigEntry, DxBiomeConfigError, DxBiomeTarget,
     biome_config_from_document, biome_config_from_source, load_biome_config,
 };
-pub use compress::{compress_to_writer, format_machine};
 pub use converters::{convert_to_dx, dx_to_toon, toon_to_dx};
 #[cfg(feature = "converters")]
 pub use converters::{json_to_document, json_to_dx, toml_to_document, toml_to_dx, yaml_to_dx};
 pub use encoder::{Encoder, encode, encode_to_writer};
 pub use error::{DxError, Result};
 pub use formatter::{HumanFormatter as BinaryHumanFormatter, format_human};
-pub use mappings::Mappings;
-pub use optimizer::{optimize_key, optimize_path};
 pub use parser::{Parser, parse, parse_stream};
 pub use schema::{Schema, TypeHint};
 pub use types::{DxArray, DxObject, DxValue};
@@ -340,7 +333,7 @@ pub use indexmap::IndexMap;
 pub use llm::machine_file_to_document_mmap;
 pub use human::{HumanFormatConfig, HumanFormatter, HumanParseError, HumanParser};
 pub use llm::{
-    AbbrevDict, ConvertError, DxDocument, DxLlmValue, DxSection, LlmParser, LlmSerializer, MachineFormat,
+    ConvertError, DxDocument, DxLlmValue, DxSection, LlmParser, LlmSerializer, MachineFormat,
     ParseError as LlmParseError,
 };
 pub use llm::{

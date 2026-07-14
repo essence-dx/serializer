@@ -159,10 +159,6 @@ pub enum DxError {
     },
 
     // === Reference Errors ===
-    /// Unknown alias reference
-    #[error("Unknown alias: {0}")]
-    UnknownAlias(String),
-
     /// Unknown anchor reference
     #[error("Unknown anchor: {0}")]
     UnknownAnchor(String),

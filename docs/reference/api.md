@@ -1,25 +1,25 @@
 ---
-description: TypeScript and JavaScript encode and decode functions, options, error types, and streaming decoders for @toon-format/toon.
+description: TypeScript and JavaScript encode and decode functions, options, error types, and streaming decoders for @dx-serializer/core.
 ---
 
 # API Reference
 
-TypeScript/JavaScript API documentation for the `@toon-format/toon` package. For format rules, see the [Format Overview](/guide/format-overview) or the [Specification](/reference/spec). For other languages, see [Implementations](/ecosystem/implementations).
+TypeScript/JavaScript API documentation for the `@dx-serializer/core` package. For format rules, see the [Format Overview](/guide/format-overview) or the [Specification](/reference/spec). For other languages, see [Implementations](/ecosystem/implementations).
 
 ## Installation
 
 ::: code-group
 
 ```bash [npm]
-npm install @toon-format/toon
+npm install @dx-serializer/core
 ```
 
 ```bash [pnpm]
-pnpm add @toon-format/toon
+pnpm add @dx-serializer/core
 ```
 
 ```bash [yarn]
-yarn add @toon-format/toon
+yarn add @dx-serializer/core
 ```
 
 :::
@@ -28,12 +28,12 @@ yarn add @toon-format/toon
 
 ### `encode(input, options?)`
 
-Converts any JSON-serializable value to TOON format.
+Converts any JSON-serializable value to DX Serializer format.
 
 ```ts
-import { encode } from '@toon-format/toon'
+import { encode } from '@dx-serializer/core'
 
-const toon = encode(data, {
+const dx = encode(data, {
   indent: 2,
   delimiter: ',',
   keyFolding: 'off',
@@ -50,7 +50,7 @@ const toon = encode(data, {
 
 #### Return Value
 
-Returns a TOON-formatted string with no trailing newline or spaces.
+Returns a DX Serializer-formatted string with no trailing newline or spaces.
 
 #### Type Normalization
 
@@ -70,13 +70,13 @@ Non-JSON-serializable values are normalized before encoding:
 | `undefined`, `function`, `symbol` | `null` |
 
 ::: info
-TOON itself doesn't specify how `Date` should be encoded – the spec leaves this to implementations. This library emits an ISO 8601 string in quotes; other implementations may choose differently.
+DX Serializer itself doesn't specify how `Date` should be encoded – the spec leaves this to implementations. This library emits an ISO 8601 string in quotes; other implementations may choose differently.
 :::
 
 #### Example
 
 ```ts
-import { encode } from '@toon-format/toon'
+import { encode } from '@dx-serializer/core'
 
 const items = [
   { sku: 'A1', qty: 2, price: 9.99 },
@@ -96,10 +96,10 @@ items[2]{sku,qty,price}:
 
 ### `encodeLines(input, options?)`
 
-**Preferred method for streaming TOON output.** Converts any JSON-serializable value to TOON format as a sequence of lines, without building the full string in memory. Suitable for streaming large outputs to files, HTTP responses, or process stdout.
+**Preferred method for streaming DX Serializer output.** Converts any JSON-serializable value to DX Serializer format as a sequence of lines, without building the full string in memory. Suitable for streaming large outputs to files, HTTP responses, or process stdout.
 
 ```ts
-import { encodeLines } from '@toon-format/toon'
+import { encodeLines } from '@dx-serializer/core'
 
 // Stream to stdout (Node.js)
 for (const line of encodeLines(data)) {
@@ -125,7 +125,7 @@ const lineArray = Array.from(encodeLines(data))
 
 #### Return Value
 
-Returns an `Iterable<string>` that yields TOON lines one at a time. **Each yielded string is a single line without a trailing newline character** – you must add `\n` when writing to streams or stdout.
+Returns an `Iterable<string>` that yields DX Serializer lines one at a time. **Each yielded string is a single line without a trailing newline character** – you must add `\n` when writing to streams or stdout.
 
 ::: info Relationship to `encode()`
 `encode(value, options)` is equivalent to:
@@ -138,7 +138,7 @@ Array.from(encodeLines(value, options)).join('\n')
 
 ```ts
 import { createWriteStream } from 'node:fs'
-import { encodeLines } from '@toon-format/toon'
+import { encodeLines } from '@dx-serializer/core'
 
 const data = {
   items: Array.from({ length: 100000 }, (_, i) => ({
@@ -149,7 +149,7 @@ const data = {
 }
 
 // Stream large dataset to file
-const stream = createWriteStream('output.toon')
+const stream = createWriteStream('output.dx')
 for (const line of encodeLines(data, { delimiter: '\t' })) {
   stream.write(`${line}\n`)
 }
@@ -190,7 +190,7 @@ type EncodeReplacer = (
 **Filtering sensitive data:**
 
 ```typescript
-import { encode } from '@toon-format/toon'
+import { encode } from '@dx-serializer/core'
 
 const data = {
   user: { name: 'Alice', password: 'secret123', email: 'alice@example.com' }
@@ -278,12 +278,12 @@ Following `JSON.stringify` behavior, array indices are passed as strings (`'0'`,
 
 ### `decode(input, options?)`
 
-Converts a TOON-formatted string back to JavaScript values.
+Converts a DX Serializer-formatted string back to JavaScript values.
 
 ```ts
-import { decode } from '@toon-format/toon'
+import { decode } from '@dx-serializer/core'
 
-const data = decode(toon, {
+const data = decode(dx, {
   indent: 2,
   strict: true,
   expandPaths: 'off'
@@ -294,25 +294,25 @@ const data = decode(toon, {
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `input` | `string` | A TOON-formatted string to parse |
+| `input` | `string` | A DX Serializer-formatted string to parse |
 | `options` | `DecodeOptions?` | Optional decoding options (see [Configuration Reference](#configuration-reference)) |
 
 #### Return Value
 
-Returns a JavaScript value (object, array, or primitive) representing the parsed TOON data.
+Returns a JavaScript value (object, array, or primitive) representing the parsed DX Serializer data.
 
 #### Example
 
 ```ts
-import { decode } from '@toon-format/toon'
+import { decode } from '@dx-serializer/core'
 
-const toon = `
+const dx = `
 items[2]{sku,qty,price}:
   A1,2,9.99
   B2,1,14.5
 `
 
-const data = decode(toon)
+const data = decode(dx)
 console.log(data)
 ```
 
@@ -329,7 +329,7 @@ console.log(data)
 
 ### `decodeFromLines(lines, options?)`
 
-Decodes TOON format from pre-split lines into a JavaScript value. This is a streaming-friendly wrapper around the event-based decoder that builds the full value in memory.
+Decodes DX Serializer format from pre-split lines into a JavaScript value. This is a streaming-friendly wrapper around the event-based decoder that builds the full value in memory.
 
 Useful when you already have lines as an array or iterable (e.g., from file streams, readline interfaces, or network responses) and want the standard decode behavior with path expansion support.
 
@@ -337,7 +337,7 @@ Useful when you already have lines as an array or iterable (e.g., from file stre
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `lines` | `Iterable<string>` | Iterable of TOON lines (without trailing newlines) |
+| `lines` | `Iterable<string>` | Iterable of DX Serializer lines (without trailing newlines) |
 | `options` | `DecodeOptions?` | Optional decoding configuration (see [Configuration Reference](#configuration-reference)) |
 
 #### Return Value
@@ -349,7 +349,7 @@ Returns a `JsonValue` (the parsed JavaScript value: object, array, or primitive)
 **Basic usage with arrays:**
 
 ```ts
-import { decodeFromLines } from '@toon-format/toon'
+import { decodeFromLines } from '@dx-serializer/core'
 
 const lines = ['name: Alice', 'age: 30']
 const value = decodeFromLines(lines)
@@ -361,10 +361,10 @@ const value = decodeFromLines(lines)
 ```ts
 import { createReadStream } from 'node:fs'
 import { createInterface } from 'node:readline'
-import { decodeFromLines } from '@toon-format/toon'
+import { decodeFromLines } from '@dx-serializer/core'
 
 const rl = createInterface({
-  input: createReadStream('data.toon'),
+  input: createReadStream('data.dx'),
   crlfDelay: Infinity,
 })
 
@@ -384,7 +384,7 @@ const value = decodeFromLines(lines, { expandPaths: 'safe' })
 
 | Function | Input | Output | Async | Path Expansion | Use When |
 |----------|-------|--------|-------|----------------|----------|
-| `decode()` | String | Value | No | Yes | You have a complete TOON string |
+| `decode()` | String | Value | No | Yes | You have a complete DX Serializer string |
 | `decodeFromLines()` | Lines | Value | No | Yes | You have lines and want the full value |
 | `decodeStreamSync()` | Lines | Events | No | No | You need event-by-event processing (sync) |
 | `decodeStream()` | Lines | Events | Yes | No | You need event-by-event processing (async) |
@@ -399,7 +399,7 @@ const value = decodeFromLines(lines, { expandPaths: 'safe' })
 
 ### `decodeStreamSync(lines, options?)`
 
-Synchronously decodes TOON lines into a stream of JSON events. This function yields structured events that represent the JSON data model without building the full value tree.
+Synchronously decodes DX Serializer lines into a stream of JSON events. This function yields structured events that represent the JSON data model without building the full value tree.
 
 Useful for streaming processing, custom transformations, or memory-efficient parsing of large datasets where you don't need the full value in memory.
 
@@ -413,7 +413,7 @@ Path expansion (`expandPaths: 'safe'`) is **not supported** in streaming mode si
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `lines` | `Iterable<string>` | Iterable of TOON lines (without trailing newlines) |
+| `lines` | `Iterable<string>` | Iterable of DX Serializer lines (without trailing newlines) |
 | `options` | `DecodeStreamOptions?` | Optional streaming decoding configuration (see [Configuration Reference](#configuration-reference)) |
 
 #### Return Value
@@ -425,7 +425,7 @@ Returns an `Iterable<JsonStreamEvent>` that yields structured events (see [TypeS
 **Basic event streaming:**
 
 ```ts
-import { decodeStreamSync } from '@toon-format/toon'
+import { decodeStreamSync } from '@dx-serializer/core'
 
 const lines = ['name: Alice', 'age: 30']
 
@@ -445,7 +445,7 @@ for (const event of decodeStreamSync(lines)) {
 **Custom processing:**
 
 ```ts
-import { decodeStreamSync } from '@toon-format/toon'
+import { decodeStreamSync } from '@dx-serializer/core'
 
 const lines = ['users[2]{id,name}:', '  1,Alice', '  2,Bob']
 let userCount = 0
@@ -460,7 +460,7 @@ for (const event of decodeStreamSync(lines)) {
 
 ### `decodeStream(source, options?)`
 
-Asynchronously decodes TOON lines into a stream of JSON events. This is the async version of [`decodeStreamSync()`](#decodestreamsync-lines-options), supporting both synchronous and asynchronous iterables.
+Asynchronously decodes DX Serializer lines into a stream of JSON events. This is the async version of [`decodeStreamSync()`](#decodestreamsync-lines-options), supporting both synchronous and asynchronous iterables.
 
 Useful for processing file streams, network responses, or other async sources where you want to handle data incrementally as it arrives.
 
@@ -468,7 +468,7 @@ Useful for processing file streams, network responses, or other async sources wh
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `source` | `AsyncIterable<string>` \| `Iterable<string>` | Async or sync iterable of TOON lines (without trailing newlines) |
+| `source` | `AsyncIterable<string>` \| `Iterable<string>` | Async or sync iterable of DX Serializer lines (without trailing newlines) |
 | `options` | `DecodeStreamOptions?` | Optional streaming decoding configuration (see [Configuration Reference](#configuration-reference)) |
 
 #### Return Value
@@ -482,9 +482,9 @@ Returns an `AsyncIterable<JsonStreamEvent>` that yields structured events asynch
 ```ts
 import { createReadStream } from 'node:fs'
 import { createInterface } from 'node:readline'
-import { decodeStream } from '@toon-format/toon'
+import { decodeStream } from '@dx-serializer/core'
 
-const fileStream = createReadStream('data.toon', 'utf-8')
+const fileStream = createReadStream('data.dx', 'utf-8')
 const rl = createInterface({ input: fileStream, crlfDelay: Infinity })
 
 for await (const event of decodeStream(rl)) {
@@ -500,7 +500,7 @@ Decoding throws a `ToonDecodeError` when input cannot be parsed. The class exten
 ### `ToonDecodeError`
 
 ```ts
-import { ToonDecodeError } from '@toon-format/toon'
+import { ToonDecodeError } from '@dx-serializer/core'
 ```
 
 #### Fields
@@ -518,7 +518,7 @@ The `line` and `source` fields are populated for every error that has line conte
 #### Example
 
 ```ts
-import { decode, ToonDecodeError } from '@toon-format/toon'
+import { decode, ToonDecodeError } from '@dx-serializer/core'
 
 try {
   decode('a:\n\tb: 1')
@@ -633,7 +633,7 @@ type JsonStreamEvent
 ### Delimiters
 
 ```ts
-import { DEFAULT_DELIMITER, DELIMITERS } from '@toon-format/toon'
+import { DEFAULT_DELIMITER, DELIMITERS } from '@dx-serializer/core'
 
 DEFAULT_DELIMITER // ','
 DELIMITERS // { comma: ',', tab: '\t', pipe: '|' }
@@ -661,10 +661,10 @@ DELIMITERS // { comma: ',', tab: '\t', pipe: '|' }
 
 ### Round-Trip Compatibility
 
-TOON provides lossless round-trips after normalization:
+DX Serializer provides lossless round-trips after normalization:
 
 ```ts
-import { decode, encode } from '@toon-format/toon'
+import { decode, encode } from '@dx-serializer/core'
 
 const original = {
   users: [
@@ -673,8 +673,8 @@ const original = {
   ]
 }
 
-const toon = encode(original)
-const restored = decode(toon)
+const dx = encode(original)
+const restored = decode(dx)
 
 console.log(JSON.stringify(original) === JSON.stringify(restored))
 // true
@@ -683,16 +683,16 @@ console.log(JSON.stringify(original) === JSON.stringify(restored))
 **With Key Folding:**
 
 ```ts
-import { decode, encode } from '@toon-format/toon'
+import { decode, encode } from '@dx-serializer/core'
 
 const original = { data: { metadata: { items: ['a', 'b'] } } }
 
 // Encode with folding
-const toon = encode(original, { keyFolding: 'safe' })
+const dx = encode(original, { keyFolding: 'safe' })
 // → "data.metadata.items[2]: a,b"
 
 // Decode with expansion
-const restored = decode(toon, { expandPaths: 'safe' })
+const restored = decode(dx, { expandPaths: 'safe' })
 // → { data: { metadata: { items: ['a', 'b'] } } }
 
 console.log(JSON.stringify(original) === JSON.stringify(restored))
@@ -704,7 +704,7 @@ console.log(JSON.stringify(original) === JSON.stringify(restored))
 **Key Folding** (`keyFolding: 'safe'`) collapses single-key wrapper chains during encoding:
 
 ```ts
-import { encode } from '@toon-format/toon'
+import { encode } from '@dx-serializer/core'
 
 const data = { data: { metadata: { items: ['a', 'b'] } } }
 
@@ -722,11 +722,11 @@ encode(data, { keyFolding: 'safe' })
 **Path Expansion** (`expandPaths: 'safe'`) reverses this during decoding:
 
 ```ts
-import { decode } from '@toon-format/toon'
+import { decode } from '@dx-serializer/core'
 
-const toon = 'data.metadata.items[2]: a,b'
+const dx = 'data.metadata.items[2]: a,b'
 
-const data = decode(toon, { expandPaths: 'safe' })
+const data = decode(dx, { expandPaths: 'safe' })
 console.log(data)
 // { data: { metadata: { items: ['a', 'b'] } } }
 ```

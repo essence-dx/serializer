@@ -249,20 +249,69 @@ JSON.stringify(original) === JSON.stringify(decoded) // true
 
 ## Token Efficiency
 
-DX Compact achieves significant savings over JSON:
+DX Compact achieves significant token savings over all popular formats.
+Measured with `gpt-tokenizer` o200k_base (GPT-4o tokenizer) across **20 benchmark files**
+ranging from small configs to massive 100K-record datasets.
 
-| Dataset | JSON | DX Compact | Savings |
-|---------|------|-----------|---------|
-| 80-tool LLM schema | 110,259 B | 31,886 B | **71.1%** |
-| 12-tool coding assistant | 10,189 B | 6,253 B | 38.6% |
-| 100-item github repos | 42,298 B | 21,586 B | 49.0% |
+### Overall Statistics vs JSON, YAML, TOON, JSONC
 
-The format achieves these savings through:
-- `key=value` syntax vs JSON's `"key": "value"` (no quotes, no braces)
-- Single-line `()` blocks for objects (no indentation overhead)
-- `table[cols](rows)` for arrays of objects (shared column headers)
-- `[val1, val2]` for primitive arrays (no per-element wrapping)
+| Comparison | Average | Min | Max | Samples |
+|-----------|---------|-----|-----|---------|
+| **DX vs JSON pretty** | **−58.9%** | −20.8% | −86.4% | 20 |
+| **DX vs JSON compact** | **−37.1%** | −7.4% | −75.0% | 20 |
+| **DX vs YAML** | **−38.5%** | −2.3% | −60.4% | 11 |
+| **DX vs TOON** | **−33.6%** | −4.7% | −50.6% | 20 |
+
+**DX beats TOON on every single benchmark file (20/20).**
+
+### Record-Breaking Benchmarks
+
+| Dataset | Tokens (o200k) | vs JSON | vs TOON | Type |
+|---------|---------------:|--------:|--------:|------|
+| 100K boolean records (3 cols) | 300,006 | **−86%** | −40% | `true/false` only |
+| 10K boolean records (5 cols) | 50,008 | **−85%** | −29% | `true/false` only |
+| 100K flat records (2 cols) | 399,004 | **−79%** | −33% | numbers + strings |
+| 80-tool LLM schema | 7,686 | **−69%** | −49% | nested tool defs |
+| 40-provider catalog | 667 | **−66%** | −21% | uniform objects |
+| 12-tool coding assistant | 1,268 | **−51%** | −36% | tool schemas |
+| 100-item github repos | 8,336 | **−45%** | −5% | mixed data |
+| Small project metadata | 130 | **−38%** | −15% | 6 fields |
+
+### By Data Type
+
+| Data Shape | Best Case | Worst Case |
+|-----------|-----------|------------|
+| **Booleans** (uniform, many rows) | **−86%** | — |
+| **Uniform objects** (tables) | **−79%** | −45% |
+| **Tool schemas** (nested tables) | **−69%** | −51% |
+| **Deep nesting** (few items) | — | **−21%** |
+| **Nested tool calls** (single item) | — | **−20%** |
+
+### Why DX Wins
+
+- `key=value` vs `"key": "value"` — no quotes, no braces
+- `table[cols](rows)` — shared column headers, no repeated keys
+- Inline `()` blocks — no indentation overhead
+- `[val1 val2]` — space-separated, no commas
 - Adaptive quoting — only quote strings when necessary
+
+### Cost Impact
+
+Scenario: AI agent with 20-tool schema, 10K requests/day, GPT-4o ($2.50/1M input):
+
+| Format | Tokens/request | Monthly cost | Annual cost | Savings vs JSON |
+|--------|---------------:|------------:|------------:|----------------:|
+| JSON   | 2,862 | $214.65 | $2,575.80 | — |
+| TOON   | 2,062 | $154.65 | $1,855.80 | $720 |
+| **DX** | **1,114** | **$83.55** | **$1,002.60** | **$1,573** |
+
+For boolean-heavy data (100K records, 10K req/day):
+
+| Format | Tokens/request | Monthly | Annual | Annual vs JSON |
+|--------|---------------:|--------:|-------:|---------------:|
+| JSON   | 2,200,009 | $165,000 | $1,980,000 | — |
+| JSONC  | 1,200,005 | $90,000 | $1,080,000 | $900,000 |
+| **DX** | **300,006** | **$22,500** | **$270,000** | **$1,710,000** |
 
 ## Development
 

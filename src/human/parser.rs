@@ -32,7 +32,6 @@
 //! - @/backend
 //! ```
 
-use crate::llm::abbrev::AbbrevDict;
 use crate::llm::types::{DxDocument, DxLlmValue, DxSection};
 use indexmap::IndexMap;
 use thiserror::Error;
@@ -91,16 +90,14 @@ pub enum HumanParseError {
 
 /// Parse human-readable format back to `DxDocument`
 pub struct HumanParser {
-    abbrev: AbbrevDict,
 }
 
 impl HumanParser {
     #[allow(dead_code)] // Methods reserved for future table parsing features
     /// Create a new parser
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
-            abbrev: AbbrevDict::new(),
         }
     }
 
@@ -1085,12 +1082,6 @@ impl HumanParser {
             // Default: use first character
             _ => name.chars().next().unwrap_or('x').to_ascii_lowercase(),
         }
-    }
-
-    /// Get the abbreviation dictionary
-    #[must_use] 
-    pub const fn abbrev(&self) -> &AbbrevDict {
-        &self.abbrev
     }
 
     /// Parse a table header: name[col1,col2,...](...) or name[col1 col2 ...](...)

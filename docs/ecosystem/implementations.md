@@ -1,15 +1,15 @@
 ---
-description: Official and community TOON implementations across languages, plus contribution pointers.
+description: Official and community DX Serializer implementations across languages, plus contribution pointers.
 ---
 
 # Implementations
 
-TOON has official and community implementations across multiple programming languages. All implementations are intended to conform to the same [Specification](https://github.com/toon-format/spec) to ensure compatibility and interoperability.
+DX Serializer has official and community implementations across multiple programming languages. All implementations are intended to conform to the same [Specification](https://github.com/dx-www/spec) to ensure compatibility and interoperability.
 
 The code examples throughout this documentation site use the TypeScript implementation by default, but the format and concepts apply equally to all languages.
 
 > [!NOTE]
-> When implementing TOON in other languages, please follow the [spec](https://github.com/toon-format/spec/blob/main/SPEC.md) to ensure compatibility across implementations. The [conformance tests](https://github.com/toon-format/spec/tree/main/tests) provide language-agnostic test fixtures that validate your implementation.
+> When implementing DX Serializer in other languages, please follow the [spec](https://github.com/dx-www/spec/blob/main/SPEC.md) to ensure compatibility across implementations. The [conformance tests](https://github.com/dx-www/spec/tree/main/tests) provide language-agnostic test fixtures that validate your implementation.
 
 ## Official Implementations
 
@@ -17,15 +17,15 @@ These implementations are actively being developed by dedicated teams. Contribut
 
 | Language | Repository | Status | Maintainer |
 |----------|------------|--------|------------|
-| **.NET** | [toon-dotnet](https://github.com/toon-format/toon-dotnet) | In Development | Official Team |
-| **Dart** | [toon-dart](https://github.com/toon-format/toon-dart) | In Development | Official Team |
-| **Go** | [toon-go](https://github.com/toon-format/toon-go) | In Development | Official Team |
-| **Java** | [toon-java](https://github.com/toon-format/toon-java) | ✅ Stable | Official Team |
-| **Julia** | [ToonFormat.jl](https://github.com/toon-format/ToonFormat.jl) | ✅ Stable | Official Team |
-| **Python** | [toon-python](https://github.com/toon-format/toon-python) | ✅ Stable | Official Team |
-| **Rust** | [toon-rust](https://github.com/toon-format/toon-rust) | ✅ Stable | Official Team |
-| **Swift** | [toon-swift](https://github.com/toon-format/toon-swift) | ✅ Stable | Official Team |
-| **TypeScript/JavaScript** | [toon](https://github.com/toon-format/toon/tree/main/packages/toon) | ✅ Stable | Official Team |
+| **.NET** | [toon-dotnet](https://github.com/dx-www/serializer-dotnet) | In Development | Official Team |
+| **Dart** | [toon-dart](https://github.com/dx-www/serializer-dart) | In Development | Official Team |
+| **Go** | [toon-go](https://github.com/dx-www/serializer-go) | In Development | Official Team |
+| **Java** | [toon-java](https://github.com/dx-www/serializer-java) | ✅ Stable | Official Team |
+| **Julia** | [ToonFormat.jl](https://github.com/dx-www/ToonFormat.jl) | ✅ Stable | Official Team |
+| **Python** | [toon-python](https://github.com/dx-www/serializer-python) | ✅ Stable | Official Team |
+| **Rust** | [toon-rust](https://github.com/dx-www/serializer-rust) | ✅ Stable | Official Team |
+| **Swift** | [toon-swift](https://github.com/dx-www/serializer-swift) | ✅ Stable | Official Team |
+| **TypeScript/JavaScript** | [dx](https://github.com/dx-www/serializer/tree/main/packages/dx) | ✅ Stable | Official Team |
 
 ## Community Implementations
 
@@ -37,32 +37,32 @@ Community members have created implementations in additional languages:
 | **C** | [TOONc](https://github.com/UsboKirishima/TOONc) | [@UsboKirishima](https://github.com/UsboKirishima) |
 | **C++** | [ctoon](https://github.com/mohammadraziei/ctoon) | [@mohammadraziei](https://github.com/mohammadraziei) |
 | **C#** | [ToonEncoder](https://github.com/Cysharp/ToonEncoder) | [@Cysharp](https://github.com/Cysharp/ToonEncoder) |
-| **Clojure** | [toon](https://github.com/vadelabs/toon) | [@vadelabs](https://github.com/vadelabs) |
+| **Clojure** | [dx](https://github.com/vadelabs/dx) | [@vadelabs](https://github.com/vadelabs) |
 | **Crystal** | [toon-crystal](https://github.com/mamantoha/toon-crystal) | [@mamantoha](https://github.com/mamantoha) |
-| **Delphi** | [delphi-toon](https://github.com/ernestoalconada/delphi-toon) | [@ernestoalconada](https://github.com/ernestoalconada) |
+| **Delphi** | [delphi-dx](https://github.com/ernestoalconada/delphi-dx) | [@ernestoalconada](https://github.com/ernestoalconada) |
 | **Elixir** | [toon_ex](https://github.com/kentaro/toon_ex) | [@kentaro](https://github.com/kentaro) |
 | **Gleam** | [toon_codec](https://github.com/axelbellec/toon_codec) | [@axelbellec](https://github.com/axelbellec) |
 | **Go** | [gotoon](https://github.com/alpkeskin/gotoon) | [@alpkeskin](https://github.com/alpkeskin) |
 | **Java** | [json-io](https://github.com/jdereg/json-io) | [@jdereg](https://github.com/jdereg) |
 | **Kotlin** | [ktoon](https://github.com/lukelast/ktoon)| [@lukelast](https://github.com/lukelast) |
-| **Laravel Framework** | [laravel-toon](https://github.com/mischasigtermans/laravel-toon) | [@mischasigtermans](https://github.com/mischasigtermans) |
+| **Laravel Framework** | [laravel-dx](https://github.com/mischasigtermans/laravel-dx) | [@mischasigtermans](https://github.com/mischasigtermans) |
 | **Lua/Neovim** | [toon.nvim](https://github.com/thalesgelinger/toon.nvim) | [@thalesgelinger](https://github.com/thalesgelinger) |
 | **Matlab** | [ctoon](https://github.com/mohammadraziei/ctoon) | [@mohammadraziei](https://github.com/mohammadraziei) |
-| **OCaml** | [ocaml-toon](https://github.com/davesnx/ocaml-toon) | [@davesnx](https://github.com/davesnx) |
-| **Perl** | [Data::TOON](https://github.com/ytnobody/p5-Data-TOON) | [@ytnobody](https://github.com/ytnobody) |
+| **OCaml** | [ocaml-dx](https://github.com/davesnx/ocaml-dx) | [@davesnx](https://github.com/davesnx) |
+| **Perl** | [Data::DX Serializer](https://github.com/ytnobody/p5-Data-DX Serializer) | [@ytnobody](https://github.com/ytnobody) |
 | **PHP** | [toon-php](https://github.com/HelgeSverre/toon-php) | [@HelgeSverre](https://github.com/HelgeSverre) |
 | **Python** (C++ backend) | [ctoon](https://github.com/mohammadraziei/ctoon) | [@mohammadraziei](https://github.com/mohammadraziei) |
 | **Python** (Rust backend) | [toons](https://github.com/alesanfra/toons) | [@alesanfra](https://github.com/alesanfra) |
-| **R** | [toon](https://github.com/laresbernardo/toon) | [@laresbernardo](https://github.com/laresbernardo) |
+| **R** | [dx](https://github.com/laresbernardo/dx) | [@laresbernardo](https://github.com/laresbernardo) |
 | **Ruby** | [toon-ruby](https://github.com/andrepcg/toon-ruby) | [@andrepcg](https://github.com/andrepcg) |
 | **Scala** | [toon4s](https://github.com/vim89/toon4s) | [@vim89](https://github.com/vim89) |
 | **Zig** | [toon-zig](https://github.com/LatentEvals/toon-zig) | [@montanaflynn](https://github.com/montanaflynn) |
 
 ## Contributing an Implementation
 
-Building a TOON implementation for a new language? Great! Here are some steps to get started:
+Building a DX Serializer implementation for a new language? Great! Here are some steps to get started:
 
-1. **Follow the spec**: Implement the [latest specification](https://github.com/toon-format/spec/blob/main/SPEC.md).
-2. **Add tests**: Run the [reference test suite](https://github.com/toon-format/spec/tree/main/tests).
+1. **Follow the spec**: Implement the [latest specification](https://github.com/dx-www/spec/blob/main/SPEC.md).
+2. **Add tests**: Run the [reference test suite](https://github.com/dx-www/spec/tree/main/tests).
 3. **Document usage**: Provide a clear README with installation and usage examples.
-4. **Share it**: Open a PR to add your implementation to the README at [github.com/toon-format/toon](https://github.com/toon-format/toon).
+4. **Share it**: Open a PR to add your implementation to the README at [github.com/dx-www/serializer](https://github.com/dx-www/serializer).

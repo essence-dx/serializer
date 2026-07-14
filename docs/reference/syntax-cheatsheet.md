@@ -1,10 +1,10 @@
 ---
-description: JSON-to-TOON mappings at a glance for objects, arrays, quoting, key folding, and type conversions.
+description: JSON-to-DX Serializer mappings at a glance for objects, arrays, quoting, key folding, and type conversions.
 ---
 
 # Syntax Cheatsheet
 
-Quick reference for mapping JSON to TOON format. For rigorous, normative syntax rules and edge cases, see the [Specification](/reference/spec).
+Quick reference for mapping JSON to DX Serializer format. For rigorous, normative syntax rules and edge cases, see the [Specification](/reference/spec).
 
 ## Objects
 
@@ -17,7 +17,7 @@ Quick reference for mapping JSON to TOON format. For rigorous, normative syntax 
 }
 ```
 
-```yaml [TOON]
+```yaml [DX Serializer]
 id: 1
 name: Ada
 ```
@@ -37,7 +37,7 @@ name: Ada
 }
 ```
 
-```yaml [TOON]
+```yaml [DX Serializer]
 user:
   id: 1
   name: Ada
@@ -55,7 +55,7 @@ user:
 }
 ```
 
-```yaml [TOON]
+```yaml [DX Serializer]
 tags[3]: foo,bar,baz
 ```
 
@@ -74,7 +74,7 @@ tags[3]: foo,bar,baz
 }
 ```
 
-```yaml [TOON]
+```yaml [DX Serializer]
 items[2]{id,qty}:
   1,5
   2,3
@@ -92,7 +92,7 @@ items[2]{id,qty}:
 }
 ```
 
-```yaml [TOON]
+```yaml [DX Serializer]
 items[3]:
   - 1
   - a: 1
@@ -133,7 +133,7 @@ items[1]:
 }
 ```
 
-```yaml [TOON]
+```yaml [DX Serializer]
 pairs[2]:
   - [2]: 1,2
   - [2]: 3,4
@@ -149,7 +149,7 @@ pairs[2]:
 ["x", "y", "z"]
 ```
 
-```yaml [TOON]
+```yaml [DX Serializer]
 [3]: x,y,z
 ```
 
@@ -196,7 +196,7 @@ items: []
 }
 ```
 
-```yaml [TOON]
+```yaml [DX Serializer]
 version: "123"
 enabled: "true"
 ```
@@ -215,7 +215,7 @@ These strings must be quoted because they look like numbers/booleans.
 }
 ```
 
-```yaml [TOON]
+```yaml [DX Serializer]
 note: "hello, world"
 ```
 
@@ -233,7 +233,7 @@ Strings must be quoted when they contain the active delimiter (inside an array s
 }
 ```
 
-```yaml [TOON]
+```yaml [DX Serializer]
 message: " padded "
 ```
 
@@ -249,7 +249,7 @@ message: " padded "
 }
 ```
 
-```yaml [TOON]
+```yaml [DX Serializer]
 name: ""
 ```
 
@@ -363,5 +363,5 @@ See [Format Overview – Key Folding](/guide/format-overview#key-folding-optiona
 | `undefined`, `function`, `symbol` | `null` |
 
 ::: info
-TOON itself doesn't specify how `Date` should be encoded – the spec leaves this to implementations. This library emits an ISO 8601 string in quotes; other implementations may choose differently.
+DX Serializer itself doesn't specify how `Date` should be encoded – the spec leaves this to implementations. This library emits an ISO 8601 string in quotes; other implementations may choose differently.
 :::

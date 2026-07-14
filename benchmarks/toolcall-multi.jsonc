@@ -1,0 +1,1 @@
+{"tool_calls":[{"name":"search_web","arguments":{"query":"DX Serializer token efficiency","max_results":5,"language":"en","safe_search":true}},{"name":"get_weather","arguments":{"location":"Tokyo, Japan","unit":"celsius","forecast_days":1}}]}

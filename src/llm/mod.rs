@@ -27,7 +27,6 @@
 //! The architecture follows a "hub and spoke" model where all formats convert through
 //! a common internal representation (`DxDocument`), ensuring consistent round-trip behavior.
 
-pub mod abbrev;
 pub mod cache_generator;
 pub mod config_formatter;
 pub mod formatter;
@@ -44,14 +43,11 @@ pub mod tokens;
 pub mod types;
 
 #[cfg(test)]
-mod abbrev_props;
-#[cfg(test)]
 mod convert_props;
 #[cfg(test)]
 mod llm_props;
 
 // Re-export main types
-pub use abbrev::AbbrevDict;
 pub use cache_generator::{CacheConfig, CacheError, CacheGenerator, CachePaths, CacheResult};
 #[cfg(feature = "mmap")]
 pub use convert::machine_file_to_document_mmap;

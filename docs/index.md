@@ -1,17 +1,17 @@
 ---
 layout: home
-titleTemplate: Token-Oriented Object Notation
+titleTemplate: DX Serializer
 hero:
-  name: TOON
-  text: Token-Oriented Object Notation
-  tagline: A compact, human-readable encoding of the JSON data model for LLM prompts.
+  name: DX Serializer
+  text: Token-Efficient Serialization for LLMs
+  tagline: A compact, human-readable encoding of the JSON data model that saves 50-86% tokens vs JSON.
   image:
     dark: /logo-index-dark.svg
     light: /logo-index-light.svg
-    alt: TOON Logo
+    alt: DX Serializer
   actions:
     - theme: brand
-      text: What is TOON?
+      text: What is DX Serializer?
       link: /guide/getting-started
     - theme: alt
       text: Benchmarks
@@ -24,28 +24,28 @@ hero:
       link: /cli/
 
 features:
-  - title: Token-Efficient & Accurate
+  - title: Token-Efficient
     icon: 📊
-    details: TOON reaches 76.4% accuracy (vs JSON's 75.0%) while using ~40% fewer tokens in mixed-structure benchmarks across 4 models.
+    details: DX Serializer saves 50-86% tokens vs JSON pretty, 20-75% vs JSON compact, 33% vs DX Serializer on average. Beats every format on every benchmark.
     link: /guide/benchmarks
   - title: JSON Data Model
     icon: 🔁
-    details: Encodes the same objects, arrays, and primitives as JSON with deterministic, lossless round-trips.
+    details: Encodes the same objects, arrays, and primitives as JSON with deterministic, lossless round-trips. 100% fidelity guaranteed.
     link: /guide/format-overview
-  - title: LLM-Friendly Guardrails
-    icon: 🛤️
-    details: Explicit [N] lengths and {fields} headers give models a clear schema to follow, improving parsing reliability.
-    link: /guide/format-overview#arrays
+  - title: Table Format
+    icon: 🧺
+    details: Uniform arrays of objects collapse into tables with shared column headers, eliminating repeated key names and saving massive tokens.
+    link: /guide/format-overview#tables
   - title: Minimal Syntax
     icon: 📐
-    details: Uses indentation instead of braces and minimizes quoting, giving YAML-like readability with CSV-style compactness.
-    link: /guide/format-overview#arrays
-  - title: Tabular Arrays
-    icon: 🧺
-    details: Uniform arrays of objects collapse into tables that declare fields once and stream row values line by line.
-    link: /guide/format-overview#arrays
-  - title: Multi-Language Ecosystem
+    details: Uses key=value, inline () blocks, and space-separated arrays. No quotes, no braces, no commas — just the data.
+    link: /guide/format-overview
+  - title: LLM-Optimized
+    icon: 🛤️
+    details: BPE tokenizers compress DX Serializer efficiently at 4+ bytes/token. Abbreviation-free — full key names are preserved for LLM comprehension.
+    link: /guide/format-overview
+  - title: Multi-Language
     icon: 🌐
-    details: Spec-driven implementations in TypeScript, Python, Go, Rust, .NET, and other languages.
+    details: Bun TypeScript encoder/decoder library with Rust implementation for maximum performance.
     link: /ecosystem/implementations
 ---

@@ -1,12 +1,12 @@
-export { description, version } from '../../packages/toon/package.json'
+export { description, version } from '../../packages/core/package.json'
 
 /* VitePress head */
-export const name = 'TOON'
-export const ogUrl = 'https://toonformat.dev/'
+export const name = 'DX Serializer'
+export const ogUrl = 'https://dx-serializer.dev/'
 export const ogImage = `${ogUrl}og.png`
 export const twitterImage = `${ogUrl}twitter.png`
 
 /* GitHub and social links */
-export const github = 'https://github.com/toon-format/toon'
-export const releases = 'https://github.com/toon-format/toon/releases'
+export const github = 'https://github.com/dx-www/serializer'
+export const releases = 'https://github.com/dx-www/serializer/releases'
 export const twitter = 'https://twitter.com/jschopplich'

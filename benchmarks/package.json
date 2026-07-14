@@ -1,5 +1,5 @@
 {
-  "name": "@toon/benchmarks",
+  "name": "@dx-serializer/benchmarks",
   "type": "module",
   "private": true,
   "scripts": {

@@ -1,14 +1,14 @@
 ---
-description: TOON syntax with concrete examples – objects, arrays, headers, key folding, and quoting rules.
+description: DX Serializer syntax with concrete examples – objects, arrays, headers, key folding, and quoting rules.
 ---
 
 # Format Overview
 
-TOON syntax reference with concrete examples. See [Getting Started](/guide/getting-started) for an introduction.
+DX Serializer syntax reference with concrete examples. See [Getting Started](/guide/getting-started) for an introduction.
 
 ## Data Model
 
-TOON models data the same way as JSON:
+DX Serializer models data the same way as JSON:
 
 - **Primitives**: strings, numbers, booleans, and `null`
 - **Objects**: mappings from string keys to values
@@ -16,13 +16,13 @@ TOON models data the same way as JSON:
 
 ### Root Forms
 
-A TOON document can represent different root forms:
+A DX Serializer document can represent different root forms:
 
 - **Root object** (most common): Fields appear at depth 0 with no parent key
 - **Root array**: Begins with `[N]:` or `[N]{fields}:` at depth 0
 - **Root primitive**: A single primitive value (string, number, boolean, or null)
 
-Most examples in these docs use root objects, but the format supports all three forms equally ([spec §5](https://github.com/toon-format/spec/blob/main/SPEC.md#5-concrete-syntax-and-root-form)).
+Most examples in these docs use root objects, but the format supports all three forms equally ([spec §5](https://github.com/dx-www/spec/blob/main/SPEC.md#5-concrete-syntax-and-root-form)).
 
 ## Objects
 
@@ -56,7 +56,7 @@ An empty object at the root yields an empty document (no lines). A nested empty 
 
 ## Arrays
 
-TOON detects array structure and chooses the most efficient representation. Arrays always declare their length in brackets: `[N]`.
+DX Serializer detects array structure and chooses the most efficient representation. Arrays always declare their length in brackets: `[N]`.
 
 ### Primitive Arrays (Inline)
 
@@ -70,7 +70,7 @@ The delimiter (comma by default) separates values. Strings containing the active
 
 ### Arrays of Objects (Tabular)
 
-When all objects in an array share the same set of primitive-valued keys, TOON uses tabular format:
+When all objects in an array share the same set of primitive-valued keys, DX Serializer uses tabular format:
 
 ::: code-group
 
@@ -198,11 +198,11 @@ Where:
 - **fields** (optional) for tabular arrays: `{field1,field2,field3}`
 
 > [!NOTE]
-> The array length `[N]` helps LLMs validate structure. If you ask a model to generate TOON output, explicit lengths let you detect truncation or malformed data.
+> The array length `[N]` helps LLMs validate structure. If you ask a model to generate DX Serializer output, explicit lengths let you detect truncation or malformed data.
 
 ### Delimiter Options
 
-TOON supports three delimiters: comma (default), tab, and pipe. The delimiter is scoped to the array header that declares it.
+DX Serializer supports three delimiters: comma (default), tab, and pipe. The delimiter is scoped to the array header that declares it.
 
 ::: code-group
 
@@ -273,24 +273,24 @@ A chain of objects is foldable when:
 - Values less than 2 have no practical effect
 
 **Round-Trip with Path Expansion:**
-To reconstruct the original structure when decoding, use `expandPaths: 'safe'`. This splits dotted keys back into nested objects using the same safety rules ([spec §13.4](https://github.com/toon-format/spec/blob/main/SPEC.md#134-key-folding-and-path-expansion)).
+To reconstruct the original structure when decoding, use `expandPaths: 'safe'`. This splits dotted keys back into nested objects using the same safety rules ([spec §13.4](https://github.com/dx-www/spec/blob/main/SPEC.md#134-key-folding-and-path-expansion)).
 :::
 
 ### Round-Trip with Path Expansion
 
-When decoding TOON that used key folding, enable path expansion to restore the nested structure:
+When decoding DX Serializer that used key folding, enable path expansion to restore the nested structure:
 
 ```ts
-import { decode, encode } from '@toon-format/toon'
+import { decode, encode } from '@dx-serializer/core'
 
 const original = { data: { metadata: { items: ['a', 'b'] } } }
 
 // Encode with folding
-const toon = encode(original, { keyFolding: 'safe' })
+const dx = encode(original, { keyFolding: 'safe' })
 // → "data.metadata.items[2]: a,b"
 
 // Decode with expansion
-const restored = decode(toon, { expandPaths: 'safe' })
+const restored = decode(dx, { expandPaths: 'safe' })
 // → { data: { metadata: { items: ['a', 'b'] } } }
 ```
 
@@ -300,7 +300,7 @@ Path expansion is off by default, so dotted keys are treated as literal keys unl
 
 ### When Strings Need Quotes
 
-TOON quotes strings **only when necessary** to maximize token efficiency. A string must be quoted if:
+DX Serializer quotes strings **only when necessary** to maximize token efficiency. A string must be quoted if:
 
 - It's empty (`""`)
 - It has leading or trailing whitespace
@@ -362,4 +362,4 @@ The `toJSON()` method:
 
 ---
 
-For complete rules on quoting, escaping, type conversions, and strict-mode decoding, see [spec §2–4 (data model), §7 (strings and keys), and §14 (strict mode)](https://github.com/toon-format/spec/blob/main/SPEC.md).
+For complete rules on quoting, escaping, type conversions, and strict-mode decoding, see [spec §2–4 (data model), §7 (strings and keys), and §14 (strict mode)](https://github.com/dx-www/spec/blob/main/SPEC.md).

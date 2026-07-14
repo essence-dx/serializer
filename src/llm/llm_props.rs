@@ -309,25 +309,17 @@ mod property_tests {
     }
 
     /// Compare two documents for semantic equality
-    /// Note: Keys may be abbreviated during serialization, so we compare
-    /// using the abbreviation dictionary to normalize keys.
     /// Section IDs may change during round-trip (parser assigns sequential IDs),
     /// so we compare sections by content, not by ID.
     fn documents_equal(a: &DxDocument, b: &DxDocument) -> bool {
-        use crate::llm::abbrev::AbbrevDict;
-        let abbrev = AbbrevDict::new();
-
-        // Compare context - keys may be abbreviated
+        // Compare context - keys are always full names (no abbreviation)
         if a.context.len() != b.context.len() {
             return false;
         }
         for (key_a, val_a) in &a.context {
-            // Try to find the key in b, accounting for abbreviation
-            let compressed_key = abbrev.compress(key_a);
             let val_b = b
                 .context
-                .get(key_a)
-                .or_else(|| b.context.get(&compressed_key));
+                .get(key_a);
 
             if let Some(val_b) = val_b {
                 if !values_equal(val_a, val_b) {

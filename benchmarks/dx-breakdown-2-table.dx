@@ -1,1 +1,0 @@
-name=get_weather description="Get current weather and forecast for a location" parameters(type=object properties(location(type=string description="City and country") unit(type=string enum=[celsius,fahrenheit] default=celsius) forecast_days(type=integer minimum=1 maximum=7 default=3)) required=[location])

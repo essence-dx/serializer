@@ -1,18 +1,18 @@
 ---
-description: What TOON is, when to use it, and a first encode/decode example with the TypeScript library.
+description: What DX Serializer is, when to use it, and a first encode/decode example with the TypeScript library.
 ---
 
 # Getting Started
 
-## What Is TOON?
+## What Is DX Serializer?
 
-**Token-Oriented Object Notation** is a compact, human-readable encoding of the JSON data model that minimizes tokens and makes structure easy for models to follow. It is intended for *LLM input* as a drop-in, lossless representation of your existing JSON.
+**DX Compact Serialization Format** is a compact, human-readable encoding of the JSON data model that minimizes tokens and makes structure easy for models to follow. It is intended for *LLM input* as a drop-in, lossless representation of your existing JSON.
 
-TOON combines YAML's indentation-based structure for nested objects with a CSV-style tabular layout for uniform arrays. TOON's sweet spot is uniform arrays of objects (multiple fields per row, same structure across items), achieving CSV-like compactness while adding explicit structure that helps LLMs parse and validate data reliably.
+DX Serializer combines YAML's indentation-based structure for nested objects with a CSV-style tabular layout for uniform arrays. DX Compact's sweet spot is uniform arrays of objects (multiple fields per row, same structure across items), achieving CSV-like compactness while adding explicit structure that helps LLMs parse and validate data reliably.
 
-Think of it as a translation layer: use JSON programmatically, and encode it as TOON for LLM input.
+Think of it as a translation layer: use JSON programmatically, and encode it as DX Serializer for LLM input.
 
-### Why TOON?
+### Why DX Serializer?
 
 Standard JSON is verbose and token-expensive. For uniform arrays of objects, JSON repeats every field name for every record:
 
@@ -37,7 +37,7 @@ users:
     role: user
 ```
 
-TOON goes further by declaring fields once and streaming data as rows:
+DX Serializer goes further by declaring fields once and streaming data as rows:
 
 ```yaml
 users[2]{id,name,role}:
@@ -45,9 +45,9 @@ users[2]{id,name,role}:
   2,Bob,user
 ```
 
-The `[2]` declares the array length, letting LLMs answer dataset-size questions and detect truncation. The `{id,name,role}` declares the field names. Each row is a compact, comma-separated list of values. The pattern is the same throughout TOON: declare structure once, stream data compactly. The result lands close to CSV density with explicit structure preserved.
+The `[2]` declares the array length, letting LLMs answer dataset-size questions and detect truncation. The `{id,name,role}` declares the field names. Each row is a compact, comma-separated list of values. The pattern is the same throughout DX Serializer: declare structure once, stream data compactly. The result lands close to CSV density with explicit structure preserved.
 
-For a more realistic example, here's how TOON handles a dataset with both nested objects and tabular arrays:
+For a more realistic example, here's how DX Serializer handles a dataset with both nested objects and tabular arrays:
 
 ::: code-group
 
@@ -88,7 +88,7 @@ For a more realistic example, here's how TOON handles a dataset with both nested
 }
 ```
 
-```yaml [TOON (106 tokens)]
+```yaml [DX Serializer (106 tokens)]
 context:
   task: Our favorite hikes together
   location: Boulder
@@ -102,36 +102,36 @@ hikes[3]{id,name,distanceKm,elevationGain,companion,wasSunny}:
 
 :::
 
-Notice how TOON combines YAML's indentation for the `context` object with inline format for the primitive `friends` array and tabular format for the structured `hikes` array. Each format is chosen automatically based on the data structure.
+Notice how DX Serializer combines YAML's indentation for the `context` object with inline format for the primitive `friends` array and tabular format for the structured `hikes` array. Each format is chosen automatically based on the data structure.
 
 ### Design Goals
 
-TOON is optimized for specific use cases. It aims to:
+DX Serializer is optimized for specific use cases. It aims to:
 
 - Make uniform arrays of objects as compact as possible by declaring structure once and streaming data.
 - Stay fully lossless and deterministic – round-trips preserve all data and structure.
 - Keep parsing simple and robust for both LLMs and humans through explicit structure markers.
 - Provide validation guardrails (array lengths, field counts) that help detect truncation and malformed output.
 
-## When to Use TOON
+## When to Use DX Serializer
 
-TOON excels with uniform arrays of objects – data with the same structure across items. For LLM prompts, the format produces deterministic, minimally quoted text with built-in validation. Explicit array lengths (`[N]`) and field headers (`{fields}`) help detect truncation and malformed data, while the tabular structure declares fields once rather than repeating them in every row.
+DX Serializer excels with uniform arrays of objects – data with the same structure across items. For LLM prompts, the format produces deterministic, minimally quoted text with built-in validation. Explicit array lengths (`[N]`) and field headers (`{fields}`) help detect truncation and malformed data, while the tabular structure declares fields once rather than repeating them in every row.
 
 ::: tip
-The TOON format is stable, but also an idea in progress. Nothing's set in stone – help shape where it goes by contributing to the [spec](https://github.com/toon-format/spec) or sharing feedback.
+The DX Serializer format is stable, but also an idea in progress. Nothing's set in stone – help shape where it goes by contributing to the [spec](https://github.com/dx-www/spec) or sharing feedback.
 :::
 
-## When Not to Use TOON
+## When Not to Use DX Serializer
 
-TOON is not always the best choice. Consider alternatives when:
+DX Serializer is not always the best choice. Consider alternatives when:
 
 - **Deeply nested or non-uniform structures** (tabular eligibility ≈ 0%): JSON-compact often uses fewer tokens. Example: complex configuration objects with many nested levels.
 - **Semi-uniform arrays** (~40–60% tabular eligibility): Token savings diminish. Prefer JSON if your pipelines already rely on it.
-- **Pure tabular data**: CSV is smaller than TOON for flat tables. TOON adds minimal overhead (~5–10%) to provide structure (array length declarations, field headers, delimiter scoping) that improves LLM reliability.
-- **Latency-critical applications**: Benchmark on your exact setup. Some deployments (especially local/quantized models) may process compact JSON faster despite TOON's lower token count.
+- **Pure tabular data**: CSV is smaller than DX Serializer for flat tables. DX Serializer adds minimal overhead (~5–10%) to provide structure (array length declarations, field headers, delimiter scoping) that improves LLM reliability.
+- **Latency-critical applications**: Benchmark on your exact setup. Some deployments (especially local/quantized models) may process compact JSON faster despite DX Compact's lower token count.
 
 ::: info
-For data-driven comparisons across different structures, see [Benchmarks](/guide/benchmarks). When optimizing for latency, measure TTFT, tokens/sec, and total time for both TOON and JSON-compact, and use whichever is faster in your specific environment.
+For data-driven comparisons across different structures, see [Benchmarks](/guide/benchmarks). When optimizing for latency, measure TTFT, tokens/sec, and total time for both DX Serializer and JSON-compact, and use whichever is faster in your specific environment.
 :::
 
 ## Installation
@@ -143,15 +143,15 @@ Install the library via your preferred package manager:
 ::: code-group
 
 ```bash [npm]
-npm install @toon-format/toon
+npm install @dx-serializer/core
 ```
 
 ```bash [pnpm]
-pnpm add @toon-format/toon
+pnpm add @dx-serializer/core
 ```
 
 ```bash [yarn]
-yarn add @toon-format/toon
+yarn add @dx-serializer/core
 ```
 
 :::
@@ -163,19 +163,19 @@ The CLI can be used without installation via `npx`, or installed globally:
 ::: code-group
 
 ```bash [npx (no install)]
-npx @toon-format/cli input.json -o output.toon
+npx @dx-serializer/cli input.json -o output.dx
 ```
 
 ```bash [npm]
-npm install -g @toon-format/cli
+npm install -g @dx-serializer/cli
 ```
 
 ```bash [pnpm]
-pnpm add -g @toon-format/cli
+pnpm add -g @dx-serializer/cli
 ```
 
 ```bash [yarn]
-yarn global add @toon-format/cli
+yarn global add @dx-serializer/cli
 ```
 
 :::
@@ -184,16 +184,16 @@ For full CLI documentation, see the [CLI reference](/cli/).
 
 ## Media Type & File Extension
 
-TOON files conventionally use the `.toon` extension. For HTTP transmission, the provisional media type is `text/toon`, always with UTF-8 encoding. While you may specify `charset=utf-8` explicitly, it's optional – UTF-8 is the default assumption. This follows the registration process outlined in [spec §17](https://github.com/toon-format/spec/blob/main/SPEC.md#17-iana-considerations).
+DX Serializer files conventionally use the `.dx` extension. For HTTP transmission, the provisional media type is `text/dx`, always with UTF-8 encoding. While you may specify `charset=utf-8` explicitly, it's optional – UTF-8 is the default assumption. This follows the registration process outlined in [spec §17](https://github.com/dx-www/spec/blob/main/SPEC.md#17-iana-considerations).
 
 ## Your First Example
 
-The examples below use the TypeScript library for demonstration, but the same operations work in any language with a TOON implementation.
+The examples below use the TypeScript library for demonstration, but the same operations work in any language with a DX Serializer implementation.
 
 Let's encode a simple dataset with the TypeScript library:
 
 ```ts
-import { encode } from '@toon-format/toon'
+import { encode } from '@dx-serializer/core'
 
 const data = {
   users: [
@@ -218,15 +218,15 @@ users[2]{id,name,role}:
 Decoding is just as simple:
 
 ```ts
-import { decode } from '@toon-format/toon'
+import { decode } from '@dx-serializer/core'
 
-const toon = `
+const dx = `
 users[2]{id,name,role}:
   1,Alice,admin
   2,Bob,user
 `
 
-const data = decode(toon)
+const data = decode(dx)
 console.log(JSON.stringify(data, null, 2))
 ```
 
@@ -245,4 +245,4 @@ Round-tripping is lossless: `decode(encode(x))` always equals `x` (after normali
 
 ## Where to Go Next
 
-Now that you've seen your first TOON document, read the [Format Overview](/guide/format-overview) for complete syntax details (objects, arrays, quoting rules, key folding), then explore [Using TOON with LLMs](/guide/llm-prompts) to see how to use it effectively in prompts. For implementation details, check the [API Reference](/reference/api) (TypeScript) or the [Specification](/reference/spec) (language-agnostic normative rules).
+Now that you've seen your first DX Serializer document, read the [Format Overview](/guide/format-overview) for complete syntax details (objects, arrays, quoting rules, key folding), then explore [Using DX Serializer with LLMs](/guide/llm-prompts) to see how to use it effectively in prompts. For implementation details, check the [API Reference](/reference/api) (TypeScript) or the [Specification](/reference/spec) (language-agnostic normative rules).

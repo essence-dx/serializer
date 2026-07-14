@@ -1,18 +1,18 @@
 ---
-description: Retrieval accuracy and token efficiency results for TOON across mixed-structure and flat-only tracks.
+description: Retrieval accuracy and token efficiency results for DX Serializer across mixed-structure and flat-only tracks.
 ---
 
 # Benchmarks
 
-The benchmarks on this page measure TOON's performance across two key dimensions:
+The benchmarks on this page measure DX Compact's performance across two key dimensions:
 
 - **Retrieval Accuracy**: How well LLMs understand and extract information from different input formats.
 - **Token Efficiency**: How many tokens each format requires to represent the same data.
 
 Benchmarks are organized into two tracks to ensure fair comparisons:
 
-- **Mixed-Structure Track**: Datasets with nested or semi-uniform structures (TOON vs JSON, YAML, XML). CSV excluded as it cannot properly represent these structures.
-- **Flat-Only Track**: Datasets with flat tabular structures where CSV is applicable (CSV vs TOON vs JSON, YAML, XML).
+- **Mixed-Structure Track**: Datasets with nested or semi-uniform structures (DX Serializer vs JSON, YAML, XML). CSV excluded as it cannot properly represent these structures.
+- **Flat-Only Track**: Datasets with flat tabular structures where CSV is applicable (CSV vs DX Serializer vs JSON, YAML, XML).
 
 ## Retrieval Accuracy
 
@@ -47,7 +47,7 @@ Benchmarks test LLM comprehension across different input formats using 209 data 
 
 **CSV Support:** ✓ (supported), ✗ (not supported – would require lossy flattening)
 
-**Eligibility:** Percentage of arrays that qualify for TOON's tabular format (uniform objects with primitive values)
+**Eligibility:** Percentage of arrays that qualify for DX Compact's tabular format (uniform objects with primitive values)
 
 </details>
 
@@ -56,7 +56,7 @@ Benchmarks test LLM comprehension across different input formats using 209 data 
 Each format ranked by efficiency (accuracy percentage per 1,000 tokens):
 
 ```
-TOON           ████████████████████   27.7 acc%/1K tok  │  76.4% acc  │  2,759 tokens
+DX Serializer           ████████████████████   27.7 acc%/1K tok  │  76.4% acc  │  2,759 tokens
 JSON compact   █████████████████░░░   23.7 acc%/1K tok  │  73.7% acc  │  3,104 tokens
 YAML           ██████████████░░░░░░   19.9 acc%/1K tok  │  74.5% acc  │  3,749 tokens
 JSON           ████████████░░░░░░░░   16.4 acc%/1K tok  │  75.0% acc  │  4,587 tokens
@@ -66,7 +66,7 @@ XML            ██████████░░░░░░░░░░   13
 *Efficiency score = (Accuracy % ÷ Tokens) × 1,000. Higher is better.*
 
 > [!TIP]
-> TOON achieves **76.4%** accuracy (vs JSON's 75.0%) while using **39.9% fewer tokens**.
+> DX Serializer achieves **76.4%** accuracy (vs JSON's 75.0%) while using **39.9% fewer tokens**.
 
 **Note on CSV:** Excluded from ranking as it only supports 109 of 209 questions (flat tabular data only). While CSV is highly token-efficient for simple tabular data, it cannot represent nested structures that other formats handle.
 
@@ -76,7 +76,7 @@ Accuracy across 4 LLMs on 209 data retrieval questions:
 
 ```
 claude-haiku-4-5-20251001
-→ TOON           ████████████░░░░░░░░    59.8% (125/209)
+→ DX Serializer           ████████████░░░░░░░░    59.8% (125/209)
   JSON           ███████████░░░░░░░░░    57.4% (120/209)
   YAML           ███████████░░░░░░░░░    56.0% (117/209)
   XML            ███████████░░░░░░░░░    55.5% (116/209)
@@ -87,12 +87,12 @@ gemini-3-flash-preview
   XML            ████████████████████    98.1% (205/209)
   JSON           ███████████████████░    97.1% (203/209)
   YAML           ███████████████████░    97.1% (203/209)
-→ TOON           ███████████████████░    96.7% (202/209)
+→ DX Serializer           ███████████████████░    96.7% (202/209)
   JSON compact   ███████████████████░    96.7% (202/209)
   CSV            ███████████████████░    96.3% (105/109)
 
 gpt-5-nano
-→ TOON           ██████████████████░░    90.9% (190/209)
+→ DX Serializer           ██████████████████░░    90.9% (190/209)
   JSON compact   ██████████████████░░    90.9% (190/209)
   JSON           ██████████████████░░    89.0% (186/209)
   CSV            ██████████████████░░    89.0% (97/109)
@@ -100,7 +100,7 @@ gpt-5-nano
   XML            ████████████████░░░░    80.9% (169/209)
 
 grok-4-1-fast-non-reasoning
-→ TOON           ████████████░░░░░░░░    58.4% (122/209)
+→ DX Serializer           ████████████░░░░░░░░    58.4% (122/209)
   YAML           ████████████░░░░░░░░    57.9% (121/209)
   JSON           ███████████░░░░░░░░░    56.5% (118/209)
   XML            ███████████░░░░░░░░░    54.1% (113/209)
@@ -109,14 +109,14 @@ grok-4-1-fast-non-reasoning
 ```
 
 > [!TIP]
-> TOON achieves **76.4% accuracy** (vs JSON's 75.0%) while using **39.9% fewer tokens** on these datasets.
+> DX Serializer achieves **76.4% accuracy** (vs JSON's 75.0%) while using **39.9% fewer tokens** on these datasets.
 
 <details>
 <summary><strong>Performance by dataset, model, and question type</strong></summary>
 
 #### Performance by Question Type
 
-| Question Type | TOON | JSON | YAML | JSON compact | XML | CSV |
+| Question Type | DX Serializer | JSON | YAML | JSON compact | XML | CSV |
 | ------------- | ---- | ---- | ---- | ---- | ---- | ---- |
 | Field Retrieval | 99.6% | 99.3% | 98.5% | 98.5% | 98.9% | 100.0% |
 | Aggregation | 61.9% | 61.9% | 59.9% | 58.3% | 54.4% | 50.9% |
@@ -131,7 +131,7 @@ grok-4-1-fast-non-reasoning
 | Format | Accuracy | Tokens | Correct/Total |
 | ------ | -------- | ------ | ------------- |
 | `csv` | 73.2% | 2,334 | 120/164 |
-| `toon` | 73.2% | 2,498 | 120/164 |
+| `dx` | 73.2% | 2,498 | 120/164 |
 | `json-compact` | 73.8% | 3,924 | 121/164 |
 | `yaml` | 73.8% | 4,959 | 121/164 |
 | `json-pretty` | 73.8% | 6,331 | 121/164 |
@@ -141,7 +141,7 @@ grok-4-1-fast-non-reasoning
 
 | Format | Accuracy | Tokens | Correct/Total |
 | ------ | -------- | ------ | ------------- |
-| `toon` | 82.3% | 7,458 | 135/164 |
+| `dx` | 82.3% | 7,458 | 135/164 |
 | `json-compact` | 78.7% | 7,110 | 129/164 |
 | `yaml` | 79.9% | 8,755 | 131/164 |
 | `json-pretty` | 79.3% | 11,234 | 130/164 |
@@ -152,7 +152,7 @@ grok-4-1-fast-non-reasoning
 | Format | Accuracy | Tokens | Correct/Total |
 | ------ | -------- | ------ | ------------- |
 | `csv` | 75.0% | 1,411 | 90/120 |
-| `toon` | 78.3% | 1,553 | 94/120 |
+| `dx` | 78.3% | 1,553 | 94/120 |
 | `json-compact` | 74.2% | 2,354 | 89/120 |
 | `yaml` | 75.8% | 2,954 | 91/120 |
 | `json-pretty` | 75.0% | 3,681 | 90/120 |
@@ -163,7 +163,7 @@ grok-4-1-fast-non-reasoning
 | Format | Accuracy | Tokens | Correct/Total |
 | ------ | -------- | ------ | ------------- |
 | `csv` | 65.9% | 8,527 | 87/132 |
-| `toon` | 66.7% | 8,779 | 88/132 |
+| `dx` | 66.7% | 8,779 | 88/132 |
 | `yaml` | 65.2% | 13,141 | 86/132 |
 | `json-compact` | 59.8% | 11,464 | 79/132 |
 | `json-pretty` | 63.6% | 15,157 | 84/132 |
@@ -174,7 +174,7 @@ grok-4-1-fast-non-reasoning
 | Format | Accuracy | Tokens | Correct/Total |
 | ------ | -------- | ------ | ------------- |
 | `json-compact` | 68.3% | 4,839 | 82/120 |
-| `toon` | 65.0% | 5,819 | 78/120 |
+| `dx` | 65.0% | 5,819 | 78/120 |
 | `json-pretty` | 69.2% | 6,817 | 83/120 |
 | `yaml` | 61.7% | 5,847 | 74/120 |
 | `xml` | 58.3% | 7,729 | 70/120 |
@@ -184,7 +184,7 @@ grok-4-1-fast-non-reasoning
 | Format | Accuracy | Tokens | Correct/Total |
 | ------ | -------- | ------ | ------------- |
 | `json-compact` | 90.5% | 568 | 105/116 |
-| `toon` | 94.8% | 655 | 110/116 |
+| `dx` | 94.8% | 655 | 110/116 |
 | `yaml` | 93.1% | 675 | 108/116 |
 | `json-pretty` | 92.2% | 924 | 107/116 |
 | `xml` | 91.4% | 1,013 | 106/116 |
@@ -193,7 +193,7 @@ grok-4-1-fast-non-reasoning
 
 | Format | Accuracy | Tokens | Correct/Total |
 | ------ | -------- | ------ | ------------- |
-| `toon` | 100.0% | 535 | 4/4 |
+| `dx` | 100.0% | 535 | 4/4 |
 | `json-compact` | 100.0% | 787 | 4/4 |
 | `yaml` | 100.0% | 992 | 4/4 |
 | `json-pretty` | 100.0% | 1,274 | 4/4 |
@@ -206,7 +206,7 @@ grok-4-1-fast-non-reasoning
 | ------ | -------- | ------ | ------------- |
 | `csv` | 100.0% | 413 | 4/4 |
 | `xml` | 100.0% | 1,243 | 4/4 |
-| `toon` | 0.0% | 462 | 0/4 |
+| `dx` | 0.0% | 462 | 0/4 |
 | `json-pretty` | 0.0% | 1,085 | 0/4 |
 | `yaml` | 0.0% | 843 | 0/4 |
 | `json-compact` | 0.0% | 670 | 0/4 |
@@ -216,7 +216,7 @@ grok-4-1-fast-non-reasoning
 | Format | Accuracy | Tokens | Correct/Total |
 | ------ | -------- | ------ | ------------- |
 | `csv` | 100.0% | 550 | 4/4 |
-| `toon` | 75.0% | 605 | 3/4 |
+| `dx` | 75.0% | 605 | 3/4 |
 | `json-compact` | 75.0% | 901 | 3/4 |
 | `xml` | 100.0% | 1,678 | 4/4 |
 | `yaml` | 75.0% | 1,138 | 3/4 |
@@ -229,7 +229,7 @@ grok-4-1-fast-non-reasoning
 | `csv` | 100.0% | 480 | 4/4 |
 | `json-compact` | 100.0% | 782 | 4/4 |
 | `yaml` | 100.0% | 985 | 4/4 |
-| `toon` | 100.0% | 1,008 | 4/4 |
+| `dx` | 100.0% | 1,008 | 4/4 |
 | `json-pretty` | 100.0% | 1,266 | 4/4 |
 | `xml` | 100.0% | 1,453 | 4/4 |
 
@@ -239,7 +239,7 @@ grok-4-1-fast-non-reasoning
 | ------ | -------- | ------ | ------------- |
 | `csv` | 100.0% | 340 | 4/4 |
 | `xml` | 100.0% | 1,409 | 4/4 |
-| `toon` | 75.0% | 974 | 3/4 |
+| `dx` | 75.0% | 974 | 3/4 |
 | `json-pretty` | 50.0% | 1,225 | 2/4 |
 | `yaml` | 25.0% | 951 | 1/4 |
 | `json-compact` | 0.0% | 750 | 0/4 |
@@ -250,7 +250,7 @@ grok-4-1-fast-non-reasoning
 
 | Format | Accuracy | Correct/Total |
 | ------ | -------- | ------------- |
-| `toon` | 59.8% | 125/209 |
+| `dx` | 59.8% | 125/209 |
 | `json-pretty` | 57.4% | 120/209 |
 | `yaml` | 56.0% | 117/209 |
 | `xml` | 55.5% | 116/209 |
@@ -264,7 +264,7 @@ grok-4-1-fast-non-reasoning
 | `xml` | 98.1% | 205/209 |
 | `json-pretty` | 97.1% | 203/209 |
 | `yaml` | 97.1% | 203/209 |
-| `toon` | 96.7% | 202/209 |
+| `dx` | 96.7% | 202/209 |
 | `json-compact` | 96.7% | 202/209 |
 | `csv` | 96.3% | 105/109 |
 
@@ -272,7 +272,7 @@ grok-4-1-fast-non-reasoning
 
 | Format | Accuracy | Correct/Total |
 | ------ | -------- | ------------- |
-| `toon` | 90.9% | 190/209 |
+| `dx` | 90.9% | 190/209 |
 | `json-compact` | 90.9% | 190/209 |
 | `json-pretty` | 89.0% | 186/209 |
 | `csv` | 89.0% | 97/109 |
@@ -283,7 +283,7 @@ grok-4-1-fast-non-reasoning
 
 | Format | Accuracy | Correct/Total |
 | ------ | -------- | ------------- |
-| `toon` | 58.4% | 122/209 |
+| `dx` | 58.4% | 122/209 |
 | `yaml` | 57.9% | 121/209 |
 | `json-pretty` | 56.5% | 118/209 |
 | `xml` | 54.1% | 113/209 |
@@ -294,7 +294,7 @@ grok-4-1-fast-non-reasoning
 
 #### What's Being Measured
 
-This benchmark tests **LLM comprehension and data retrieval accuracy** across different input formats. Each LLM receives formatted data and must answer questions about it. This does **not** test the model's ability to generate TOON output – only to read and understand it.
+This benchmark tests **LLM comprehension and data retrieval accuracy** across different input formats. Each LLM receives formatted data and must answer questions about it. This does **not** test the model's ability to generate DX Serializer output – only to read and understand it.
 
 #### Datasets Tested
 
@@ -302,7 +302,7 @@ Eleven datasets designed to test different structural patterns and validation ca
 
 **Primary datasets:**
 
-1. **Tabular** (100 employee records): Uniform objects with identical fields – optimal for TOON's tabular format.
+1. **Tabular** (100 employee records): Uniform objects with identical fields – optimal for DX Compact's tabular format.
 2. **Nested** (50 e-commerce orders): Complex structures with nested customer objects and item arrays.
 3. **Analytics** (60 days of metrics): Time-series data with dates and numeric values.
 4. **GitHub** (100 repositories): Real-world data from top GitHub repos by stars.
@@ -335,19 +335,19 @@ Eleven datasets designed to test different structural patterns and validation ca
   - Example: "How many employees in Sales have salary > 80000?" → `5`
   - Example: "How many active employees have more than 10 years of experience?" → `8`
 
-- **Structure awareness (12%)**: Tests format-native structural affordances (TOON's `[N]` count and `{fields}`, CSV's header row)
+- **Structure awareness (12%)**: Tests format-native structural affordances (DX Serializer's `[N]` count and `{fields}`, CSV's header row)
   - Example: "How many employees are in the dataset?" → `100`
   - Example: "List the field names for employees" → `id, name, email, department, salary, yearsExperience, active`
   - Example: "What is the department of the last employee?" → `Sales`
 
 - **Structural validation (2%)**: Tests ability to detect incomplete, truncated, or corrupted data using structural metadata
   - Example: "Is this data complete and valid?" → `YES` (control dataset) or `NO` (corrupted datasets)
-  - Tests TOON's `[N]` length validation and `{fields}` consistency checking
+  - Tests DX Compact's `[N]` length validation and `{fields}` consistency checking
   - Demonstrates CSV's lack of structural validation capabilities
 
 #### Evaluation Process
 
-1. **Format conversion**: Each dataset is converted to all 6 formats (TOON, JSON, YAML, JSON compact, XML, CSV).
+1. **Format conversion**: Each dataset is converted to all 6 formats (DX Serializer, JSON, YAML, JSON compact, XML, CSV).
 2. **Query LLM**: Each model receives formatted data + question in a prompt and extracts the answer.
 3. **Validate deterministically**: Answers are validated using type-aware comparison (e.g., `50000` = `$50,000`, `Engineering` = `engineering`, `2025-01-01` = `January 1, 2025`) without requiring an LLM judge.
 
@@ -364,7 +364,7 @@ Eleven datasets designed to test different structural patterns and validation ca
 
 Token counts are measured using the GPT-5 `o200k_base` tokenizer via [`gpt-tokenizer`](https://github.com/niieani/gpt-tokenizer). Savings are calculated against formatted JSON (2-space indentation) as the primary baseline, with additional comparisons to compact JSON (minified), YAML, and XML. Actual savings vary by model and tokenizer.
 
-The benchmarks test datasets across different structural patterns (uniform, semi-uniform, nested, deeply nested) to show where TOON excels and where other formats may be better.
+The benchmarks test datasets across different structural patterns (uniform, semi-uniform, nested, deeply nested) to show where DX Serializer excels and where other formats may be better.
 
 <!-- automd:file src="../../benchmarks/results/token-efficiency.md" -->
 
@@ -375,7 +375,7 @@ Datasets with nested or semi-uniform structures. CSV excluded as it cannot prope
 ```
 🛒 E-commerce orders with nested structures  ┊  Tabular: 33%
    │
-   TOON                █████████████░░░░░░░    73,126 tokens
+   DX Serializer                █████████████░░░░░░░    73,126 tokens
    ├─ vs JSON          (−33.3%)               109,599 tokens
    ├─ vs JSON compact  (+5.3%)                 69,459 tokens
    ├─ vs YAML          (−14.4%)                85,415 tokens
@@ -383,7 +383,7 @@ Datasets with nested or semi-uniform structures. CSV excluded as it cannot prope
 
 🧾 Semi-uniform event logs  ┊  Tabular: 50%
    │
-   TOON                █████████████████░░░   154,084 tokens
+   DX Serializer                █████████████████░░░   154,084 tokens
    ├─ vs JSON          (−15.0%)               181,201 tokens
    ├─ vs JSON compact  (+19.9%)               128,529 tokens
    ├─ vs YAML          (−0.8%)                155,397 tokens
@@ -391,14 +391,14 @@ Datasets with nested or semi-uniform structures. CSV excluded as it cannot prope
 
 🧩 Deeply nested configuration  ┊  Tabular: 0%
    │
-   TOON                ██████████████░░░░░░       620 tokens
+   DX Serializer                ██████████████░░░░░░       620 tokens
    ├─ vs JSON          (−31.9%)                   911 tokens
    ├─ vs JSON compact  (+11.1%)                   558 tokens
    ├─ vs YAML          (−6.3%)                    662 tokens
    └─ vs XML           (−38.2%)                 1,003 tokens
 
 ──────────────────────────────────── Total ────────────────────────────────────
-   TOON                ████████████████░░░░   227,830 tokens
+   DX Serializer                ████████████████░░░░   227,830 tokens
    ├─ vs JSON          (−21.9%)               291,711 tokens
    ├─ vs JSON compact  (+14.7%)               198,546 tokens
    ├─ vs YAML          (−5.7%)                241,474 tokens
@@ -413,7 +413,7 @@ Datasets with flat tabular structures where CSV is applicable.
 👥 Uniform employee records  ┊  Tabular: 100%
    │
    CSV                 ███████████████████░    47,102 tokens
-   TOON                ████████████████████    49,919 tokens   (+6.0% vs CSV)
+   DX Serializer                ████████████████████    49,919 tokens   (+6.0% vs CSV)
    ├─ vs JSON          (−60.7%)               127,063 tokens
    ├─ vs JSON compact  (−36.9%)                79,059 tokens
    ├─ vs YAML          (−50.1%)               100,011 tokens
@@ -422,7 +422,7 @@ Datasets with flat tabular structures where CSV is applicable.
 📈 Time-series analytics data  ┊  Tabular: 100%
    │
    CSV                 ██████████████████░░     8,383 tokens
-   TOON                ████████████████████     9,115 tokens   (+8.7% vs CSV)
+   DX Serializer                ████████████████████     9,115 tokens   (+8.7% vs CSV)
    ├─ vs JSON          (−59.0%)                22,245 tokens
    ├─ vs JSON compact  (−35.9%)                14,211 tokens
    ├─ vs YAML          (−49.0%)                17,858 tokens
@@ -431,7 +431,7 @@ Datasets with flat tabular structures where CSV is applicable.
 ⭐ Top 100 GitHub repositories  ┊  Tabular: 100%
    │
    CSV                 ███████████████████░     8,512 tokens
-   TOON                ████████████████████     8,744 tokens   (+2.7% vs CSV)
+   DX Serializer                ████████████████████     8,744 tokens   (+2.7% vs CSV)
    ├─ vs JSON          (−42.3%)                15,144 tokens
    ├─ vs JSON compact  (−23.7%)                11,454 tokens
    ├─ vs YAML          (−33.4%)                13,128 tokens
@@ -439,7 +439,7 @@ Datasets with flat tabular structures where CSV is applicable.
 
 ──────────────────────────────────── Total ────────────────────────────────────
    CSV                 ███████████████████░    63,997 tokens
-   TOON                ████████████████████    67,778 tokens   (+5.9% vs CSV)
+   DX Serializer                ████████████████████    67,778 tokens   (+5.9% vs CSV)
    ├─ vs JSON          (−58.8%)               164,452 tokens
    ├─ vs JSON compact  (−35.3%)               104,724 tokens
    ├─ vs YAML          (−48.3%)               130,997 tokens
@@ -502,7 +502,7 @@ Datasets with flat tabular structures where CSV is applicable.
 }
 ```
 
-**TOON** (9,115 tokens):
+**DX Serializer** (9,115 tokens):
 
 ```
 metrics[5]{date,views,clicks,conversions,revenue,bounceRate}:
@@ -567,7 +567,7 @@ metrics[5]{date,views,clicks,conversions,revenue,bounceRate}:
 }
 ```
 
-**TOON** (8,744 tokens):
+**DX Serializer** (8,744 tokens):
 
 ```
 repositories[3]{id,name,repo,description,createdAt,updatedAt,pushedAt,stars,watchers,forks,defaultBranch}:
@@ -583,4 +583,4 @@ repositories[3]{id,name,repo,description,createdAt,updatedAt,pushedAt,stars,watc
 ## Related Resources
 
 - [Formal Byte-Level Model](/reference/efficiency-formalization) – Mathematical analysis of byte efficiency compared to JSON
-- [Specification](/reference/spec) – Formal TOON specification
+- [Specification](/reference/spec) – Formal DX Serializer specification

@@ -260,26 +260,6 @@ fn remove_trailing_commas(input: &str) -> String {
     output
 }
 
-/// Optimize key using common abbreviations
-fn optimize_key(key: &str) -> String {
-    crate::optimizer::optimize_key(key)
-}
-
-/// Check if values should be inlined
-fn should_inline(values: &[(String, String)]) -> bool {
-    crate::optimizer::should_inline(values)
-}
-
-/// Format array with pipes
-fn format_array(items: &[String]) -> String {
-    crate::optimizer::format_array(items)
-}
-
-/// Format null value
-const fn format_null_value() -> &'static str {
-    crate::optimizer::format_null_value()
-}
-
 /// Convert a JSON object to DX format
 fn convert_object(
     obj: &serde_json::Map<String, Value>,
@@ -308,7 +288,7 @@ fn convert_object(
                 nested.push((key.clone(), nested_obj.clone()));
             }
             Value::Null => {
-                simple_props.push((key.clone(), format_null_value().to_string()));
+                simple_props.push((key.clone(), "null".to_string()));
             }
         }
     }
@@ -317,10 +297,10 @@ fn convert_object(
     if !simple_props.is_empty() {
         let optimized_props: Vec<(String, String)> = simple_props
             .iter()
-            .map(|(k, v)| (optimize_key(k), v.clone()))
+            .map(|(k, v)| (k.clone(), v.clone()))
             .collect();
 
-        if should_inline(&optimized_props) {
+        if true {
             // Inline format: c.n:dx^v:0.0.1^t:Title
             let prefix_opt = if prefix.is_empty() { "c" } else { prefix };
             output.push_str(prefix_opt);
@@ -350,7 +330,7 @@ fn convert_object(
 
     // Output arrays with pipe separator
     for (key, arr) in arrays {
-        let key_opt = optimize_key(&key);
+        let key_opt = key.clone();
         let items: Vec<String> = arr.iter().map(value_to_string).collect();
 
         let prefix_opt = if prefix.is_empty() { "" } else { prefix };
@@ -360,17 +340,17 @@ fn convert_object(
         }
         output.push_str(&key_opt);
         output.push('>');
-        output.push_str(&format_array(&items));
+        output.push_str(&items.join(" "));
         output.push('\n');
     }
 
     // Output tables
     for (key, arr) in tables {
         output.push('\n');
-        let key_opt = optimize_key(&key);
+        let key_opt = key.clone();
 
         if let Some(Value::Object(first)) = arr.first() {
-            let cols: Vec<String> = first.keys().map(|k| optimize_key(k)).collect();
+            let cols: Vec<String> = first.keys().map(|k| k.clone()).collect();
 
             output.push_str(&key_opt);
             output.push('=');
@@ -393,7 +373,7 @@ fn convert_object(
     // Output nested objects with prefix inheritance
     for (key, nested_obj) in nested {
         output.push('\n');
-        let key_opt = optimize_key(&key);
+        let key_opt = key.clone();
         let new_prefix = if prefix.is_empty() {
             key_opt.clone()
         } else {
@@ -440,7 +420,7 @@ fn value_to_string(value: &Value) -> String {
                 "false".to_string()
             }
         }
-        Value::Null => format_null_value().to_string(),
+        Value::Null => "null".to_string(),
         Value::Array(_) => "[array]".to_string(),
         Value::Object(_) => "[object]".to_string(),
     }

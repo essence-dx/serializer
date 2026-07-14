@@ -1,1 +1,0 @@
-get_weather("Get current weather and forecast for a location"(t=object props(loc(t=string d="City and country") unit(t=string e=[celsius,fahrenheit] d=celsius) days(t=integer min=1 max=7 d=3)) req=[loc]))
