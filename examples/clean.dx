@@ -1,0 +1,10 @@
+name=dx-os
+version=1.0.0
+language=Rust
+stars=2500
+forks=120
+issues=15
+open_prs=8
+contributors=12
+rust_version=1.85
+edition=2024
