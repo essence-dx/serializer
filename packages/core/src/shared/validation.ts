@@ -3,7 +3,7 @@ import { isBooleanOrNullLiteral } from "./literal-utils.ts"
 const NUMERIC_LIKE_PATTERN = /^-?\d+(?:\.\d+)?(?:e[+-]?\d+)?$/i
 
 export function isValidUnquotedKey(key: string): boolean {
-  return /^[A-Z_][\w.]*$/i.test(key)
+  return /^[A-Z_][\w.-]*$/i.test(key)
 }
 
 export function isIdentifierSegment(key: string): boolean {

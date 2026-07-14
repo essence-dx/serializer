@@ -47,16 +47,14 @@ describe("DX Compact — encode", () => {
   })
 
   it("encodes primitive arrays", () => {
-    expect(encode({ tags: ["a", "b"] })).toBe("tags=[a, b]")
-    expect(encode({ nums: [1, 2, 3] })).toBe("nums=[1, 2, 3]")
+    expect(encode({ tags: ["a", "b"] })).toBe("tags=[a b]")
+    expect(encode({ nums: [1, 2, 3] })).toBe("nums=[1 2 3]")
     expect(encode({ empty: [] })).toBe("empty=[]")
   })
 
   it("encodes arrays of objects as tables", () => {
     const result = encode({ items: [{ id: 1, name: "A" }, { id: 2, name: "B" }] })
-    expect(result).toContain("items[id name](")
-    expect(result).toContain("1 A")
-    expect(result).toContain("2 B")
+    expect(result).toBe("items[id name](1 A 2 B)")
   })
 
   it("encodes tables with inline objects", () => {

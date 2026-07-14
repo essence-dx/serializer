@@ -3,7 +3,7 @@ import type { ParsedLine, TableHeader } from "./parser.ts"
 import {
   DxDecodeError, withLine,
   tryParseKeyValue, tryParseTableHeader, isTableHeader, startsObjectBlock,
-  parseTableRowValues, parseRawValue, findUnquotedChar,
+  parseTableRowValues, parseRawValue, findUnquotedChar, splitInlineTableRows,
 } from "./parser.ts"
 import { scanLines, computeDepth, stripIndent } from "./scanner.ts"
 import { CLOSE_PAREN, OPEN_PAREN, OPEN_BRACKET, EQUALS } from "../constants.ts"
@@ -47,6 +47,23 @@ export function* decodeStreamSync(
   // Root table: [col1 col2](...
   const rootTable = tryParseTableHeader(firstTrimmed)
   if (rootTable && !rootTable.key) {
+    const parenIdx = firstTrimmed.indexOf(OPEN_PAREN)
+    const closeIdx = parenIdx >= 0 ? findMatchingParenInStr(firstTrimmed.slice(parenIdx + 1)) : -1
+    if (closeIdx >= 0) {
+      const inner = firstTrimmed.slice(parenIdx + 1, parenIdx + 1 + closeIdx).trim()
+      const rowValues = splitInlineTableRows(inner, rootTable.columns.length)
+      yield { type: "startArray", length: rowValues.length }
+      for (const values of rowValues) {
+        yield { type: "startObject" }
+        for (let c = 0; c < rootTable.columns.length && c < values.length; c++) {
+          yield { type: "key", key: rootTable.columns[c] }
+          yield* emitValue(values[c], resolvedOptions, first)
+        }
+        yield { type: "endObject" }
+      }
+      yield { type: "endArray" }
+      return
+    }
     const tableEnd = findBlockEnd(lines, 1, lines.length, 0)
     if (tableEnd < 0) {
       throw withLine(first, () => { throw new DxDecodeError("Unclosed root table") })
@@ -135,6 +152,30 @@ function* decodeBlockSync(
     // Check for table header: key[cols](
     const tableHeader = withLine(line, () => tryParseTableHeader(content))
     if (tableHeader) {
+      const parenIdx = content.indexOf(OPEN_PAREN)
+      const closeIdx = parenIdx >= 0 ? findMatchingParenInStr(content.slice(parenIdx + 1)) : -1
+      if (closeIdx >= 0) {
+        const inner = content.slice(parenIdx + 1, parenIdx + 1 + closeIdx).trim()
+        const rowValues = splitInlineTableRows(inner, tableHeader.columns.length)
+        if (tableHeader.key) {
+          assertNoDuplicateKey(tableHeader.key, line, seenKeys)
+          yield { type: "key", key: tableHeader.key }
+        }
+        yield { type: "startArray", length: rowValues.length }
+        for (const values of rowValues) {
+          yield { type: "startObject" }
+          const seen = options.strict ? new Set<string>() : undefined
+          for (let c = 0; c < tableHeader.columns.length && c < values.length; c++) {
+            assertNoDuplicateKey(tableHeader.columns[c], line, seen)
+            yield { type: "key", key: tableHeader.columns[c] }
+            yield* emitValue(values[c], options, line)
+          }
+          yield { type: "endObject" }
+        }
+        yield { type: "endArray" }
+        i++
+        continue
+      }
       const tableEnd = findBlockEnd(parsedLines, i + 1, end, line.depth)
       if (tableEnd < 0) {
         throw withLine(line, () => { throw new DxDecodeError("Unclosed table block") })
@@ -493,10 +534,25 @@ function buildValue(
 
     const tableHeader = withLine(line, () => tryParseTableHeader(content))
     if (tableHeader) {
-      const tableEnd = findBlockEnd(parsedLines, i + 1, end, line.depth)
-      const rows = parsedLines.slice(i + 1, tableEnd >= 0 ? tableEnd : end)
-      result[tableHeader.key] = buildTableRows(tableHeader, rows, options)
-      i = (tableEnd >= 0 ? tableEnd : end) + 1
+      const parenIdx = content.indexOf(OPEN_PAREN)
+      const closeIdx = parenIdx >= 0 ? findMatchingParenInStr(content.slice(parenIdx + 1)) : -1
+      if (closeIdx >= 0) {
+        const inner = content.slice(parenIdx + 1, parenIdx + 1 + closeIdx).trim()
+        const rowValues = splitInlineTableRows(inner, tableHeader.columns.length)
+        result[tableHeader.key] = rowValues.map(values => {
+          const obj: Record<string, unknown> = {}
+          for (let c = 0; c < tableHeader.columns.length && c < values.length; c++) {
+            obj[tableHeader.columns[c]] = parseRawValue(values[c])
+          }
+          return obj
+        })
+        i++
+      } else {
+        const tableEnd = findBlockEnd(parsedLines, i + 1, end, line.depth)
+        const rows = parsedLines.slice(i + 1, tableEnd >= 0 ? tableEnd : end)
+        result[tableHeader.key] = buildTableRows(tableHeader, rows, options)
+        i = (tableEnd >= 0 ? tableEnd : end) + 1
+      }
       continue
     }
 

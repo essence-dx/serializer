@@ -119,6 +119,45 @@ function parseColumns(raw: string): string[] {
   return cols
 }
 
+// Split inline table content (rows on one line) into per-row value arrays
+export function splitInlineTableRows(content: string, columnCount: number): string[][] {
+  const rows: string[][] = []
+  let pos = 0
+  while (pos < content.length) {
+    while (pos < content.length && content[pos] === SPACE) pos++
+    if (pos >= content.length) break
+    const slice = content.slice(pos)
+    const values = parseTableRowValues(slice, columnCount)
+    if (values.length < columnCount) {
+      if (values.length > 0) rows.push(values)
+      break
+    }
+    rows.push(values)
+    let advanced = 0
+    let remaining = columnCount
+    let j = 0
+    while (j < slice.length && remaining > 0) {
+      while (j < slice.length && slice[j] === SPACE) j++
+      if (j >= slice.length) break
+      if (slice[j] === DOUBLE_QUOTE) {
+        const end = findClosingQuote(slice, j)
+        j = end > 0 ? end + 1 : slice.length
+      } else if (slice[j] === OPEN_PAREN) {
+        const end = findMatchingParen(slice, j)
+        j = end > 0 ? end + 1 : slice.length
+      } else if (slice[j] === OPEN_BRACKET) {
+        const end = findMatchingBracket(slice, j)
+        j = end > 0 ? end + 1 : slice.length
+      } else {
+        while (j < slice.length && slice[j] !== SPACE && slice[j] !== OPEN_PAREN && slice[j] !== OPEN_BRACKET) j++
+      }
+      remaining--
+    }
+    pos += j
+  }
+  return rows
+}
+
 // Parse a table row into primitive values, given column count.
 // Respects quoted strings and paren blocks as atomic values.
 export function parseTableRowValues(content: string, columnCount: number): string[] {
@@ -131,8 +170,8 @@ export function parseTableRowValues(content: string, columnCount: number): strin
     const ch = content[i]
     if (ch === DOUBLE_QUOTE) {
       const end = findClosingQuote(content, i)
-      if (end < 0) { values.push(content.slice(i + 1)); break }
-      values.push(content.slice(i + 1, end))
+      if (end < 0) { values.push(content.slice(i)); break }
+      values.push(content.slice(i, end + 1))
       i = end + 1
     } else if (ch === OPEN_PAREN) {
       const end = findMatchingParen(content, i)
@@ -146,7 +185,12 @@ export function parseTableRowValues(content: string, columnCount: number): strin
       i = end + 1
     } else {
       let start = i
-      while (i < content.length && content[i] !== SPACE) i++
+      while (i < content.length && content[i] !== SPACE) {
+        if ((content[i] === OPEN_PAREN || content[i] === OPEN_BRACKET) && values.length < columnCount - 1) {
+          break
+        }
+        i++
+      }
       values.push(content.slice(start, i))
     }
   }
@@ -331,9 +375,11 @@ function splitArrayValues(content: string): string[] {
     if (inQuote) { current += ch; continue }
     if (ch === OPEN_PAREN || ch === OPEN_BRACKET) { depth++; current += ch; continue }
     if (ch === CLOSE_PAREN || ch === CLOSE_BRACKET) { depth--; current += ch; continue }
-    if (depth === 0 && ch === COMMA) {
-      items.push(current.trim())
-      current = ""
+    if (depth === 0 && (ch === COMMA || ch === SPACE)) {
+      if (current.trim()) {
+        items.push(current.trim())
+        current = ""
+      }
       continue
     }
     current += ch

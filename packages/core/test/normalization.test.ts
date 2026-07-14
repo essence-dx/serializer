@@ -32,7 +32,7 @@ describe("JavaScript type normalization", () => {
     it("converts Set to array", () => {
       const input = new Set(["a", "b", "c"])
       const result = encode(input)
-      expect(result).toBe("[a, b, c]")
+      expect(result).toBe("[a b c]")
     })
     it("converts empty Set to empty array", () => {
       expect(encode(new Set())).toBe("[]")
@@ -71,7 +71,7 @@ describe("JavaScript type normalization", () => {
     it("handles toJSON returning array", () => {
       const obj = { toJSON: () => ["a", "b", "c"] }
       const result = encode(obj)
-      expect(result).toBe("[a, b, c]")
+      expect(result).toBe("[a b c]")
     })
   })
 
